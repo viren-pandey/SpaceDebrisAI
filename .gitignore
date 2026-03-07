@@ -1,13 +1,66 @@
-# Python cache
+# ── Python ───────────────────────────────────────────────────
 __pycache__/
 *.pyc
+*.pyo
+*.pyd
+*.pdb
+*.egg-info/
+*.egg
+dist/
+build/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
-# Virtual env
+# ── Virtual environments ──────────────────────────────────────
 venv/
+.venv/
+env/
+.env/
+backend/venv/
+
+# ── Environment variables ─────────────────────────────────────
 .env
+.env.local
+.env.*.local
+*.env
 
-# Node
+# ── Node / Frontend ───────────────────────────────────────────
 node_modules/
+frontend/node_modules/
+frontend/dist/
+frontend/dist-ssr/
+*.local
 
-# OS
+# ── Logs ─────────────────────────────────────────────────────
+logs/
+*.log
+npm-debug.log*
+yarn-debug.log*
+pnpm-debug.log*
+
+# ── Build / cache artefacts ───────────────────────────────────
+.cache/
+.parcel-cache/
+.vite/
+
+# ── IDE / Editor ─────────────────────────────────────────────
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.suo
+*.user
+*.swp
+*.swo
+*~
+
+# ── OS ───────────────────────────────────────────────────────
 .DS_Store
+Thumbs.db
+desktop.ini
+
+# ── Misc temp files ──────────────────────────────────────────
+*.tmp
+*.bak
+*.orig
+_css_append.css

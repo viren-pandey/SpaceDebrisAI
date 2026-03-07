@@ -141,16 +141,23 @@ body {
   letter-spacing: -0.3px;
 }
 
-.navbar-logo {
-  width: 30px;
-  height: 30px;
-  background: linear-gradient(135deg, var(--accent), var(--purple));
-  border-radius: 7px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 16px;
-  box-shadow: 0 0 14px rgba(56,189,248,.35);
+/* Brand text — every letter falls in individually */
+.nb-brand-text {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 0;
+  overflow: visible;
+  letter-spacing: -0.3px;
+}
+.nb-letter {
+  display: inline-block;
+  opacity: 0;
+  transform: translateY(-20px);
+  animation: nb-fall .4s cubic-bezier(.22,1,.36,1) forwards;
+}
+@keyframes nb-fall {
+  from { opacity: 0; transform: translateY(-20px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
 .navbar-navs {
@@ -451,11 +458,25 @@ body {
 }
 
 /* Thin coloured top stripe */
-.rp-accent-bar { height: 3px; width: 100%; }
+.rp-accent-bar { height: 3px; width: 100%; position: relative; overflow: hidden; }
 .rp-accent-crit { background: linear-gradient(90deg, transparent, var(--red), transparent); }
 .rp-accent-high { background: linear-gradient(90deg, transparent, var(--orange), transparent); }
 .rp-accent-med  { background: linear-gradient(90deg, transparent, var(--amber), transparent); }
 .rp-accent-low  { background: linear-gradient(90deg, transparent, var(--green), transparent); }
+
+/* Auto-advance progress sweep */
+.rp-progress-line {
+  position: absolute; top: 0; left: 0;
+  height: 100%; width: 0%;
+  background: var(--rp-prog-color, #fff);
+  opacity: .55;
+  animation: rp-sweep 5s linear forwards;
+  pointer-events: none;
+}
+@keyframes rp-sweep {
+  from { width: 0%; }
+  to   { width: 100%; }
+}
 
 /* Header row */
 .rp-header-row {
@@ -720,8 +741,8 @@ body {
 .sat-row-head {
   background: transparent !important;
   padding: 8px 16px;
-  font-family: var(--mono);
-  font-size: 13px; letter-spacing: .15em;
+  font-family: var(--font);
+  font-size: 12px; font-weight: 700; letter-spacing: .08em;
   text-transform: uppercase;
   color: var(--text-faint);
   border-bottom: 1px solid rgba(255,255,255,.05) !important;
