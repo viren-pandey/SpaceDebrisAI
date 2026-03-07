@@ -1,0 +1,9 @@
+User-agent: *
+Allow: /
+
+# Block raw API/asset paths that have no SEO value
+Disallow: /assets/
+Disallow: /*.js$
+Disallow: /*.css$
+
+Sitemap: https://YOUR_FRONTEND_DOMAIN/sitemap.xml
