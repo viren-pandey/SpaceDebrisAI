@@ -15,7 +15,7 @@ function generateApiKey(email) {
 }
 
 // ── Endpoint definitions ─────────────────────────────────────────────────────
-const BASE = "http://localhost:8000";
+const BASE = "https://virenn77-spacedebrisai.hf.space";
 
 const ENDPOINTS = [
   {
@@ -94,7 +94,7 @@ const CODE = {
   python: (key) => `import requests
 
 API_KEY = "${key}"
-BASE    = "http://localhost:8000"
+BASE    = "https://virenn77-spacedebrisai.hf.space"
 
 # Fetch all satellite positions
 r = requests.get(f"{BASE}/satellites", headers={"X-API-Key": API_KEY})
@@ -110,7 +110,7 @@ for pair in sim["closest_pairs"][:3]:
     lvl  = pair["before"]["risk"]["level"]
     print(f"{a} ↔ {b}: {d:.1f} km  [{lvl}]")`,
 
-  javascript: (key) => `const BASE    = "http://localhost:8000";
+  javascript: (key) => `const BASE    = "https://virenn77-spacedebrisai.hf.space";
 const API_KEY = "${key}";
 const headers = { "X-API-Key": API_KEY };
 
@@ -127,13 +127,13 @@ sim.closest_pairs.slice(0, 3).forEach(({ satellites: [a, b], before }) =>
 );`,
 
   curl: (key) => `# Health check
-curl http://localhost:8000/health
+curl https://virenn77-spacedebrisai.hf.space/health
 
 # All 200 satellite positions
-curl -H "X-API-Key: ${key}" http://localhost:8000/satellites | jq '.satellites[:5]'
+curl -H "X-API-Key: ${key}" https://virenn77-spacedebrisai.hf.space/satellites | jq '.satellites[:5]'
 
 # Full proximity simulation
-curl -H "X-API-Key: ${key}" http://localhost:8000/simulate | jq '{mode,meta,closest_pairs: .closest_pairs[:3]}'`,
+curl -H "X-API-Key: ${key}" https://virenn77-spacedebrisai.hf.space/simulate | jq '{mode,meta,closest_pairs: .closest_pairs[:3]}'`,
 };
 
 // ── Component ────────────────────────────────────────────────────────────────
@@ -144,6 +144,7 @@ export default function ApiPage() {
   const [expanded, setExpanded] = useState({});
   const [codeLang, setCodeLang] = useState("python");
   const [codeCopied, setCodeCopied] = useState(false);
+  const [revokeConfirm, setRevokeConfirm] = useState(false);
 
   // Restore saved key
   useEffect(() => {
@@ -157,6 +158,28 @@ export default function ApiPage() {
     const key = generateApiKey(email.trim());
     setApiKey(key);
     localStorage.setItem("sdai_api_key", key);
+  }
+
+  function handleRegenerate() {
+    const seed = apiKey + Date.now().toString();
+    let h = 5381;
+    for (let i = 0; i < seed.length; i++) {
+      h = (Math.imul(h, 31) + seed.charCodeAt(i)) | 0;
+    }
+    const seg1 = Math.abs(h).toString(16).padStart(8, "0");
+    const seg2 = Date.now().toString(16).slice(-8);
+    const seg3 = Math.floor(Math.random() * 0xffff).toString(16).padStart(4, "0");
+    const newKey = `sdai_${seg1}${seg2}${seg3}_live`;
+    setApiKey(newKey);
+    localStorage.setItem("sdai_api_key", newKey);
+    setRevokeConfirm(false);
+  }
+
+  function handleRevoke() {
+    setApiKey("");
+    localStorage.removeItem("sdai_api_key");
+    setEmail("");
+    setRevokeConfirm(false);
   }
 
   function handleCopyKey() {
@@ -242,16 +265,29 @@ export default function ApiPage() {
                     {copied ? "Copied ✓" : "Copy"}
                   </button>
                 </div>
-                <button
-                  className="ap-btn-text"
-                  onClick={() => {
-                    setApiKey("");
-                    localStorage.removeItem("sdai_api_key");
-                    setEmail("");
-                  }}
-                >
-                  Revoke &amp; generate new key
-                </button>
+                <div className="ap-key-actions">
+                  <button className="ap-btn-regen" onClick={handleRegenerate}>
+                    ↻ Regenerate
+                  </button>
+                  {!revokeConfirm ? (
+                    <button
+                      className="ap-btn-revoke"
+                      onClick={() => setRevokeConfirm(true)}
+                    >
+                      Revoke key
+                    </button>
+                  ) : (
+                    <div className="ap-revoke-confirm">
+                      <span className="ap-revoke-warn">This will delete your key permanently.</span>
+                      <button className="ap-btn-revoke-confirm" onClick={handleRevoke}>
+                        Yes, revoke
+                      </button>
+                      <button className="ap-btn-text" onClick={() => setRevokeConfirm(false)}>
+                        Cancel
+                      </button>
+                    </div>
+                  )}
+                </div>
               </>
             )}
           </div>
