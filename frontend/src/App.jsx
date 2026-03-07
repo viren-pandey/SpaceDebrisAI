@@ -1,5 +1,6 @@
 ﻿import { useEffect, useState } from "react";
 import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { Analytics } from "@vercel/analytics/react";
 import Navbar from "./components/Navbar";
 import SatelliteBackground from "./components/SatelliteBackground";
 import Footer from "./components/Footer";
@@ -49,6 +50,7 @@ export default function App() {
           </Routes>
         </main>
         <Footer />
+        <Analytics />
       </div>
     </BrowserRouter>
   );
