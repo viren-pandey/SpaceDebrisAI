@@ -1,7 +1,9 @@
+const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+
 export async function fetchSimulation() {
-  const res = await fetch("http://127.0.0.1:8000/simulate" , {
-  cache: "no-store",
-});
+  const res = await fetch(`${API}/simulate`, {
+    cache: "no-store",
+  });
   if (!res.ok) {
     throw new Error("Failed to fetch simulation its our fault sorry");
   }
@@ -9,7 +11,7 @@ export async function fetchSimulation() {
 }
 
 export async function fetchTrackerPositions() {
-  const res = await fetch("http://127.0.0.1:8000/tracker/positions", {
+  const res = await fetch(`${API}/tracker/positions`, {
     cache: "no-store",
   });
   if (!res.ok) throw new Error(`Tracker API error ${res.status}`);

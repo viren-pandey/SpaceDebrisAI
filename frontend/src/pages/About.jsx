@@ -107,7 +107,7 @@ export default function About() {
       <section className="about-credit">
         <p>Built by <strong style={{ color: "var(--text-1)" }}>Viren Pandey</strong> — 2026 — SpaceDebrisAI</p>
         <p style={{ marginTop: 6 }}>
-          API docs: <a className="about-link" href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer">localhost:8000/docs</a>
+          API docs: <a className="about-link" href={`${import.meta.env.VITE_API_URL ?? "http://localhost:8000"}/docs`} target="_blank" rel="noopener noreferrer">API docs</a>
         </p>
       </section>
     </>
