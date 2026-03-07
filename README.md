@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/viren-pandey/SpaceDebrisAI/main/docs/screenshots/01_hero.jpg" width="100%" alt="SpaceDebrisAI — Orbital Collision Monitor"/>
+<img src="https://private-user-images.githubusercontent.com/128834400/559700741-ae450fc3-6eb3-47ee-8003-b7746dadf420.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzQxLWFlNDUwZmMzLTZlYjMtNDdlZS04MDAzLWI3NzQ2ZGFkZjQyMC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT03MDJkZjM0MTU2ODdmOTY3ZjdhOWU4YzBhMTMzZmEwYTc5MjkyMmNiODBjYzg2YzFiMzc4ZmZjZGIxOWYwMjg0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.RsmD4sEzlD3VqhVldx5xiV_wQMlmCbdif72VsErCm-g" width="50%" alt="SpaceDebrisAI — Orbital Collision Monitor"/>
 
 <br/>
 
@@ -21,7 +21,7 @@
 
 <br/>
 
-> Built solo for a hackathon on **7th February 2026**.
+> Built solo for a hackathon .
 > Couldn't attend in person — so I went home and built it anyway.
 
 </div>
