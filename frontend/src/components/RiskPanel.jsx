@@ -1,4 +1,4 @@
-﻿import { useState } from "react";
+﻿import { useState, useEffect, useRef, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
 
 const RISK_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -11,9 +11,12 @@ const RISK_COLORS = {
   LOW: "34,197,94",
 };
 
+const AUTO_ADVANCE_MS = 5000;
+
 export default function RiskPanel({ data }) {
   const [idx, setIdx] = useState(0);
   const navigate = useNavigate();
+  const timerRef = useRef(null);
 
   if (!data?.closest_pairs?.length) {
     return (
@@ -29,6 +32,27 @@ export default function RiskPanel({ data }) {
     if (al !== bl) return al - bl;
     return a.before.distance_km - b.before.distance_km;
   });
+
+  const total = sorted.length;
+
+  // Auto-advance: reset then start a 5 s timer every time idx or total changes
+  const resetTimer = useCallback(() => {
+    if (timerRef.current) clearInterval(timerRef.current);
+    timerRef.current = setInterval(() => {
+      setIdx((i) => (i + 1 < total ? i + 1 : 0));
+    }, AUTO_ADVANCE_MS);
+  }, [total]);
+
+  useEffect(() => {
+    resetTimer();
+    return () => clearInterval(timerRef.current);
+  }, [resetTimer]);
+
+  // Arrow click: jump + restart timer
+  function go(next) {
+    setIdx(next);
+    resetTimer();
+  }
 
   const pair = sorted[idx];
   const lvl = pair.before.risk?.level ?? "LOW";
@@ -50,8 +74,10 @@ export default function RiskPanel({ data }) {
       {/* Ambient glow blob */}
       <div className="rp-glow-blob" />
 
-      {/* Top accent bar */}
-      <div className={`rp-accent-bar rp-accent-${lc}`} />
+      {/* Top accent bar + auto-advance progress line */}
+      <div className={`rp-accent-bar rp-accent-${lc}`}>
+        <div className="rp-progress-line" key={idx} style={{ "--rp-prog-color": `rgb(${rgb})` }} />
+      </div>
 
       {/* Header row */}
       <div className="rp-header-row">
@@ -64,14 +90,14 @@ export default function RiskPanel({ data }) {
           <button
             className="rp-arrow-btn"
             disabled={idx === 0}
-            onClick={(e) => { e.stopPropagation(); setIdx(i => Math.max(0, i - 1)); }}
+            onClick={(e) => { e.stopPropagation(); go(Math.max(0, idx - 1)); }}
             aria-label="Previous"
           >‹</button>
           <span className="rp-counter">{idx + 1} <span className="rp-counter-of">of</span> {sorted.length}</span>
           <button
             className="rp-arrow-btn"
             disabled={idx === sorted.length - 1}
-            onClick={(e) => { e.stopPropagation(); setIdx(i => Math.min(sorted.length - 1, i + 1)); }}
+            onClick={(e) => { e.stopPropagation(); go(Math.min(sorted.length - 1, idx + 1)); }}
             aria-label="Next"
           >›</button>
         </div>

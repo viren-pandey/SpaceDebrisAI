@@ -8,6 +8,12 @@ const NAV_LINKS = [
   { label: "About",     to: "/about" },
 ];
 
+const BRAND = [
+  { chars: "Space",  base: 0 },
+  { chars: "Debris", base: 5 },
+  { chars: "AI",     base: 11, accent: true },
+];
+
 export default function Navbar({ live, theme, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isDark = theme === "dark";
@@ -15,10 +21,24 @@ export default function Navbar({ live, theme, onToggleTheme }) {
   return (
     <nav className="navbar">
       <div className="navbar-inner">
-        {/* Brand */}
+        {/* Brand — every letter falls in individually */}
         <NavLink to="/" className="navbar-brand" onClick={() => setMenuOpen(false)}>
-          <div className="navbar-logo">SD</div>
-          <span>SpaceDebris<span style={{ color: "var(--accent)" }}>AI</span></span>
+          <span className="nb-brand-text">
+            {BRAND.map(({ chars, base, accent }) =>
+              chars.split("").map((ch, i) => (
+                <span
+                  key={base + i}
+                  className="nb-letter"
+                  style={{
+                    animationDelay: `${(base + i) * 0.055}s`,
+                    color: accent ? "var(--accent)" : undefined,
+                  }}
+                >
+                  {ch}
+                </span>
+              ))
+            )}
+          </span>
         </NavLink>
 
         {/* Desktop nav links */}
