@@ -262,45 +262,19 @@ npm install && npm run dev
 
 ```
 SpaceDebrisAI/
-│
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                  # FastAPI app + CORS + router registration
-│   │   ├── routes/
-│   │   │   ├── simulate.py          # /simulate — the main pipeline
-│   │   │   ├── satellites.py        # /satellites
-│   │   │   └── tracker.py           # /tracker/positions
-│   │   └── services/
-│   │       ├── orbit_real.py        # SGP4 propagator + TEME→geodetic
-│   │       └── tle_fetcher.py       # CelesTrak fetcher + local fallback
-│   └── ml_logic/
-│       ├── risk_engine.py           # Base distance → risk score
-│       ├── classifier.py            # Altitude-weighted risk levels
-│       └── avoidance.py             # Maneuver recommendations
-│
+│   │   ├── main.py          # FastAPI + CORS
+│   │   ├── routes/          # simulate, satellites, tracker, health
+│   │   └── services/        # SGP4 propagator, TLE fetcher
+│   └── ml_logic/            # risk_engine, classifier, avoidance
 ├── frontend/
 │   └── src/
-│       ├── App.jsx                  # Root: theme + data fetch + routing
-│       ├── components/
-│       │   ├── Navbar.jsx           # Nav + letter-fall logo animation
-│       │   ├── RiskPanel.jsx        # Auto-advancing conjunction card
-│       │   ├── SatelliteBackground.jsx  # Animated starfield (dark mode)
-│       │   └── SatelliteTable.jsx   # All conjunctions table
-│       ├── pages/
-│       │   ├── Dashboard.jsx        # Main landing page
-│       │   ├── Satellites.jsx       # Satellite registry
-│       │   ├── Tracker.jsx          # Live world map
-│       │   └── ConjunctionDetail.jsx
-│       └── index.css                # All styles — pure CSS, ~3100 lines
-│
-├── docs/
-│   └── screenshots/                 # README images
-│       ├── 01_hero.jpg
-│       ├── 02_riskpanel.jpg
-│       ├── 03_satellites.jpg
-│       ├── 04_tracker.jpg
-│       └── 05_api.jpg
-│
+│       ├── App.jsx           # theme + data fetch + routing
+│       ├── components/       # Navbar, RiskPanel, SatelliteTable, Stars
+│       ├── pages/            # Dashboard, Satellites, Tracker, About
+│       └── index.css         # all styles (~3100 lines, pure CSS)
+├── docs/screenshots/         # README images
 ├── docker-compose.yml
 └── README.md
 ```
