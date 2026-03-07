@@ -1,17 +1,16 @@
-from fastapi import APIRouter, Request
+from fastapi import APIRouter
 from datetime import datetime, timezone
 
-from app.services.tle_fetcher import get_tle_lines, parse_tle_text
+from app.services.tle_fetcher import fetch_tles_local
 from app.services.orbit_real import tle_to_position, teme_to_geodetic
 
 router = APIRouter()
 
 
 @router.get("/satellites")
-def get_satellites(request: Request):
+def get_satellites():
     """Return real-time positions for all tracked satellites (SGP4 propagation)."""
-    raw_tles = "\n".join(get_tle_lines("debris_merged"))
-    tles = parse_tle_text(raw_tles, limit=500)
+    tles = fetch_tles_local(limit=200)
     now_utc = datetime.now(timezone.utc)
 
     result = []

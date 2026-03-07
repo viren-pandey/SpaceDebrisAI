@@ -32,7 +32,7 @@ export default function SatelliteTracker() {
 
   const fetchPositions = async () => {
     try {
-      const r = await fetch(`${import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000"}/tracker/positions`);
+      const r = await fetch("http://127.0.0.1:8000/tracker/positions");
       if (!r.ok) throw new Error(`HTTP ${r.status}`);
       const d = await r.json();
       setPositions(d.satellites ?? []);

@@ -1,26 +1,13 @@
 ﻿import { Link } from "react-router-dom";
-import BackendOfflineNotice from "../components/BackendOfflineNotice";
 import RiskPanel from "../components/RiskPanel";
 import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
-import ProTierBanner from "../components/ProTierBanner";
-import CDMPanel from "../components/CDMPanel";
-import SpaceLoading from "../components/SpaceLoading";
+import { SAT_DB } from "../data/satellites";
 
-export default function Dashboard({ data, loading, error, backendStatus }) {
-  if (loading) {
-    return <SpaceLoading />;
-  }
+const SAT_COUNT = Object.keys(SAT_DB).length;
 
+export default function Dashboard({ data, loading, error }) {
   const tickerItems = data?.closest_pairs ?? [];
-  const tleRecordCount = data?.meta?.total_tle_records ?? data?.meta?.tle_records ?? "—";
-  const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
-  const tleSource = data?.meta?.tle_source ?? data?.mode ?? "—";
-  const pairsChecked = data?.meta?.pairs_checked ?? "—";
-  const publicSliceLabel =
-    publicObjectCount === "—"
-      ? "the current public object slice"
-      : `the current public ${publicObjectCount}-object slice`;
 
   return (
     <>
@@ -29,7 +16,7 @@ export default function Dashboard({ data, loading, error, backendStatus }) {
         <div className="db-status-row">
           <div className={`db-status-badge${error ? " offline" : ""}`}>
             <span className={`live-dot${error ? " offline" : ""}`} />
-            {error ? "Backend offline" : "Screening active"}
+            {loading ? "Connecting..." : error ? "Backend offline" : "Screening active"}
           </div>
         </div>
         <p className="db-hero-eyebrow">Real-time orbital conjunction monitoring</p>
@@ -39,18 +26,10 @@ export default function Dashboard({ data, loading, error, backendStatus }) {
           <span className="ghost-line">MONITOR</span>
         </h1>
         <p className="db-hero-sub">
-          Continuous SGP4 conjunction screening across a merged debris catalog (LEO + all-orbit debris), backed by KeepTrack TLE cache and AI-powered avoidance maneuver
-          recommendations.
+          Continuous SGP4 conjunction screening across tracked satellites with AI-powered
+          avoidance maneuver recommendations and real-time risk classification.
         </p>
       </section>
-
-      {/* Info banner */}
-      <div className="db-info-banner">
-        <span className="db-info-icon">🛰</span>
-        <span className="db-info-text">
-          Conjunction screening now uses a merged debris catalog (LEO + all-orbit debris) sourced from KeepTrack. Only debris objects are screened to reflect real operational risk.
-        </span>
-      </div>
 
       {/* Live ticker */}
       {tickerItems.length > 0 && (
@@ -75,10 +54,10 @@ export default function Dashboard({ data, loading, error, backendStatus }) {
       {data && (
         <div className="db-stats-band">
           <div className="db-stats-inner">
-            <StatCard value={tleRecordCount} label="TLE records" sub={`${tleSource} source`} />
-            <StatCard value={publicObjectCount} label="Debris objects" sub="screened" />
-            <StatCard value={pairsChecked} label="Pairs checked" sub="conjunctions" />
+            <StatCard value={SAT_COUNT} label="Satellites tracked" sub="objects" />
+            <StatCard value={data.meta?.pairs_checked ?? "—"} label="Pairs screened" sub="conjunctions" />
             <StatCard value={`${data.meta?.processing_ms ?? "—"}`} label="Processing time" sub="milliseconds" />
+            <StatCard value={data.mode ?? "—"} label="Data mode" sub="source" />
           </div>
         </div>
       )}
@@ -96,13 +75,6 @@ export default function Dashboard({ data, loading, error, backendStatus }) {
         </div>
       )}
 
-      {!loading && error && !data && (
-        <BackendOfflineNotice
-          title="Simulation backend offline"
-          detail={`Health route is ${backendStatus?.status ?? "unavailable"}, but /simulate is failing.`}
-        />
-      )}
-
       {/* Main panels */}
       {data && (
         <div className="db-main">
@@ -114,22 +86,12 @@ export default function Dashboard({ data, loading, error, backendStatus }) {
       {/* Conjunction table */}
       {data && <SatelliteTable data={data} />}
 
-      {/* Real CDM Data from Space-Track */}
-      <section className="db-cdm-section">
-        <CDMPanel />
-      </section>
-
-      {/* Paid-tier announcement — visible to all users */}
-      <section className="db-tracker-teaser" style={{ paddingBottom: 0 }}>
-        <ProTierBanner />
-      </section>
-
       {/* Tracker teaser — links to dedicated page */}
       <section className="db-tracker-teaser">
         <div className="dtt-inner">
           <div className="dtt-text">
             <h2 className="dtt-title">Live Orbital Tracker</h2>
-            <p className="dtt-sub">Real-time satellite positions for the current public tracked set, alongside the broader debris-monitoring updates across the API.</p>
+            <p className="dtt-sub">Real-time satellite positions calculated via KeepTrack API and OOTK for all {SAT_COUNT} tracked objects.</p>
           </div>
           <Link to="/tracker" className="dtt-cta">Open Tracker</Link>
         </div>

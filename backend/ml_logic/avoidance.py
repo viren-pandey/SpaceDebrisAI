@@ -1,6 +1,13 @@
+"""Maneuver recommendation engine.
+
+Given the current separation distance and risk level, recommends
+a collision-avoidance maneuver and estimates the post-maneuver
+separation.
+"""
+
 from ml_logic.risk_engine import calculate_risk
 
-# altitude boost in km per risk level
+# Delta-v altitude boosts in km by risk level
 _DELTA = {
     "CRITICAL": 25.0,
     "HIGH":     15.0,
@@ -17,7 +24,16 @@ _ACTIONS = {
 
 
 def recommend_maneuver(distance_km: float, risk: dict) -> dict:
-    """Returns the recommended maneuver and estimated post-burn separation."""
+    """
+    Recommend an avoidance maneuver for a conjunction pair.
+
+    Args:
+        distance_km:  Current separation distance (km).
+        risk:         Risk dict from classify_conjunction / calculate_risk.
+
+    Returns:
+        dict with keys: action, delta_km, new_distance_km
+    """
     level      = risk.get("level", "LOW").upper()
     delta      = _DELTA.get(level, 0.0)
     action     = _ACTIONS.get(level, _ACTIONS["LOW"])
