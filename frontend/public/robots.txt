@@ -6,4 +6,4 @@ Disallow: /assets/
 Disallow: /*.js$
 Disallow: /*.css$
 
-Sitemap: https://YOUR_FRONTEND_DOMAIN/sitemap.xml
+Sitemap: https://spacedebrisai.vercel.app/sitemap.xml
