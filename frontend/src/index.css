@@ -3729,56 +3729,7 @@ body {
 [data-theme="light"] .docs-callout { background: rgba(56,189,248,.04); }
 [data-theme="light"] .ap-base-url-card { background: rgba(0,0,0,.02); }
 
-/* ── Guest / choice gate ──────────────────────────────────────────── */
-.ap-choice-card {
-  padding: 2.25rem 2rem;
-  background: linear-gradient(135deg, rgba(56,189,248,.03) 0%, rgba(99,102,241,.03) 100%);
-}
-.ap-choice-title {
-  font-size: 1.25rem; font-weight: 800; color: var(--text);
-  margin: 0 0 .4rem; letter-spacing: -.01em;
-}
-.ap-choice-sub { font-size: .875rem; color: var(--text-faint); margin: 0 0 2rem; }
-.ap-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.5rem; }
-@media (max-width: 620px) { .ap-choice-grid { grid-template-columns: 1fr; } }
-
-.ap-choice-option {
-  position: relative;
-  background: rgba(255,255,255,.03);
-  border: 1px solid rgba(255,255,255,.08);
-  border-radius: 16px;
-  padding: 1.75rem 1.5rem 1.5rem;
-  display: flex; flex-direction: column; gap: .55rem;
-  transition: border-color .25s, box-shadow .25s;
-}
-.ap-choice-option:hover {
-  border-color: rgba(255,255,255,.16);
-  box-shadow: 0 8px 32px rgba(0,0,0,.25);
-}
-.ap-choice-recommended {
-  border-color: rgba(56,189,248,.4) !important;
-  background: rgba(56,189,248,.04);
-  box-shadow: 0 0 0 1px rgba(56,189,248,.15), 0 8px 32px rgba(56,189,248,.08);
-}
-.ap-choice-recommended:hover {
-  box-shadow: 0 0 0 1px rgba(56,189,248,.3), 0 12px 40px rgba(56,189,248,.14) !important;
-}
-.ap-choice-badge-top {
-  position: absolute; top: -12px; left: 1.25rem;
-  background: linear-gradient(90deg, #38bdf8, #818cf8);
-  color: #000; font-size: .65rem; font-weight: 700;
-  letter-spacing: .08em; text-transform: uppercase;
-  padding: 3px 12px; border-radius: 99px;
-  box-shadow: 0 2px 12px rgba(56,189,248,.35);
-}
-.ap-choice-icon { font-size: 2rem; margin-bottom: .35rem; }
-.ap-choice-option h4 {
-  font-size: 1rem; font-weight: 700; color: var(--text); margin: 0;
-  letter-spacing: -.01em;
-}
-.ap-choice-option p {
-  font-size: .82rem; color: var(--text-faint); margin: 0 0 .9rem; flex: 1; line-height: 1.55;
-}
+/* ── ap-btn-outline (shared) ───────────────────────────────────────── */
 .ap-btn-outline {
   display: inline-flex; align-items: center; justify-content: center;
   padding: .6rem 1.25rem; border-radius: 9px;
@@ -3791,6 +3742,159 @@ body {
   border-color: rgba(56,189,248,.5);
   background: rgba(56,189,248,.08);
   box-shadow: 0 0 16px rgba(56,189,248,.12);
+}
+
+/* ── ap-choice-gate (sign-in vs guest side-by-side panels) ─────────── */
+.ap-choice-gate {
+  display: flex;
+  align-items: stretch;
+  gap: 0;
+  background: var(--card-bg);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 16px;
+  overflow: hidden;
+  margin-top: .25rem;
+}
+.ap-cg-option {
+  flex: 1;
+  padding: 2rem 1.75rem;
+  display: flex;
+  flex-direction: column;
+  gap: .7rem;
+}
+.ap-cg-primary {
+  background: rgba(56,189,248,.04);
+  border-right: 1px solid rgba(255,255,255,.07);
+}
+.ap-cg-guest {
+  background: rgba(245,158,11,.03);
+}
+.ap-cg-top {
+  display: flex;
+  align-items: center;
+  gap: .75rem;
+  margin-bottom: .15rem;
+}
+.ap-cg-icon-wrap {
+  width: 40px; height: 40px; border-radius: 10px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+}
+.ap-cg-icon-blue {
+  background: rgba(56,189,248,.12);
+  border: 1px solid rgba(56,189,248,.25);
+}
+.ap-cg-icon-amber {
+  background: rgba(245,158,11,.12);
+  border: 1px solid rgba(245,158,11,.25);
+}
+.ap-cg-rec-pill {
+  font-size: .63rem; font-weight: 800; letter-spacing: .08em; text-transform: uppercase;
+  background: linear-gradient(90deg, #38bdf8, #818cf8);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  background-clip: text;
+  border: 1px solid rgba(56,189,248,.35);
+  padding: 2px 10px; border-radius: 99px;
+}
+.ap-cg-title {
+  font-size: 1.05rem; font-weight: 800; color: var(--text);
+  margin: 0; letter-spacing: -.015em;
+}
+.ap-cg-body {
+  font-size: .82rem; color: var(--text-faint); margin: 0; line-height: 1.6;
+}
+.ap-cg-perks {
+  list-style: none; margin: 0; padding: 0;
+  display: flex; flex-direction: column; gap: .45rem;
+  flex: 1;
+}
+.ap-cg-perks li {
+  font-size: .8rem; color: var(--text-faint);
+  display: flex; align-items: baseline; gap: .5rem;
+}
+.ap-cg-perks-warn li { color: rgba(255,255,255,.45); }
+.ap-cg-check { color: #4ade80; font-weight: 800; font-size: .85rem; }
+.ap-cg-warn  { color: #f59e0b; font-weight: 800; font-size: .85rem; }
+.ap-cg-btn   { width: 100%; margin-top: auto; }
+.ap-cg-note  {
+  font-size: .72rem; color: var(--text-faint); margin: 0;
+  text-align: center; letter-spacing: .01em;
+}
+.ap-cg-divider {
+  display: flex; align-items: center; justify-content: center;
+  width: 36px; flex-shrink: 0;
+  position: relative;
+}
+.ap-cg-divider::before {
+  content: ''; position: absolute;
+  top: 10%; bottom: 10%; left: 50%;
+  width: 1px; background: rgba(255,255,255,.07);
+}
+.ap-cg-divider span {
+  position: relative; z-index: 1;
+  background: var(--card-bg); color: rgba(255,255,255,.3);
+  font-size: .7rem; font-weight: 600; padding: .35rem 0;
+  writing-mode: vertical-lr; text-orientation: mixed;
+  letter-spacing: .1em; text-transform: uppercase;
+}
+@media (max-width: 640px) {
+  .ap-choice-gate      { flex-direction: column; }
+  .ap-cg-primary       { border-right: none; border-bottom: 1px solid rgba(255,255,255,.07); }
+  .ap-cg-divider       { width: auto; height: 32px; flex-direction: row; }
+  .ap-cg-divider::before {
+    top: 50%; bottom: auto; left: 5%; right: 5%;
+    width: auto; height: 1px;
+  }
+  .ap-cg-divider span  {
+    writing-mode: horizontal-tb; letter-spacing: .06em; padding: 0 .5rem;
+  }
+}
+
+/* ── ap-guest-banner (active key warning + upgrade CTA) ────────────── */
+.ap-guest-banner {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 1rem;
+  background: rgba(245,158,11,.07);
+  border: 1px solid rgba(245,158,11,.22);
+  border-radius: 10px; padding: .9rem 1.1rem;
+  margin-bottom: .25rem;
+}
+.ap-guest-banner-left {
+  display: flex; align-items: flex-start; gap: .75rem;
+  min-width: 0;
+}
+.ap-guest-banner-icon { font-size: 1.2rem; flex-shrink: 0; margin-top: .1rem; }
+.ap-guest-banner-left strong {
+  display: block; font-size: .875rem; color: #fcd34d; margin-bottom: .2rem;
+}
+.ap-guest-banner-left p {
+  font-size: .78rem; color: rgba(252,211,77,.6);
+  margin: 0; line-height: 1.5;
+}
+.ap-guest-upgrade-btn {
+  flex-shrink: 0;
+  padding: .5rem 1rem; border-radius: 8px;
+  background: rgba(56,189,248,.08);
+  border: 1px solid rgba(56,189,248,.28);
+  color: #38bdf8; font-size: .8rem; font-weight: 600;
+  cursor: pointer; white-space: nowrap;
+  transition: background .2s, border-color .2s, box-shadow .2s;
+}
+.ap-guest-upgrade-btn:hover {
+  background: rgba(56,189,248,.16);
+  border-color: rgba(56,189,248,.5);
+  box-shadow: 0 0 16px rgba(56,189,248,.12);
+}
+@media (max-width: 560px) {
+  .ap-guest-banner         { flex-direction: column; align-items: flex-start; }
+  .ap-guest-upgrade-btn    { width: 100%; text-align: center; }
+}
+
+/* legacy aliases still referenced nowhere — kept for safety */
+.ap-guest-badge {
+  font-size: .63rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
+  background: rgba(245,158,11,.15); color: #f59e0b;
+  padding: 2px 8px; border-radius: 99px; margin-left: .35rem; vertical-align: middle;
 }
 
 /* ── Warning modal ─────────────────────────────────────────────────── */
@@ -3848,18 +3952,4 @@ body {
   text-decoration: none; font-weight: 600;
 }
 .ap-link-btn:hover { text-decoration: underline; }
-
-/* ── Guest key card tweaks ─────────────────────────────────────────── */
-.ap-guest-key-warn {
-  display: flex; align-items: flex-start; gap: .6rem;
-  background: rgba(245,158,11,.07);
-  border: 1px solid rgba(245,158,11,.22);
-  border-radius: 10px; padding: .8rem 1rem;
-  font-size: .82rem; color: #fcd34d; margin-bottom: .25rem; line-height: 1.5;
-}
-.ap-guest-badge {
-  font-size: .65rem; font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
-  background: rgba(245,158,11,.15); color: #f59e0b;
-  padding: 2px 8px; border-radius: 99px; margin-left: .35rem; vertical-align: middle;
-}
 
