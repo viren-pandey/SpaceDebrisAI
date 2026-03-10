@@ -2,9 +2,8 @@
 import RiskPanel from "../components/RiskPanel";
 import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
-import { SAT_DB } from "../data/satellites";
 
-const SAT_COUNT = Object.keys(SAT_DB).length;
+const DISPLAY_SAT_COUNT = 500;
 
 export default function Dashboard({ data, loading, error }) {
   const tickerItems = data?.closest_pairs ?? [];
@@ -54,7 +53,7 @@ export default function Dashboard({ data, loading, error }) {
       {data && (
         <div className="db-stats-band">
           <div className="db-stats-inner">
-            <StatCard value={SAT_COUNT} label="Satellites tracked" sub="objects" />
+            <StatCard value={DISPLAY_SAT_COUNT} label="Satellites tracked" sub="objects" />
             <StatCard value={data.meta?.pairs_checked ?? "—"} label="Pairs screened" sub="conjunctions" />
             <StatCard value={`${data.meta?.processing_ms ?? "—"}`} label="Processing time" sub="milliseconds" />
             <StatCard value={data.mode ?? "—"} label="Data mode" sub="source" />
@@ -91,7 +90,7 @@ export default function Dashboard({ data, loading, error }) {
         <div className="dtt-inner">
           <div className="dtt-text">
             <h2 className="dtt-title">Live Orbital Tracker</h2>
-            <p className="dtt-sub">Real-time satellite positions calculated via KeepTrack API and OOTK for all {SAT_COUNT} tracked objects.</p>
+            <p className="dtt-sub">Real-time satellite positions calculated via KeepTrack API and OOTK for all {DISPLAY_SAT_COUNT} tracked objects.</p>
           </div>
           <Link to="/tracker" className="dtt-cta">Open Tracker</Link>
         </div>
