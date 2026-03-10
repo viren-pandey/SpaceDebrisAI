@@ -4,6 +4,8 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 
 const BASE = "https://virenn77-spacedebrisai.hf.space";
+const LS_KEY   = "sdai_guest_api_key";
+const LS_EMAIL = "sdai_guest_email";
 
 const ENDPOINTS = [
   {
@@ -84,10 +86,10 @@ curl -H "X-API-Key: ${key}" \\
      ${BASE}/simulate | jq '{mode,meta,closest_pairs:.closest_pairs[:3]}'`,
 };
 
-function mkKey(userId) {
+function mkKey(seed) {
   const ts  = Date.now().toString(16).slice(-8);
   const rnd = Math.floor(Math.random() * 0xffffffffffff).toString(16).padStart(12, "0");
-  const uid = userId.replace(/-/g, "").slice(0, 8);
+  const uid = seed.replace(/[^a-z0-9]/gi, "").slice(0, 8).padEnd(8, "0");
   return `sdai_${uid}${ts}${rnd}_live`;
 }
 
@@ -95,18 +97,33 @@ export default function ApiPage() {
   const { user, loading: authLoading, signOut } = useAuth();
   const navigate = useNavigate();
 
+  // ── Supabase key state (logged-in users) ──────────────────────
   const [apiKey, setApiKey]         = useState("");
   const [keyId, setKeyId]           = useState(null);
+  const [keyLoading, setKeyLoading] = useState(false);
+  const [keyError, setKeyError]     = useState("");
+  const [revokeConfirm, setRevokeConfirm] = useState(false);
+
+  // ── Guest / no-login state ────────────────────────────────────
+  const [guestKey, setGuestKey]           = useState(() => localStorage.getItem(LS_KEY) || "");
+  const [guestEmail, setGuestEmail]       = useState(() => localStorage.getItem(LS_EMAIL) || "");
+  const [showWarnModal, setShowWarnModal] = useState(false);
+  const [emailInput, setEmailInput]       = useState("");
+  const [emailError, setEmailError]       = useState("");
+
+  // ── UI state ──────────────────────────────────────────────────
   const [copied, setCopied]         = useState(false);
   const [expanded, setExpanded]     = useState({});
   const [codeLang, setCodeLang]     = useState("python");
   const [codeCopied, setCodeCopied] = useState(false);
-  const [revokeConfirm, setRevokeConfirm] = useState(false);
-  const [keyLoading, setKeyLoading] = useState(false);
-  const [keyError, setKeyError]     = useState("");
+
+  // effective key & email for display / code examples
+  const activeKey   = user ? apiKey : guestKey;
+  const activeEmail = user ? user.email : guestEmail;
+  const hasAccess   = !!user || !!guestKey;
 
   const loadKey = useCallback(async () => {
-    if (!user) return;
+    if (!user || !supabase) return;
     const { data } = await supabase
       .from("api_keys")
       .select("id, key")
@@ -120,32 +137,36 @@ export default function ApiPage() {
 
   useEffect(() => { loadKey(); }, [loadKey]);
 
-  if (authLoading) return (
-    <div className="ap-loading-gate"><div className="spinner" /><p>Loading...</p></div>
-  );
+  // ── Guest key generation ──────────────────────────────────────
+  function handleContinueWithoutLogin() {
+    setShowWarnModal(true);
+  }
 
-  if (!user) return (
-    <div className="ap-auth-gate">
-      <div className="ap-auth-card">
-        <div className="ap-auth-icon">
-          <svg width="52" height="52" viewBox="0 0 52 52" fill="none">
-            <circle cx="26" cy="26" r="25" stroke="var(--accent)" strokeWidth="1.5"/>
-            <ellipse cx="26" cy="26" rx="25" ry="10" stroke="var(--accent)" strokeWidth="1.5" opacity="0.35"/>
-            <circle cx="26" cy="26" r="4.5" fill="var(--accent)"/>
-            <circle cx="42" cy="18" r="3" fill="#f87171"/>
-            <rect x="19" y="33" width="14" height="12" rx="2.5" fill="none" stroke="var(--text-faint)" strokeWidth="1.5"/>
-            <path d="M22 33v-3.5a4 4 0 0 1 8 0V33" stroke="var(--text-faint)" strokeWidth="1.5"/>
-          </svg>
-        </div>
-        <h2 className="ap-auth-title">Sign in to access the API</h2>
-        <p className="ap-auth-sub">Create a free account to generate your API key and access all 500 tracked satellites in real time.</p>
-        <button className="ap-btn-primary" onClick={() => navigate("/login", { state: { from: "/api" } })}>Sign in / Sign up free</button>
-        <p className="ap-auth-note">No credit card required. Free tier includes 60 req/min.</p>
-      </div>
-    </div>
-  );
+  function handleGuestGenerate() {
+    const trimmed = emailInput.trim();
+    if (!trimmed || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed)) {
+      setEmailError("Please enter a valid email address.");
+      return;
+    }
+    const newKey = mkKey(trimmed);
+    localStorage.setItem(LS_KEY, newKey);
+    localStorage.setItem(LS_EMAIL, trimmed);
+    setGuestKey(newKey);
+    setGuestEmail(trimmed);
+    setShowWarnModal(false);
+    setEmailInput("");
+    setEmailError("");
+  }
 
+  function handleGuestRevoke() {
+    localStorage.removeItem(LS_KEY);
+    localStorage.removeItem(LS_EMAIL);
+    setGuestKey(""); setGuestEmail("");
+  }
+
+  // ── Supabase key actions ──────────────────────────────────────
   async function handleGenerateKey() {
+    if (!supabase) return;
     setKeyLoading(true); setKeyError("");
     const newKey = mkKey(user.id);
     const { data, error } = await supabase.from("api_keys")
@@ -156,6 +177,7 @@ export default function ApiPage() {
   }
 
   async function handleRegenerate() {
+    if (!supabase) return;
     setKeyLoading(true); setKeyError("");
     if (keyId) await supabase.from("api_keys").update({ active: false }).eq("id", keyId);
     const newKey = mkKey(user.id);
@@ -167,7 +189,7 @@ export default function ApiPage() {
   }
 
   async function handleRevoke() {
-    if (keyId) await supabase.from("api_keys").update({ active: false }).eq("id", keyId);
+    if (supabase && keyId) await supabase.from("api_keys").update({ active: false }).eq("id", keyId);
     setApiKey(""); setKeyId(null); setRevokeConfirm(false);
   }
 
@@ -175,10 +197,48 @@ export default function ApiPage() {
     navigator.clipboard.writeText(text).then(() => { setter(true); setTimeout(() => setter(false), 2000); });
   }
 
-  const displayKey = apiKey || "sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live";
+  const displayKey = activeKey || "sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live";
+
+  if (authLoading) return (
+    <div className="ap-loading-gate"><div className="spinner" /><p>Loading...</p></div>
+  );
 
   return (
     <div className="ap-root">
+
+      {/* ── Warning modal ─────────────────────────────────── */}
+      {showWarnModal && (
+        <div className="ap-modal-overlay" onClick={() => setShowWarnModal(false)}>
+          <div className="ap-modal" onClick={e => e.stopPropagation()}>
+            <div className="ap-modal-icon">⚠️</div>
+            <h3 className="ap-modal-title">Your key won't be saved to our servers</h3>
+            <p className="ap-modal-body">
+              Without an account, your API key is stored <strong>only in this browser</strong>.
+              If you clear your browser data, uninstall, or switch devices — <strong>the key is gone forever</strong> and cannot be recovered.
+            </p>
+            <p className="ap-modal-body">Enter your email so you can identify this key. We will not spam you.</p>
+            <input
+              className={`ap-modal-input${emailError ? " ap-input-error" : ""}`}
+              type="email"
+              placeholder="you@example.com"
+              value={emailInput}
+              onChange={e => { setEmailInput(e.target.value); setEmailError(""); }}
+              onKeyDown={e => e.key === "Enter" && handleGuestGenerate()}
+            />
+            {emailError && <p className="ap-modal-error">{emailError}</p>}
+            <div className="ap-modal-actions">
+              <button className="ap-btn-primary" onClick={handleGuestGenerate}>Generate my API key</button>
+              <button className="ap-btn-text" onClick={() => { setShowWarnModal(false); setEmailError(""); }}>Cancel</button>
+            </div>
+            <p className="ap-modal-login-hint">
+              Want your key saved safely?{" "}
+              <button className="ap-link-btn" onClick={() => { setShowWarnModal(false); navigate("/login", { state: { from: "/api" } }); }}>
+                Sign in / Sign up free →
+              </button>
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* ── Hero ─────────────────────────────────────────── */}
       <div className="ap-hero">
@@ -194,11 +254,17 @@ export default function ApiPage() {
             <span className="ap-badge">Free tier</span>
             <span className="ap-badge ap-badge-live">● Live data</span>
           </div>
-          <div className="ap-user-pill">
-            <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-            <span>{user.email}</span>
-            <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
-          </div>
+          {activeEmail && (
+            <div className="ap-user-pill">
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+              <span>{activeEmail}</span>
+              {user
+                ? <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
+                : <button className="ap-signout-btn" onClick={handleGuestRevoke}>Clear key</button>
+              }
+              {!user && <span className="ap-guest-badge">Guest</span>}
+            </div>
+          )}
         </div>
       </div>
 
@@ -210,50 +276,110 @@ export default function ApiPage() {
             <span className="ap-section-num">01</span>
             <h2 className="ap-section-title">Your API key</h2>
           </div>
-          <div className="ap-key-card">
-            {keyError && <p className="ap-key-error">{keyError}</p>}
-            {!apiKey ? (
-              <div className="ap-key-empty">
-                <div className="ap-key-placeholder-icon">
-                  <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="15" cy="15" r="9" stroke="var(--accent)" strokeWidth="1.5"/><circle cx="15" cy="15" r="4" fill="none" stroke="var(--accent)" strokeWidth="1.5"/><path d="M21.5 21.5 L35 35" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"/><circle cx="29" cy="31" r="2" fill="var(--accent)" opacity="0.6"/><circle cx="33" cy="35" r="1.5" fill="var(--accent)" opacity="0.4"/></svg>
+
+          {/* ── Not logged in, no guest key: choice gate ── */}
+          {!hasAccess && (
+            <div className="ap-key-card ap-choice-card">
+              <p className="ap-choice-title">Get your free API key</p>
+              <p className="ap-choice-sub">Choose how you'd like to access the API.</p>
+              <div className="ap-choice-grid">
+                <div className="ap-choice-option ap-choice-recommended">
+                  <div className="ap-choice-badge-top">Recommended</div>
+                  <div className="ap-choice-icon">🔐</div>
+                  <h4>Sign in / Sign up</h4>
+                  <p>Your key is saved to your account. Access it from any device, anytime.</p>
+                  <button className="ap-btn-primary" onClick={() => navigate("/login", { state: { from: "/api" } })}>
+                    Sign in / Sign up free
+                  </button>
                 </div>
-                <p className="ap-key-empty-text">No API key yet. Generate one to start making live requests.</p>
-                <button className="ap-btn-primary ap-key-gen-btn" onClick={handleGenerateKey} disabled={keyLoading}>
-                  {keyLoading ? <span className="btn-spinner" /> : "Generate API key"}
+                <div className="ap-choice-option">
+                  <div className="ap-choice-icon">⚡</div>
+                  <h4>Continue without account</h4>
+                  <p>Get a key instantly. Stored only in this browser — you may lose it if you clear data.</p>
+                  <button className="ap-btn-outline" onClick={handleContinueWithoutLogin}>
+                    Continue without login
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* ── Logged in: Supabase-backed key ── */}
+          {user && (
+            <div className="ap-key-card">
+              {keyError && <p className="ap-key-error">{keyError}</p>}
+              {!apiKey ? (
+                <div className="ap-key-empty">
+                  <div className="ap-key-placeholder-icon">
+                    <svg width="40" height="40" viewBox="0 0 40 40" fill="none"><circle cx="15" cy="15" r="9" stroke="var(--accent)" strokeWidth="1.5"/><circle cx="15" cy="15" r="4" fill="none" stroke="var(--accent)" strokeWidth="1.5"/><path d="M21.5 21.5 L35 35" stroke="var(--accent)" strokeWidth="2" strokeLinecap="round"/><circle cx="29" cy="31" r="2" fill="var(--accent)" opacity="0.6"/><circle cx="33" cy="35" r="1.5" fill="var(--accent)" opacity="0.4"/></svg>
+                  </div>
+                  <p className="ap-key-empty-text">No API key yet. Generate one to start making live requests.</p>
+                  <button className="ap-btn-primary ap-key-gen-btn" onClick={handleGenerateKey} disabled={keyLoading}>
+                    {keyLoading ? <span className="btn-spinner" /> : "Generate API key"}
+                  </button>
+                </div>
+              ) : (
+                <>
+                  <p className="ap-key-intro">Include as <code className="ap-inline-code">X-API-Key</code> header on every authenticated request.</p>
+                  <div className="ap-key-display">
+                    <div className="ap-key-active-dot" />
+                    <span className="ap-key-value">{apiKey}</span>
+                    <button className={`ap-btn-copy${copied ? " copied" : ""}`} onClick={() => copy(apiKey, setCopied)}>
+                      {copied ? "Copied ✓" : "Copy"}
+                    </button>
+                  </div>
+                  <div className="ap-key-meta">
+                    <span className="ap-key-meta-item"><span className="ap-dot ap-dot-green" />Active</span>
+                    <span className="ap-key-meta-sep">·</span>
+                    <span className="ap-key-meta-item">{user.email}</span>
+                  </div>
+                  <div className="ap-key-actions">
+                    <button className="ap-btn-regen" onClick={handleRegenerate} disabled={keyLoading}>
+                      {keyLoading ? <span className="btn-spinner" /> : "↻ Regenerate"}
+                    </button>
+                    {!revokeConfirm ? (
+                      <button className="ap-btn-revoke" onClick={() => setRevokeConfirm(true)}>Revoke key</button>
+                    ) : (
+                      <div className="ap-revoke-confirm">
+                        <span className="ap-revoke-warn">This will delete your key permanently.</span>
+                        <button className="ap-btn-revoke-confirm" onClick={handleRevoke}>Yes, revoke</button>
+                        <button className="ap-btn-text" onClick={() => setRevokeConfirm(false)}>Cancel</button>
+                      </div>
+                    )}
+                  </div>
+                </>
+              )}
+            </div>
+          )}
+
+          {/* ── Guest key active ── */}
+          {!user && guestKey && (
+            <div className="ap-key-card">
+              <div className="ap-guest-key-warn">
+                ⚠️ <strong>Guest key</strong> — stored in this browser only. Save it somewhere safe.
+              </div>
+              <p className="ap-key-intro">Include as <code className="ap-inline-code">X-API-Key</code> header on every authenticated request.</p>
+              <div className="ap-key-display">
+                <div className="ap-key-active-dot" style={{background:"#f59e0b"}} />
+                <span className="ap-key-value">{guestKey}</span>
+                <button className={`ap-btn-copy${copied ? " copied" : ""}`} onClick={() => copy(guestKey, setCopied)}>
+                  {copied ? "Copied ✓" : "Copy"}
                 </button>
               </div>
-            ) : (
-              <>
-                <p className="ap-key-intro">Include as <code className="ap-inline-code">X-API-Key</code> header on every authenticated request.</p>
-                <div className="ap-key-display">
-                  <div className="ap-key-active-dot" />
-                  <span className="ap-key-value">{apiKey}</span>
-                  <button className={`ap-btn-copy${copied ? " copied" : ""}`} onClick={() => copy(apiKey, setCopied)}>
-                    {copied ? "Copied ✓" : "Copy"}
-                  </button>
-                </div>
-                <div className="ap-key-meta">
-                  <span className="ap-key-meta-item"><span className="ap-dot ap-dot-green" />Active</span>
-                  <span className="ap-key-meta-sep">·</span>
-                  <span className="ap-key-meta-item">{user.email}</span>
-                </div>
-                <div className="ap-key-actions">
-                  <button className="ap-btn-regen" onClick={handleRegenerate} disabled={keyLoading}>
-                    {keyLoading ? <span className="btn-spinner" /> : "↻ Regenerate"}
-                  </button>
-                  {!revokeConfirm ? (
-                    <button className="ap-btn-revoke" onClick={() => setRevokeConfirm(true)}>Revoke key</button>
-                  ) : (
-                    <div className="ap-revoke-confirm">
-                      <span className="ap-revoke-warn">This will delete your key permanently.</span>
-                      <button className="ap-btn-revoke-confirm" onClick={handleRevoke}>Yes, revoke</button>
-                      <button className="ap-btn-text" onClick={() => setRevokeConfirm(false)}>Cancel</button>
-                    </div>
-                  )}
-                </div>
-              </>
-            )}
-          </div>
+              <div className="ap-key-meta">
+                <span className="ap-key-meta-item"><span className="ap-dot" style={{background:"#f59e0b"}} />Guest</span>
+                <span className="ap-key-meta-sep">·</span>
+                <span className="ap-key-meta-item">{guestEmail}</span>
+              </div>
+              <div className="ap-key-actions">
+                <button className="ap-btn-regen" onClick={() => { handleGuestRevoke(); setShowWarnModal(true); }}>↻ Regenerate</button>
+                <button className="ap-btn-revoke" onClick={handleGuestRevoke}>Clear key</button>
+                <button className="ap-btn-primary" style={{marginLeft:"auto"}} onClick={() => navigate("/login", { state: { from: "/api" } })}>
+                  Sign in to save key →
+                </button>
+              </div>
+            </div>
+          )}
         </section>
 
         {/* ── 02 Base URL ──────────────────────────────────── */}
