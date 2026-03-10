@@ -86,11 +86,11 @@ function Section({ id, title, children }) {
 }
 
 function Endpoint({ method, path, badge, auth, desc, params, response, example }) {
-  const MC = { GET: "#22c55e", POST: "#38bdf8", DELETE: "#ef4444" };
+  const CLS = { GET: "docs-ep-get", POST: "docs-ep-post", DELETE: "docs-ep-del" };
   return (
-    <div className="docs-endpoint" id={`ep-${path.replace(/\//g, "-").slice(1)}`}>
+    <div className={`docs-endpoint ${CLS[method] ?? ""}`} id={`ep-${path.replace(/\//g, "-").slice(1)}`}>
       <div className="docs-ep-header">
-        <span className="docs-ep-method" style={{ color: MC[method] }}>{method}</span>
+        <span className="docs-ep-method">{method}</span>
         <code className="docs-ep-path">{path}</code>
         {auth && <Pill text="Auth required" color="#f59e0b" />}
         {badge && <Pill text={badge} />}
