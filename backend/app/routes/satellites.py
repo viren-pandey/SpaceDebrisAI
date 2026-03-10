@@ -10,7 +10,7 @@ router = APIRouter()
 @router.get("/satellites")
 def get_satellites():
     """Return real-time positions for all tracked satellites (SGP4 propagation)."""
-    tles = fetch_tles_local(limit=200)
+    tles = fetch_tles_local(limit=500)
     now_utc = datetime.now(timezone.utc)
 
     result = []
