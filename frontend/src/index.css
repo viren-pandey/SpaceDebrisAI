@@ -4481,11 +4481,24 @@ body {
 }
 
 .ap-endpoint-header {
+  width: 100%;
+  display: flex;
+  align-items: center;
   gap: 16px;
   padding: 20px 22px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  text-align: left;
+  font: inherit;
+  appearance: none;
+  -webkit-appearance: none;
+  cursor: pointer;
+  transition: background .18s ease;
 }
 
 .ap-method {
+  flex: 0 0 auto;
   min-width: 58px;
   display: inline-flex;
   align-items: center;
@@ -4496,17 +4509,22 @@ body {
 }
 
 .ap-path {
-  min-width: 150px;
+  flex: 1 1 180px;
+  min-width: 0;
   font-size: 15px;
   font-weight: 700;
+  overflow-wrap: anywhere;
 }
 
 .ap-endpoint-desc-short {
+  flex: 2 1 320px;
+  min-width: 0;
   font-size: 14px;
   line-height: 1.7;
 }
 
 .ap-expand-icon {
+  flex: 0 0 auto;
   width: 34px;
   height: 34px;
   display: grid;
@@ -4517,6 +4535,10 @@ body {
 
 .ap-endpoint-body {
   padding: 0 22px 22px;
+}
+
+.ap-endpoint-auth-note {
+  overflow-wrap: anywhere;
 }
 
 .ap-pre {
@@ -5069,10 +5091,19 @@ body {
 
   .ap-endpoint-header {
     padding: 18px;
+    gap: 12px;
   }
 
   .ap-endpoint-body {
     padding: 0 18px 18px;
+  }
+
+  .ap-path {
+    flex-basis: 100%;
+  }
+
+  .ap-expand-icon {
+    margin-left: auto;
   }
 
   .ap-hero-actions > * {
@@ -5133,6 +5164,10 @@ body {
 [data-theme="light"] .ap-code-tabs {
   background: rgba(226,236,250,.62);
   border-color: rgba(56,189,248,.16);
+}
+
+[data-theme="light"] .ap-endpoint-header {
+  background: transparent;
 }
 
 [data-theme="light"] .ap-code-tab.active {
