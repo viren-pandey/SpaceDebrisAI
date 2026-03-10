@@ -5,11 +5,10 @@ const supabaseAnon = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
 if (!supabaseUrl || !supabaseAnon) {
   console.warn(
-    "Supabase env vars missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in .env"
+    "Supabase env vars missing. Set VITE_SUPABASE_URL and VITE_SUPABASE_ANON_KEY in your deployment environment."
   );
 }
 
-export const supabase = createClient(
-  supabaseUrl  ?? "",
-  supabaseAnon ?? ""
-);
+export const supabase = (supabaseUrl && supabaseAnon)
+  ? createClient(supabaseUrl, supabaseAnon)
+  : null;
