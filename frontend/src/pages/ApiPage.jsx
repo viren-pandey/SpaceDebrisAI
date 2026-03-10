@@ -36,6 +36,12 @@ const ENDPOINTS = [
 ];
 
 const METHOD_COLOR = { GET: "#22c55e", POST: "#38bdf8", DELETE: "#ef4444" };
+const HERO_STATS = [
+  { value: "500", label: "tracked objects" },
+  { value: "60", label: "req / min" },
+  { value: "JSON", label: "response format" },
+  { value: "Live", label: "Swagger docs" },
+];
 
 const LANG_CODE = {
   python: (key) => `import requests
@@ -198,6 +204,9 @@ export default function ApiPage() {
   }
 
   const displayKey = activeKey || "sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live";
+  const heroPreviewKey = activeKey
+    ? `${activeKey.slice(0, 18)}...`
+    : "sdai_demo_key_live";
 
   if (authLoading) return (
     <div className="ap-loading-gate"><div className="spinner" /><p>Loading...</p></div>
@@ -245,36 +254,84 @@ export default function ApiPage() {
         <div className="ap-hero-glow ap-glow-1" />
         <div className="ap-hero-glow ap-glow-2" />
         <div className="ap-hero-inner">
-          <p className="ap-eyebrow">Developer Access</p>
-          <h1 className="ap-h1">SpaceDebrisAI<br /><span className="ap-h1-accent">Public API</span></h1>
-          <p className="ap-sub">Real-time satellite positions, proximity risk classifications, and AI-generated avoidance maneuvers — all via a simple REST API. Built on SGP4 propagation over <strong style={{color:"#fff"}}>500 tracked objects</strong>.</p>
-          <div className="ap-badges">
-            <span className="ap-badge">REST</span>
-            <span className="ap-badge">JSON</span>
-            <span className="ap-badge">Free tier</span>
-            <span className="ap-badge ap-badge-live">● Live data</span>
-          </div>
-          {activeEmail && (
-            <div className="ap-user-pill">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              <span>{activeEmail}</span>
-              {user
-                ? <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
-                : <button className="ap-signout-btn" onClick={handleGuestRevoke}>Clear key</button>
-              }
-              {!user && <span className="ap-guest-badge">Guest</span>}
+          <div className="ap-hero-grid">
+            <div className="ap-hero-copy">
+              <p className="ap-eyebrow">Developer Access</p>
+              <h1 className="ap-h1">SpaceDebrisAI<br /><span className="ap-h1-accent">Public API</span></h1>
+              <p className="ap-sub">Real-time satellite positions, proximity risk classifications, and AI-generated avoidance maneuvers through a clean REST interface. Built on SGP4 propagation over <strong style={{ color: "var(--text-bright)" }}>500 tracked objects</strong> with the same visual language as the rest of the platform.</p>
+              <div className="ap-badges">
+                <span className="ap-badge">REST</span>
+                <span className="ap-badge">JSON</span>
+                <span className="ap-badge">Free tier</span>
+                <span className="ap-badge ap-badge-live">Live data</span>
+              </div>
+              <div className="ap-hero-actions">
+                <a className="ap-btn-primary ap-hero-btn" href="#api-key-section">
+                  {hasAccess ? "View your API key" : "Get free API key"}
+                </a>
+                <a
+                  className="ap-btn-outline ap-hero-btn"
+                  href={`${BASE}/docs`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Swagger
+                </a>
+              </div>
+              {activeEmail && (
+                <div className="ap-user-pill">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  <span>{activeEmail}</span>
+                  {user
+                    ? <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
+                    : <button className="ap-signout-btn" onClick={handleGuestRevoke}>Clear key</button>
+                  }
+                  {!user && <span className="ap-guest-badge">Guest</span>}
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="ap-hero-panel">
+              <div className="ap-hero-panel-top">
+                <span className="ap-hero-panel-label">Build faster</span>
+                <span className="ap-badge ap-badge-live">Production-ready docs</span>
+              </div>
+
+              <div className="ap-hero-kpis">
+                {HERO_STATS.map((stat) => (
+                  <div key={stat.label} className="ap-hero-kpi">
+                    <span className="ap-hero-kpi-value">{stat.value}</span>
+                    <span className="ap-hero-kpi-label">{stat.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ap-hero-request">
+                <p className="ap-label">Quick request</p>
+                <pre className="ap-pre ap-hero-pre">{`curl -H "X-API-Key: ${heroPreviewKey}" \\
+  ${BASE}/simulate`}</pre>
+              </div>
+
+              <div className="ap-hero-list">
+                <div className="ap-hero-list-item">Saved account keys or instant guest access</div>
+                <div className="ap-hero-list-item">Live response samples for every endpoint</div>
+                <div className="ap-hero-list-item">Readable docs, larger type, cleaner layout</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="ap-body">
 
         {/* ── 01 API key ───────────────────────────────────── */}
-        <section className="ap-section">
+        <section className="ap-section" id="api-key-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">01</span>
-            <h2 className="ap-section-title">Your API key</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Your API key</h2>
+              <p className="ap-section-copy">Choose a saved account key or generate a browser-only guest key for immediate testing.</p>
+            </div>
           </div>
 
           {/* ── Not logged in, no guest key: choice gate ── */}
@@ -425,7 +482,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">02</span>
-            <h2 className="ap-section-title">Base URL</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Base URL</h2>
+              <p className="ap-section-copy">All requests run over HTTPS with the same header convention across the public API.</p>
+            </div>
           </div>
           <div className="ap-base-url-card">
             <span className="ap-env-pill">PRODUCTION</span>
@@ -438,7 +498,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">03</span>
-            <h2 className="ap-section-title">Endpoints</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Endpoints</h2>
+              <p className="ap-section-copy">Browse the live surface area, inspect payloads, and expand the routes you need.</p>
+            </div>
           </div>
           <div className="ap-endpoints">
             {ENDPOINTS.map((ep) => (
@@ -473,7 +536,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">04</span>
-            <h2 className="ap-section-title">Code examples</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Code examples</h2>
+              <p className="ap-section-copy">Copy a starter request in the language you want and drop in your key.</p>
+            </div>
           </div>
           <div className="ap-code-card">
             <div className="ap-code-tabs">
@@ -492,7 +558,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">05</span>
-            <h2 className="ap-section-title">Rate limits &amp; fair use</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Rate limits &amp; fair use</h2>
+              <p className="ap-section-copy">The public tier is generous enough for demos, prototypes, and direct browser exploration.</p>
+            </div>
           </div>
           <div className="ap-limits-card">
             <div className="ap-limits-grid">
