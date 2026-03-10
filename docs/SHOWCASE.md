@@ -8,7 +8,7 @@
 ## 1. Live Backend API — `/simulate`
 
 Real SGP4 orbital data served from the Hugging Face Space backend.  
-200 satellites, 19 900 pairs screened, risk classified per conjunction.
+500 satellites, 124 750 pairs screened, risk classified per conjunction.
 
 ![API Response](screenshots/01-api-response.png)
 
@@ -60,19 +60,19 @@ Auto-advances every 5 seconds; the cyan progress line sweeps as a visual countdo
 
 ---
 
-## 5. Satellites Page — 200 Active Satellites
+## 5. Satellites Page — 500 Active Satellites
 
-All 200 tracked spacecraft from the CelesTrak GP feed, shown as expandable cards.
+All 500 tracked spacecraft from the CelesTrak GP feed, shown as expandable cards.
 
 ![Satellites Page](screenshots/05-satellites-page.png)
 
 **Stats bar:**
 | Stat | Value |
 |---|---|
-| Pairs screened | 19 900 |
+| Pairs screened | 124 750 |
 | CRITICAL | 2 |
-| HIGH RISK | 2 |
-| NOMINAL | 196 |
+| HIGH RISK | 4 |
+| NOMINAL | 494 |
 
 **Registry:** Each card shows country, mission type, orbital regime (LEO / GEO / Sun-sync), and live geodetic position.
 
