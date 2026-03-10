@@ -104,11 +104,11 @@ def _build_pairs(sats: list, mode: str) -> dict:
 
 @router.get("/simulate")
 def simulate():
-    # ── Load all 200 satellites from the local TLE database ───────────────────
+    # ── Load all 500 satellites from the local TLE database ───────────────────
     #    (CelesTrak is tried as an optional refresh but we never wait more than
     #     1 second for it; the local file is always authoritative for /simulate.)
     live_mode = False
-    tles = fetch_tles_local(limit=200)
+    tles = fetch_tles_local(limit=500)
 
     try:
         import requests as _req
@@ -118,7 +118,7 @@ def simulate():
         )
         r.raise_for_status()
         from app.services.tle_fetcher import _parse_tle_text
-        ct_tles = _parse_tle_text(r.text, 200)
+        ct_tles = _parse_tle_text(r.text, 500)
         if len(ct_tles) >= 200:
             tles = ct_tles
             live_mode = True
