@@ -3664,34 +3664,72 @@ body {
   padding: 2px 6px; border-radius: 4px;
 }
 
-/* Endpoint block */
+/* ── Endpoint cards ─────────────────────────────────────────────────── */
 .docs-endpoint {
-  margin-bottom: 40px;
-  padding-bottom: 40px;
-  border-bottom: 1px solid rgba(255,255,255,.04);
+  position: relative;
+  background: rgba(8, 15, 30, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  border-left: 3px solid var(--ep-accent, #22c55e);
+  border-radius: 14px;
+  padding: 22px 26px 26px;
+  margin-bottom: 14px;
+  overflow: hidden;
+  transition: border-color 0.22s, box-shadow 0.22s, transform 0.18s;
+  backdrop-filter: blur(6px);
 }
-.docs-endpoint:last-child { border-bottom: none; }
+.docs-endpoint::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 14px;
+  background: radial-gradient(ellipse 60% 50% at 0% 50%, var(--ep-glow, rgba(34,197,94,0.06)) 0%, transparent 70%);
+  pointer-events: none;
+}
+.docs-endpoint:hover {
+  border-color: var(--ep-accent, #22c55e);
+  box-shadow: 0 4px 28px rgba(0, 0, 0, 0.45), 0 0 0 1px var(--ep-accent-faint, rgba(34,197,94,0.18));
+  transform: translateY(-2px);
+}
+.docs-endpoint:last-child { margin-bottom: 0; }
+
 .docs-ep-header {
   display: flex; align-items: center; flex-wrap: wrap; gap: 10px;
-  margin-bottom: 12px;
+  margin-bottom: 10px;
 }
 .docs-ep-method {
   font-family: var(--font-mono, monospace);
-  font-size: 13px; font-weight: 800;
-  padding: 3px 10px; border-radius: 6px;
-  background: rgba(255,255,255,.04);
+  font-size: 11px; font-weight: 900; letter-spacing: 0.1em;
+  text-transform: uppercase;
+  padding: 5px 14px; border-radius: 7px;
+  background: var(--ep-badge-bg, rgba(34,197,94,0.14));
+  color: var(--ep-accent, #22c55e);
+  border: 1px solid var(--ep-accent-faint, rgba(34,197,94,0.28));
+  box-shadow: 0 0 10px var(--ep-glow, rgba(34,197,94,0.12));
 }
 .docs-ep-path {
   font-family: var(--font-mono, monospace);
-  font-size: 16px; font-weight: 600;
+  font-size: 15px; font-weight: 700;
   color: var(--text-bright);
+  background: rgba(255, 255, 255, 0.04);
+  padding: 4px 12px; border-radius: 7px;
+  border: 1px solid rgba(255, 255, 255, 0.07);
+  letter-spacing: -0.02em;
 }
-.docs-ep-desc { font-size: 15px; color: var(--text-dim); line-height: 1.7; margin-bottom: 16px; }
+.docs-ep-desc {
+  font-size: 14px; color: var(--text-dim); line-height: 1.75;
+  margin-bottom: 16px;
+  max-width: 640px;
+}
 .docs-ep-sub {
-  font-size: 12px; font-weight: 700; letter-spacing: .1em;
+  font-size: 11px; font-weight: 700; letter-spacing: .12em;
   text-transform: uppercase; color: var(--text-faint);
   margin: 20px 0 10px;
 }
+
+/* Method colour tokens */
+.docs-ep-get  { --ep-accent: #22c55e; --ep-accent-faint: rgba(34,197,94,0.25);  --ep-badge-bg: rgba(34,197,94,0.12);  --ep-glow: rgba(34,197,94,0.14); }
+.docs-ep-post { --ep-accent: #38bdf8; --ep-accent-faint: rgba(56,189,248,0.25); --ep-badge-bg: rgba(56,189,248,0.10); --ep-glow: rgba(56,189,248,0.12); }
+.docs-ep-del  { --ep-accent: #ef4444; --ep-accent-faint: rgba(239,68,68,0.25);  --ep-badge-bg: rgba(239,68,68,0.10);  --ep-glow: rgba(239,68,68,0.14); }
 
 /* Rate limits grid in docs */
 .docs-limits-grid {
