@@ -1,10 +1,12 @@
 ﻿import { useState } from "react";
-import { NavLink } from "react-router-dom";
+import { NavLink, useNavigate } from "react-router-dom";
+import { useAuth } from "../contexts/AuthContext";
 
 const NAV_LINKS = [
   { label: "Dashboard", to: "/" },
   { label: "Satellites", to: "/satellites" },
   { label: "Tracker",   to: "/tracker" },
+  { label: "Docs",      to: "/docs" },
   { label: "About",     to: "/about" },
 ];
 
@@ -17,6 +19,8 @@ const BRAND = [
 export default function Navbar({ live, theme, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false);
   const isDark = theme === "dark";
+  const { user, signOut } = useAuth();
+  const navigate = useNavigate();
 
   return (
     <nav className="navbar">
@@ -79,6 +83,26 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             )}
           </button>
 
+          {/* API link */}
+          <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
+            API
+          </NavLink>
+
+          {/* Auth button */}
+          {user ? (
+            <button className="nb-auth-btn nb-auth-btn--out" onClick={signOut} title={user.email}>
+              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+                <path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+              </svg>
+              Sign out
+            </button>
+          ) : (
+            <button className="nb-auth-btn nb-auth-btn--in" onClick={() => navigate("/login")}>
+              Sign in
+            </button>
+          )}
+
           {/* Live status pill — desktop only */}
           <div className={`navbar-status nb-status-desktop${live ? "" : " offline"}`}>
             <span className={`live-dot${live ? "" : " offline"}`} />
@@ -110,6 +134,13 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               {label}
             </NavLink>
           ))}
+          <NavLink to="/api" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>API</NavLink>
+          <NavLink to="/docs" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>Docs</NavLink>
+          {user ? (
+            <button className="mobile-link mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>Sign out</button>
+          ) : (
+            <button className="mobile-link mobile-signin" onClick={() => { navigate("/login"); setMenuOpen(false); }}>Sign in</button>
+          )}
           <div className={`mobile-status${live ? "" : " offline"}`}>
             <span className={`live-dot${live ? "" : " offline"}`} />
             {live ? "Live" : "Offline"}
