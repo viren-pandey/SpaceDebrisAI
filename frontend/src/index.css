@@ -3728,3 +3728,88 @@ body {
 [data-theme="light"] .docs-code-wrap { background: rgba(0,0,0,.04); border-color: rgba(0,0,0,.08); }
 [data-theme="light"] .docs-callout { background: rgba(56,189,248,.04); }
 [data-theme="light"] .ap-base-url-card { background: rgba(0,0,0,.02); }
+
+/* ── Guest / choice gate ──────────────────────────────────────────── */
+.ap-choice-card { padding: 2rem; }
+.ap-choice-title { font-size: 1.1rem; font-weight: 700; color: var(--text); margin: 0 0 .35rem; }
+.ap-choice-sub { font-size: .875rem; color: var(--text-faint); margin: 0 0 1.75rem; }
+.ap-choice-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 1.25rem; }
+@media (max-width: 620px) { .ap-choice-grid { grid-template-columns: 1fr; } }
+.ap-choice-option {
+  position: relative;
+  background: rgba(255,255,255,.04);
+  border: 1px solid rgba(255,255,255,.08);
+  border-radius: 14px;
+  padding: 1.5rem;
+  display: flex; flex-direction: column; gap: .6rem;
+}
+.ap-choice-recommended {
+  border-color: rgba(56,189,248,.35);
+  background: rgba(56,189,248,.05);
+}
+.ap-choice-badge-top {
+  position: absolute; top: -10px; left: 50%; transform: translateX(-50%);
+  background: var(--accent); color: #000; font-size: .65rem; font-weight: 700;
+  letter-spacing: .06em; text-transform: uppercase;
+  padding: 2px 10px; border-radius: 99px;
+}
+.ap-choice-icon { font-size: 1.75rem; margin-bottom: .25rem; }
+.ap-choice-option h4 { font-size: .95rem; font-weight: 700; color: var(--text); margin: 0; }
+.ap-choice-option p { font-size: .8rem; color: var(--text-faint); margin: 0 0 .75rem; flex: 1; }
+.ap-btn-outline {
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: .55rem 1.2rem; border-radius: 8px;
+  border: 1px solid rgba(255,255,255,.2);
+  background: transparent; color: var(--text);
+  font-size: .85rem; font-weight: 600; cursor: pointer;
+  transition: border-color .2s, background .2s;
+}
+.ap-btn-outline:hover { border-color: var(--accent); background: rgba(56,189,248,.07); }
+
+/* ── Warning modal ─────────────────────────────────────────────────── */
+.ap-modal-overlay {
+  position: fixed; inset: 0; z-index: 9999;
+  background: rgba(0,0,0,.65); backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center; padding: 1rem;
+}
+.ap-modal {
+  background: var(--card-bg, #0f1828);
+  border: 1px solid rgba(255,255,255,.1);
+  border-radius: 18px;
+  padding: 2rem 2rem 1.75rem;
+  max-width: 440px; width: 100%;
+  display: flex; flex-direction: column; gap: .85rem;
+  box-shadow: 0 24px 64px rgba(0,0,0,.6);
+}
+.ap-modal-icon { font-size: 2.25rem; text-align: center; }
+.ap-modal-title { font-size: 1.05rem; font-weight: 700; color: var(--text); margin: 0; text-align: center; }
+.ap-modal-body { font-size: .85rem; color: var(--text-faint); margin: 0; line-height: 1.6; }
+.ap-modal-body strong { color: var(--text); }
+.ap-modal-input {
+  width: 100%; box-sizing: border-box;
+  background: rgba(255,255,255,.06); border: 1px solid rgba(255,255,255,.12);
+  border-radius: 8px; color: var(--text);
+  padding: .65rem .9rem; font-size: .875rem; outline: none;
+  transition: border-color .2s;
+}
+.ap-modal-input:focus { border-color: var(--accent); }
+.ap-modal-input.ap-input-error { border-color: #f87171; }
+.ap-modal-error { font-size: .8rem; color: #f87171; margin: -.4rem 0 0; }
+.ap-modal-actions { display: flex; flex-direction: column; gap: .6rem; }
+.ap-modal-login-hint { font-size: .78rem; color: var(--text-faint); margin: 0; text-align: center; }
+.ap-link-btn { background: none; border: none; color: var(--accent); cursor: pointer; font-size: inherit; padding: 0; text-decoration: underline; }
+.ap-link-btn:hover { opacity: .8; }
+
+/* ── Guest key card tweaks ─────────────────────────────────────────── */
+.ap-guest-key-warn {
+  background: rgba(245,158,11,.08);
+  border: 1px solid rgba(245,158,11,.25);
+  border-radius: 8px; padding: .7rem 1rem;
+  font-size: .82rem; color: #fbbf24; margin-bottom: .25rem;
+}
+.ap-guest-badge {
+  font-size: .7rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em;
+  background: rgba(245,158,11,.15); color: #f59e0b;
+  padding: 2px 8px; border-radius: 99px; margin-left: .25rem;
+}
+
