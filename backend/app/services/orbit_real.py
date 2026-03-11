@@ -28,7 +28,6 @@ def tle_to_position(line1, line2):
     e, r, v = sat.sgp4(jd, fr)
 
     if e != 0:
-        print("SGP4 ERROR CODE:", e)
         return None
 
     if not _is_valid_altitude(r):
