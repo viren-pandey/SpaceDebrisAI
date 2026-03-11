@@ -3,12 +3,8 @@ from pathlib import Path
 
 import requests
 
-# CelesTrak endpoints tried in order
-_CELESTRAK_URLS = [
-    "https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle",
-    "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
-    "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
-]
+_CELESTRAK_FULL_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
+_CELESTRAK_VISUAL_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle"
 
 _SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
 _SPACETRACK_TLE_URL = (
@@ -131,27 +127,22 @@ def fetch_tles_simulated(limit: int = 200) -> list:
 
 
 def fetch_tles_with_source(limit: int = 25) -> tuple[list, str]:
-    for url in _CELESTRAK_URLS:
+    tles = fetch_tles_local(limit)
+    if tles:
+        return tles, "local"
+
+    for url, source in (
+        (_CELESTRAK_FULL_URL, "celestrak-full"),
+        (_CELESTRAK_VISUAL_URL, "celestrak-visual"),
+    ):
         try:
             response = requests.get(url, timeout=3)
             response.raise_for_status()
             tles = _parse_tle_text(response.text, limit)
             if tles:
-                return tles, "celestrak"
+                return tles, source
         except Exception as exc:
             print(f"TLE fetch failed ({url}): {exc}")
-
-    try:
-        tles = _parse_tle_text(fetch_tles_spacetrack(), limit)
-        if tles:
-            return tles, "spacetrack"
-    except Exception as exc:
-        print(f"TLE fetch failed (Space-Track): {exc}")
-
-    print("Falling back to local TLE file.")
-    tles = fetch_tles_local(limit)
-    if tles:
-        return tles, "local"
 
     print("Falling back to bundled simulated TLE data.")
     return fetch_tles_simulated(limit), "simulation"
