@@ -85,6 +85,27 @@ def _normalize_last_update(payload: object) -> str:
     return str(payload).strip()
 
 
+def _serialize_keeptrack_catalog(payload: object) -> str:
+    if not isinstance(payload, list):
+        raise RuntimeError("KeepTrack returned an unexpected catalog payload.")
+
+    lines: list[str] = []
+    for index, item in enumerate(payload, start=1):
+        if not isinstance(item, dict):
+            continue
+
+        name = str(item.get("name") or item.get("altName") or f"OBJECT {index}").strip()
+        line1 = str(item.get("tle1") or "").strip()
+        line2 = str(item.get("tle2") or "").strip()
+
+        if not name or not line1.startswith("1 ") or not line2.startswith("2 "):
+            continue
+
+        lines.extend([name, line1, line2, ""])
+
+    return "\n".join(lines).strip()
+
+
 def _read_last_update() -> str | None:
     try:
         value = _LAST_UPDATE_FILE.read_text(encoding="utf-8").strip()
@@ -111,7 +132,12 @@ def fetch_remote_tles() -> str:
     """Fetch the full TLE catalog from KeepTrack."""
     response = requests.get(_KEEPTRACK_SATS_URL, timeout=30)
     response.raise_for_status()
-    tle_text = response.text.strip()
+    tle_text = ""
+    try:
+        tle_text = _serialize_keeptrack_catalog(response.json())
+    except ValueError:
+        tle_text = response.text.strip()
+
     if not tle_text:
         raise RuntimeError("KeepTrack returned an empty TLE payload.")
     if not _parse_tle_text(tle_text, 1):
@@ -163,7 +189,13 @@ def fetch_and_cache(force: bool = False) -> bool:
                 if not should_refresh(remote_last_update):
                     return False
 
-        tle_text = fetch_remote_tles()
+        try:
+            tle_text = fetch_remote_tles()
+        except Exception as exc:
+            if _LOCAL_TLE_FILE.exists():
+                print(f"TLE catalog fetch failed; keeping local cache: {exc}")
+                return False
+            raise
         _ensure_data_dir()
         _write_text_atomic(_LOCAL_TLE_FILE, tle_text.rstrip() + "\n")
         if remote_last_update is not None:

@@ -8,7 +8,10 @@ from app.services.tle_fetcher import fetch_and_cache, start_refresh_thread
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    fetch_and_cache()
+    try:
+        fetch_and_cache()
+    except Exception as exc:
+        print(f"TLE startup refresh failed; continuing with local cache: {exc}")
     start_refresh_thread()
     yield
 
