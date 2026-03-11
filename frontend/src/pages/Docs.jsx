@@ -2,6 +2,11 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 
 const BASE = "https://virenn77-spacedebrisai.hf.space";
+const PUBLIC_OBJECT_LIMIT = 500;
+const CACHED_TLE_RECORDS = "34k+";
+const PAID_OBJECT_COUNT = "10k+";
+const PAID_PRICE = "$10";
+const PAID_POLLING = "5 sec";
 
 const SECTIONS = [
   {
@@ -189,14 +194,14 @@ export default function Docs() {
           <p className="docs-h1-sub">
             REST API for real-time orbital tracking, proximity risk classification,
             and AI-powered avoidance maneuver recommendations.
-            Built on SGP4 propagation over a public 500-object slice backed by a larger debris cache.
+            Built on SGP4 propagation over a public 500-object slice backed by a 34k+ cached TLE catalog.
           </p>
           <div className="docs-header-pills">
             <Pill text="v2.0" />
-            <Pill text="500 public objects" color="#4ade80" />
-            <Pill text="17k+ debris cache" color="#f59e0b" />
+            <Pill text={`${PUBLIC_OBJECT_LIMIT} public objects`} color="#4ade80" />
+            <Pill text={`${CACHED_TLE_RECORDS} TLE records`} color="#f59e0b" />
             <Pill text="SGP4" color="#818cf8" />
-            <Pill text="$10 paid tier announced" color="#22c55e" />
+            <Pill text={`${PAID_PRICE} paid tier announced`} color="#22c55e" />
           </div>
         </div>
 
@@ -205,7 +210,7 @@ export default function Docs() {
             SpaceDebrisAI provides a JSON REST API for monitoring the current public
             500-object slice of tracked satellites and debris. The backend computes
             real-time positions using SGP4/SDP4 orbital propagation and now keeps a
-            larger 17k+ local debris TLE cache refreshed from Space-Track for broader coverage.
+            larger 34k+ local TLE catalog refreshed from Space-Track for broader coverage.
           </p>
           <div className="docs-callout">
             <strong>Base URL</strong>
@@ -262,20 +267,20 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             method="GET"
             path="/satellites"
             auth
-            desc="Returns real-time geodetic positions (latitude, longitude, altitude in km) for the current 500-object public slice, computed via SGP4 propagation from the local debris TLE cache. Also includes raw TLE lines for your own propagation."
+            desc="Returns real-time geodetic positions (latitude, longitude, altitude in km) for the current public slice, computed via SGP4 propagation from the local 34k+ TLE catalog. Also includes raw TLE lines for your own propagation."
             params={[]}
             response={{
-              count: 500,
+              count: 414,
               errors: 0,
               timestamp: "2026-03-11T10:00:00.000Z",
               satellites: [
                 {
-                  name: "ISS (ZARYA)",
-                  lat: 51.62,
-                  lon: -12.4,
-                  alt_km: 408.5,
-                  tle_line1: "1 25544U 98067A ...",
-                  tle_line2: "2 25544  51.6413 ...",
+                  name: "THOR ABLESTAR DEB",
+                  lat: 24.18,
+                  lon: 109.33,
+                  alt_km: 455.8,
+                  tle_line1: "1 00694U 63047A   26070.89344144 -.00000083  00000-0 -12332-3 0  9994",
+                  tle_line2: "2 00694  30.3585 254.9786 0621246 131.7077 233.9575 13.43887564929859",
                 },
               ],
             }}
@@ -290,12 +295,12 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             desc="Runs a full proximity simulation across the current 500-object public slice. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Processing typically lands in the low hundreds of milliseconds."
             params={[]}
             response={{
-              mode: "live",
-              meta: { satellites: 500, pairs_checked: 124750, processing_ms: 312.8 },
-              satellites: [{ name: "ISS (ZARYA)", lat: 51.62, lon: -12.4, alt_km: 408.5 }],
+              mode: "local",
+              meta: { satellites: 414, public_objects: 414, tle_records: 34368, tle_source: "local", pairs_checked: 85491, processing_ms: 559.8 },
+              satellites: [{ name: "THOR ABLESTAR DEB", lat: 24.18, lon: 109.33, alt_km: 455.8 }],
               closest_pairs: [
                 {
-                  satellites: ["ISS (ZARYA)", "PROGRESS MS-24"],
+                  satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"],
                   before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } },
                   after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } },
                   maneuver: "Raise apogee by 500 m",
@@ -397,22 +402,22 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
               <div className="docs-limit-label">requests / minute</div>
             </div>
             <div className="docs-limit-card">
-              <div className="docs-limit-val">500</div>
+              <div className="docs-limit-val">{PUBLIC_OBJECT_LIMIT}</div>
               <div className="docs-limit-label">public objects</div>
             </div>
             <div className="docs-limit-card">
-              <div className="docs-limit-val">17k+</div>
-              <div className="docs-limit-label">cached TLE catalog</div>
+              <div className="docs-limit-val">{CACHED_TLE_RECORDS}</div>
+              <div className="docs-limit-label">cached TLE records</div>
             </div>
             <div className="docs-limit-card">
-              <div className="docs-limit-val">5 sec</div>
+              <div className="docs-limit-val">{PAID_POLLING}</div>
               <div className="docs-limit-label">announced paid polling</div>
             </div>
           </div>
           <p className="docs-p" style={{ marginTop: "1.5rem" }}>
             This is still a research and demonstration API. Public access currently exposes
-            the 500-object slice, while the announced paid tier targets 10k+ objects for
-            $10 per month with faster polling. Debris data is sourced through CelesTrak,
+            the 500-object slice, while the announced paid tier targets {PAID_OBJECT_COUNT} objects for
+            {` ${PAID_PRICE} `}per month with faster polling. Debris data is sourced through CelesTrak,
             Space-Track-backed cache refreshes, and local fallbacks.
           </p>
         </Section>

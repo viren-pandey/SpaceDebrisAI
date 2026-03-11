@@ -68,7 +68,7 @@ export default function Login() {
           <h1 className="login-display-title">Access the debris monitoring API with free and paid tiers.</h1>
           <p className="login-copy">
             Create a free account to keep your API key attached to your profile and access the public
-            500-object tier. The backend now keeps a 17k+ local debris TLE cache from Space-Track,
+            500-object tier. The backend now keeps a 34k+ local debris TLE catalog from Space-Track,
             and the announced paid tier expands access to 10k+ objects with 5-second polling.
           </p>
 
@@ -78,8 +78,8 @@ export default function Login() {
               <span>Public objects</span>
             </div>
             <div className="login-stat-card">
-              <strong>17k+</strong>
-              <span>Cached debris TLEs</span>
+              <strong>34k+</strong>
+              <span>Cached TLE records</span>
             </div>
             <div className="login-stat-card">
               <strong>$10</strong>
@@ -99,7 +99,7 @@ export default function Login() {
               <span className="login-feature-mark">02</span>
               <div>
                 <h2>Debris cache</h2>
-                <p>Public API responses are backed by a larger cached debris catalog refreshed from Space-Track.</p>
+                <p>Public API responses are backed by a 34k+ cached TLE catalog refreshed from Space-Track.</p>
               </div>
             </div>
             <div className="login-feature-item">
