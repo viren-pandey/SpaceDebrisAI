@@ -42,8 +42,10 @@ from app.routes.simulate import router as simulate_router
 from app.routes.health import router as health_router
 from app.routes.tracker import router as tracker_router
 from app.routes.satellites import router as satellites_router
+from app.routes.usage import router as usage_router
 
 app.include_router(simulate_router)
 app.include_router(health_router)
 app.include_router(tracker_router)
 app.include_router(satellites_router)
+app.include_router(usage_router)
