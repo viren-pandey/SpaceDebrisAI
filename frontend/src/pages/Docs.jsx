@@ -7,7 +7,7 @@ const SECTIONS = [
   {
     id: "overview",
     label: "Overview",
-    content: null, // rendered inline
+    content: null,
   },
   {
     id: "authentication",
@@ -18,10 +18,10 @@ const SECTIONS = [
     id: "endpoints",
     label: "Endpoints",
     children: [
-      { id: "ep-health",   label: "GET /health" },
-      { id: "ep-sats",     label: "GET /satellites" },
+      { id: "ep-health", label: "GET /health" },
+      { id: "ep-sats", label: "GET /satellites" },
       { id: "ep-simulate", label: "GET /simulate" },
-      { id: "ep-tracker",  label: "GET /tracker/positions" },
+      { id: "ep-tracker", label: "GET /tracker/positions" },
     ],
   },
   {
@@ -63,12 +63,15 @@ function Code({ children, lang = "http", copyable = true }) {
     <div className="docs-code-wrap">
       {lang && <span className="docs-code-lang">{lang}</span>}
       {copyable && (
-        <button className="docs-code-copy" onClick={() => {
-          navigator.clipboard.writeText(children);
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        }}>
-          {copied ? "Copied ✓" : "Copy"}
+        <button
+          className="docs-code-copy"
+          onClick={() => {
+            navigator.clipboard.writeText(children);
+            setCopied(true);
+            setTimeout(() => setCopied(false), 2000);
+          }}
+        >
+          {copied ? "Copied" : "Copy"}
         </button>
       )}
       <pre className="docs-pre">{children}</pre>
@@ -85,10 +88,10 @@ function Section({ id, title, children }) {
   );
 }
 
-function Endpoint({ method, path, badge, auth, desc, params, response, example }) {
-  const CLS = { GET: "docs-ep-get", POST: "docs-ep-post", DELETE: "docs-ep-del" };
+function Endpoint({ id, method, path, badge, auth, desc, params, response, example }) {
+  const cls = { GET: "docs-ep-get", POST: "docs-ep-post", DELETE: "docs-ep-del" };
   return (
-    <div className={`docs-endpoint ${CLS[method] ?? ""}`} id={`ep-${path.replace(/\//g, "-").slice(1)}`}>
+    <div className={`docs-endpoint ${cls[method] ?? ""}`} id={id ?? `ep-${path.replace(/\//g, "-").slice(1)}`}>
       <div className="docs-ep-header">
         <span className="docs-ep-method">{method}</span>
         <code className="docs-ep-path">{path}</code>
@@ -101,7 +104,9 @@ function Endpoint({ method, path, badge, auth, desc, params, response, example }
         <>
           <h4 className="docs-ep-sub">Query parameters</h4>
           <table className="docs-table">
-            <thead><tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr></thead>
+            <thead>
+              <tr><th>Parameter</th><th>Type</th><th>Required</th><th>Description</th></tr>
+            </thead>
             <tbody>
               {params.map((p) => (
                 <tr key={p.name}>
@@ -144,8 +149,6 @@ export default function Docs() {
 
   return (
     <div className="docs-root">
-
-      {/* ── Sidebar ─────────────────────────────────────── */}
       <aside className="docs-sidebar">
         <div className="docs-sidebar-inner">
           <p className="docs-sidebar-title">API Reference</p>
@@ -172,57 +175,52 @@ export default function Docs() {
           </nav>
           <div className="docs-sidebar-links">
             <a href={`${BASE}/docs`} target="_blank" rel="noopener noreferrer" className="docs-sidebar-ext">
-              Swagger UI ↗
+              Swagger UI
             </a>
-            <Link to="/api" className="docs-sidebar-ext">API keys ↗</Link>
+            <Link to="/api" className="docs-sidebar-ext">API keys</Link>
           </div>
         </div>
       </aside>
 
-      {/* ── Main content ─────────────────────────────────── */}
       <main className="docs-main">
-
-        {/* Header */}
         <div className="docs-page-header">
           <p className="docs-eyebrow">Documentation</p>
           <h1 className="docs-h1">SpaceDebrisAI API</h1>
           <p className="docs-h1-sub">
-            REST API for real-time satellite tracking, proximity risk classification,
+            REST API for real-time orbital tracking, proximity risk classification,
             and AI-powered avoidance maneuver recommendations.
-            Built on SGP4 orbital propagation from live TLE data.
+            Built on SGP4 propagation over a public 500-object slice backed by a larger debris cache.
           </p>
           <div className="docs-header-pills">
             <Pill text="v2.0" />
-            <Pill text="500 satellites" color="#4ade80" />
+            <Pill text="500 public objects" color="#4ade80" />
+            <Pill text="17k+ debris cache" color="#f59e0b" />
             <Pill text="SGP4" color="#818cf8" />
-            <Pill text="Free" color="#22c55e" />
+            <Pill text="$10 paid tier announced" color="#22c55e" />
           </div>
         </div>
 
-        {/* ── Overview ─────────────────────────────────── */}
         <Section id="overview" title="Overview">
           <p className="docs-p">
-            SpaceDebrisAI provides a JSON REST API for monitoring the orbits of 500
-            tracked satellites and space debris objects. The backend computes real-time
-            positions using the SGP4/SDP4 orbital propagation model from the latest
-            Two-Line Element (TLE) sets, and an AI classifier ranks proximity events
-            by collision risk.
+            SpaceDebrisAI provides a JSON REST API for monitoring the current public
+            500-object slice of tracked satellites and debris. The backend computes
+            real-time positions using SGP4/SDP4 orbital propagation and now keeps a
+            larger 17k+ local debris TLE cache refreshed from Space-Track for broader coverage.
           </p>
           <div className="docs-callout">
             <strong>Base URL</strong>
-            <Code lang="http" copyable={true}>{BASE}</Code>
+            <Code lang="http" copyable>{BASE}</Code>
           </div>
           <h3 className="docs-h3">Quick start</h3>
-          <Code lang="bash">{`# 1. Sign up at spacedebrisai.vercel.app/api to get your key
+          <Code lang="bash">{`# 1. Create a free or guest key on the /api page
 
 # 2. Health check (no auth required)
 curl ${BASE}/health
 
-# 3. First request — satellite positions
+# 3. First request - public 500-object snapshot
 curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
         </Section>
 
-        {/* ── Authentication ────────────────────────────── */}
         <Section id="authentication" title="Authentication">
           <p className="docs-p">
             All endpoints except <code className="ap-inline-code">/health</code> and{" "}
@@ -231,8 +229,9 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
           </p>
           <Code lang="http">{`X-API-Key: sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live`}</Code>
           <p className="docs-p">
-            Generate your key for free on the <Link to="/api" className="docs-link">API keys page</Link>.
-            Keys are stored securely in Supabase and scoped to your account.
+            Generate a saved account key or a browser-only guest key on the{" "}
+            <Link to="/api" className="docs-link">API keys page</Link>.
+            Account keys are stored with your profile; guest keys stay in the current browser only.
           </p>
 
           <h3 className="docs-h3">Authentication errors</h3>
@@ -245,9 +244,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
           </table>
         </Section>
 
-        {/* ── Endpoints ─────────────────────────────────── */}
         <Section id="endpoints" title="Endpoints">
-
           <Endpoint
             id="ep-health"
             method="GET"
@@ -264,8 +261,8 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             id="ep-sats"
             method="GET"
             path="/satellites"
-            auth={true}
-            desc="Returns real-time geodetic positions (latitude, longitude, altitude in km) for all 500 tracked satellites, computed via SGP4 propagation from the onboard TLE database. Also includes raw TLE lines for your own propagation."
+            auth
+            desc="Returns real-time geodetic positions (latitude, longitude, altitude in km) for the current 500-object public slice, computed via SGP4 propagation from the local debris TLE cache. Also includes raw TLE lines for your own propagation."
             params={[]}
             response={{
               count: 500,
@@ -289,8 +286,8 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             id="ep-simulate"
             method="GET"
             path="/simulate"
-            auth={true}
-            desc="Runs a full proximity simulation across all 500 satellites. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Processing takes ~300–800 ms."
+            auth
+            desc="Runs a full proximity simulation across the current 500-object public slice. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Processing typically lands in the low hundreds of milliseconds."
             params={[]}
             response={{
               mode: "live",
@@ -313,7 +310,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             id="ep-tracker"
             method="GET"
             path="/tracker/positions"
-            auth={true}
+            auth
             desc="Fetches live positions for 20 key satellites from the N2YO API. Results are cached for 2 minutes to stay within N2YO rate limits. Includes azimuth/elevation for ground observation."
             params={[]}
             response={{
@@ -336,7 +333,6 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
           />
         </Section>
 
-        {/* ── Errors ────────────────────────────────────── */}
         <Section id="errors" title="Error handling">
           <p className="docs-p">
             All error responses return JSON with a <code className="ap-inline-code">detail</code> field.
@@ -348,23 +344,22 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             <thead><tr><th>HTTP status</th><th>Meaning</th></tr></thead>
             <tbody>
               <tr><td><code className="ap-inline-code">200</code></td><td>Success</td></tr>
-              <tr><td><code className="ap-inline-code">401</code></td><td>Unauthorized — check your <code className="ap-inline-code">X-API-Key</code></td></tr>
-              <tr><td><code className="ap-inline-code">422</code></td><td>Validation error — invalid query parameters</td></tr>
-              <tr><td><code className="ap-inline-code">429</code></td><td>Too many requests — rate limit exceeded</td></tr>
-              <tr><td><code className="ap-inline-code">500</code></td><td>Server error — TLE propagation failed or backend unavailable</td></tr>
+              <tr><td><code className="ap-inline-code">401</code></td><td>Unauthorized - check your <code className="ap-inline-code">X-API-Key</code></td></tr>
+              <tr><td><code className="ap-inline-code">422</code></td><td>Validation error - invalid query parameters</td></tr>
+              <tr><td><code className="ap-inline-code">429</code></td><td>Too many requests - rate limit exceeded</td></tr>
+              <tr><td><code className="ap-inline-code">500</code></td><td>Server error - TLE propagation failed or backend unavailable</td></tr>
             </tbody>
           </table>
         </Section>
 
-        {/* ── Data models ───────────────────────────────── */}
         <Section id="models" title="Data models">
           <h3 className="docs-h3">Satellite position</h3>
           <table className="docs-table">
             <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
             <tbody>
-              <tr><td><code className="ap-inline-code">name</code></td><td>string</td><td>Satellite name from TLE catalog</td></tr>
-              <tr><td><code className="ap-inline-code">lat</code></td><td>number</td><td>Geodetic latitude in degrees (−90 to 90)</td></tr>
-              <tr><td><code className="ap-inline-code">lon</code></td><td>number</td><td>Geodetic longitude in degrees (−180 to 180)</td></tr>
+              <tr><td><code className="ap-inline-code">name</code></td><td>string</td><td>Object name from the TLE catalog</td></tr>
+              <tr><td><code className="ap-inline-code">lat</code></td><td>number</td><td>Geodetic latitude in degrees (-90 to 90)</td></tr>
+              <tr><td><code className="ap-inline-code">lon</code></td><td>number</td><td>Geodetic longitude in degrees (-180 to 180)</td></tr>
               <tr><td><code className="ap-inline-code">alt_km</code></td><td>number</td><td>Altitude above WGS-84 ellipsoid in km</td></tr>
               <tr><td><code className="ap-inline-code">tle_line1</code></td><td>string</td><td>TLE line 1 (69 chars)</td></tr>
               <tr><td><code className="ap-inline-code">tle_line2</code></td><td>string</td><td>TLE line 2 (69 chars)</td></tr>
@@ -377,8 +372,8 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             <tbody>
               <tr><td><code className="ap-inline-code">satellites</code></td><td>string[2]</td><td>Names of the two objects</td></tr>
               <tr><td><code className="ap-inline-code">before.distance_km</code></td><td>number</td><td>Current separation in km</td></tr>
-              <tr><td><code className="ap-inline-code">before.risk.level</code></td><td>string</td><td>CRITICAL · MEDIUM · LOW</td></tr>
-              <tr><td><code className="ap-inline-code">before.risk.score</code></td><td>number</td><td>Risk score 0–100</td></tr>
+              <tr><td><code className="ap-inline-code">before.risk.level</code></td><td>string</td><td>CRITICAL, MEDIUM, or LOW</td></tr>
+              <tr><td><code className="ap-inline-code">before.risk.score</code></td><td>number</td><td>Risk score 0-100</td></tr>
               <tr><td><code className="ap-inline-code">after.distance_km</code></td><td>number</td><td>Distance after maneuver</td></tr>
               <tr><td><code className="ap-inline-code">maneuver</code></td><td>string</td><td>AI-recommended avoidance action</td></tr>
             </tbody>
@@ -389,13 +384,12 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             <thead><tr><th>Level</th><th>Distance</th><th>Action</th></tr></thead>
             <tbody>
               <tr><td><Pill text="CRITICAL" color="#f87171" /></td><td>&lt; 5 km</td><td>Immediate avoidance maneuver required</td></tr>
-              <tr><td><Pill text="MEDIUM" color="#fcd34d" /></td><td>5 – 50 km</td><td>Monitor closely, prepare contingency</td></tr>
-              <tr><td><Pill text="LOW" color="#4ade80" /></td><td>&gt; 50 km</td><td>Nominal — no action needed</td></tr>
+              <tr><td><Pill text="MEDIUM" color="#fcd34d" /></td><td>5 - 50 km</td><td>Monitor closely, prepare contingency</td></tr>
+              <tr><td><Pill text="LOW" color="#4ade80" /></td><td>&gt; 50 km</td><td>Nominal - no action needed</td></tr>
             </tbody>
           </table>
         </Section>
 
-        {/* ── Rate limits ───────────────────────────────── */}
         <Section id="rate-limits" title="Rate limits">
           <div className="docs-limits-grid">
             <div className="docs-limit-card">
@@ -404,24 +398,24 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             </div>
             <div className="docs-limit-card">
               <div className="docs-limit-val">500</div>
-              <div className="docs-limit-label">satellites tracked</div>
+              <div className="docs-limit-label">public objects</div>
             </div>
             <div className="docs-limit-card">
-              <div className="docs-limit-val">~300ms</div>
-              <div className="docs-limit-label">avg /simulate latency</div>
+              <div className="docs-limit-val">17k+</div>
+              <div className="docs-limit-label">cached TLE catalog</div>
             </div>
             <div className="docs-limit-card">
-              <div className="docs-limit-val">2 min</div>
-              <div className="docs-limit-label">tracker cache TTL</div>
+              <div className="docs-limit-val">5 sec</div>
+              <div className="docs-limit-label">announced paid polling</div>
             </div>
           </div>
           <p className="docs-p" style={{ marginTop: "1.5rem" }}>
-            This is a research and demonstration API. If you need higher rate limits
-            or dedicated infrastructure, contact the maintainer. All data comes from
-            publicly available TLE catalogs (CelesTrak / Space-Track).
+            This is still a research and demonstration API. Public access currently exposes
+            the 500-object slice, while the announced paid tier targets 10k+ objects for
+            $10 per month with faster polling. Debris data is sourced through CelesTrak,
+            Space-Track-backed cache refreshes, and local fallbacks.
           </p>
         </Section>
-
       </main>
     </div>
   );

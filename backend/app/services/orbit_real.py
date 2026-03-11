@@ -2,6 +2,20 @@ from sgp4.api import Satrec, jday
 from datetime import datetime, timezone
 import math
 
+MIN_VALID_ALT_KM = 100
+MAX_VALID_ALT_KM = 50000
+EARTH_RADIUS_KM = 6371.0
+
+
+def _is_valid_altitude(position_km):
+    alt_km = math.sqrt(
+        position_km[0] ** 2 +
+        position_km[1] ** 2 +
+        position_km[2] ** 2
+    ) - EARTH_RADIUS_KM
+    return MIN_VALID_ALT_KM <= alt_km <= MAX_VALID_ALT_KM
+
+
 def tle_to_position(line1, line2):
     sat = Satrec.twoline2rv(line1, line2)
 
@@ -17,6 +31,9 @@ def tle_to_position(line1, line2):
         print("SGP4 ERROR CODE:", e)
         return None
 
+    if not _is_valid_altitude(r):
+        return None
+
     return r
 
 def distance_km(p1, p2):
@@ -28,11 +45,7 @@ def distance_km(p1, p2):
 
 
 def teme_to_geodetic(r, utc_dt=None):
-    """Convert a TEME position vector (km) → (lat_deg, lon_deg, alt_km).
-
-    Uses a simplified GMST rotation (TEME→ECEF) followed by
-    Bowring's iterative geodetic conversion (WGS-84).
-    """
+    """Convert TEME position vector (km) to geodetic lat/lon/alt."""
     if utc_dt is None:
         utc_dt = datetime.now(timezone.utc)
 
@@ -43,27 +56,27 @@ def teme_to_geodetic(r, utc_dt=None):
     )
     jd_full = jd + fr
 
-    # GMST (degrees) — IAU 1982 model
+    # GMST rotation (IAU 1982)
     T = (jd_full - 2451545.0) / 36525.0
     gmst_deg = (100.4606184 + 36000.77004 * T + 0.000387933 * T * T) % 360.0
     gmst_rad = math.radians(gmst_deg)
 
     x, y, z = r
-    # Rotate TEME → ECEF around Z-axis by −GMST
+    # rotate TEME → ECEF
     cos_g = math.cos(-gmst_rad)
     sin_g = math.sin(-gmst_rad)
     xe = x * cos_g - y * sin_g
     ye = x * sin_g + y * cos_g
     ze = z
 
-    # WGS-84
-    a  = 6378.137          # km, semi-major axis
-    e2 = 0.00669437999014  # first eccentricity squared
+    # WGS-84 constants
+    a  = 6378.137
+    e2 = 0.00669437999014
 
     lon_deg = math.degrees(math.atan2(ye, xe))
     p = math.sqrt(xe * xe + ye * ye)
 
-    # Bowring iterative (5 steps → sub-mm accuracy)
+    # Bowring iterative geodetic conversion (5 steps)
     lat = math.atan2(ze, p * (1 - e2))
     for _ in range(5):
         sin_lat = math.sin(lat)

@@ -4,4 +4,4 @@ router = APIRouter()
 
 @router.get("/health")
 def health():
-    return {"status": "ok"}
+    return {"status": "Your Backend is Successfully Running On The Server"}

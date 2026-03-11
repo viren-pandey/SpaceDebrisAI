@@ -29,6 +29,12 @@ export default function Login() {
           setLoading(false);
           return;
         }
+        // Try to sign in immediately (works when email confirmation is disabled)
+        const { error: signInErr } = await signIn(email, password);
+        if (!signInErr) {
+          navigate(from, { replace: true });
+          return;
+        }
         setSuccess("Account created! Check your email to confirm, then sign in.");
         setMode("signin");
         setLoading(false);
@@ -59,23 +65,25 @@ export default function Login() {
       <div className="login-shell">
         <section className="login-showcase">
           <p className="login-eyebrow">Developer access</p>
-          <h1 className="login-display-title">Access the public orbital risk API with a cleaner sign-in flow.</h1>
+          <h1 className="login-display-title">Access the debris monitoring API with free and paid tiers.</h1>
           <p className="login-copy">
-            Create a free account to keep your API key attached to your profile, or sign back in to manage live requests across 500 tracked objects with the same space-grade theme used across the app.
+            Create a free account to keep your API key attached to your profile and access the public
+            500-object tier. The backend now keeps a 17k+ local debris TLE cache from Space-Track,
+            and the announced paid tier expands access to 10k+ objects with 5-second polling.
           </p>
 
           <div className="login-stat-row">
             <div className="login-stat-card">
               <strong>500</strong>
-              <span>Tracked objects</span>
+              <span>Public objects</span>
             </div>
             <div className="login-stat-card">
-              <strong>60</strong>
-              <span>Req / min</span>
+              <strong>17k+</strong>
+              <span>Cached debris TLEs</span>
             </div>
             <div className="login-stat-card">
-              <strong>REST</strong>
-              <span>JSON API</span>
+              <strong>$10</strong>
+              <span>Paid tier</span>
             </div>
           </div>
 
@@ -90,15 +98,15 @@ export default function Login() {
             <div className="login-feature-item">
               <span className="login-feature-mark">02</span>
               <div>
-                <h2>Live endpoints</h2>
-                <p>Use the same account to access satellite positions, conjunction screening, and tracker routes.</p>
+                <h2>Debris cache</h2>
+                <p>Public API responses are backed by a larger cached debris catalog refreshed from Space-Track.</p>
               </div>
             </div>
             <div className="login-feature-item">
               <span className="login-feature-mark">03</span>
               <div>
-                <h2>Free onboarding</h2>
-                <p>The public tier stays simple: no billing, just email confirmation and a usable API key.</p>
+                <h2>Paid scale</h2>
+                <p>The announced paid tier targets 10k+ objects for $10 per month with a 5-second polling cadence.</p>
               </div>
             </div>
           </div>
@@ -125,8 +133,8 @@ export default function Login() {
             </h1>
             <p className="login-sub">
               {mode === "signin"
-                ? "Sign in to access your API key and dashboard."
-                : "Sign up to generate your free API key."}
+                ? "Sign in to manage your public-tier API key and dashboard access."
+                : "Sign up to generate your free public-tier API key."}
             </p>
 
             {success && <div className="login-success">{success}</div>}
