@@ -2,12 +2,13 @@
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
+import ProTierBanner from "../components/ProTierBanner";
 
 const BASE = "https://virenn77-spacedebrisai.hf.space";
 const LS_KEY   = "sdai_guest_api_key";
 const LS_EMAIL = "sdai_guest_email";
 const PUBLIC_OBJECT_COUNT = 500;
-const CACHED_DEBRIS_COUNT = "34k+";
+const CACHED_DEBRIS_COUNT = "33k+";
 const PAID_OBJECT_COUNT = "10k+";
 const PAID_PRICE = "$10";
 const PAID_POLLING = "5s";
@@ -20,18 +21,18 @@ const ENDPOINTS = [
   },
   {
     method: "GET", path: "/satellites", auth: true,
-    desc: "Real-time geodetic positions (lat, lon, altitude) for the current public slice, propagated with SGP4 from the local 34k+ debris TLE catalog.",
+    desc: "Real-time geodetic positions (lat, lon, altitude) for the current public slice, propagated with SGP4 from the local 33k+ debris TLE catalog.",
     response: { count: 414, errors: 0, timestamp: "2026-03-11T10:00:00.000Z", satellites: [{ name: "THOR ABLESTAR DEB", lat: 24.18, lon: 109.33, alt_km: 455.8 }] },
   },
   {
     method: "GET", path: "/simulate", auth: true,
     desc: "Full proximity simulation across the same 500-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
-    response: { mode: "local", meta: { satellites: 414, public_objects: 414, tle_records: 34368, tle_source: "local", pairs_checked: 85491, processing_ms: 559.8 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
+    response: { mode: "local", meta: { satellites: 487, public_objects: 500, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
   },
   {
     method: "GET", path: "/tracker/positions", auth: true,
-    desc: "Live orbital positions for 20 tracked satellites fetched from N2YO API with 2-minute cache. Includes azimuth and elevation angles.",
-    response: { source: "live", satellites: [{ noradId: 25544, name: "ISS (ZARYA)", lat: 51.62, lon: -12.4, alt: 408.5, azimuth: 220.3, elevation: 34.1 }] },
+    desc: "Propagated orbital positions for the current tracker slice, served directly from the backend TLE cache with no browser-side external API calls.",
+    response: { source: "cache", satellites: [{ noradId: 25544, name: "ISS (ZARYA)", lat: 51.62, lon: -12.4, alt: 408.5, azimuth: null, elevation: null }] },
   },
   {
     method: "GET", path: "/docs", auth: false, isLink: true,
@@ -109,38 +110,7 @@ function mkKey(seed) {
   return `sdai_${uid}${ts}${rnd}_live`;
 }
 
-function PremiumApiAnnouncement() {
-  return (
-    <div className="ap-premium-box">
-      <div className="ap-premium-box-head">
-        <div>
-          <p className="ap-premium-eyebrow">New announcement</p>
-          <h3 className="ap-premium-title">Paid API tier for larger debris coverage</h3>
-        </div>
-        <span className="ap-premium-pill">Coming soon</span>
-      </div>
-
-      <p className="ap-premium-copy">
-        The announced paid tier expands access to over 10,000 objects, priced at $10 per
-        month, with a maximum polling cadence of one request every 5 seconds.
-      </p>
-
-      <div className="ap-premium-stats">
-        {PREMIUM_API_HIGHLIGHTS.map((item) => (
-          <div key={item.label} className="ap-premium-stat">
-            <strong>{item.value}</strong>
-            <span>{item.label}</span>
-          </div>
-        ))}
-      </div>
-
-      <p className="ap-premium-footnote">
-        The current free API stays on the public 500-object slice for demos, prototypes,
-        and browser-based exploration.
-      </p>
-    </div>
-  );
-}
+const PremiumApiAnnouncement = ProTierBanner;
 
 export default function ApiPage() {
   const { user, loading: authLoading, signOut } = useAuth();
@@ -305,14 +275,14 @@ export default function ApiPage() {
                 Real-time orbital positions, conjunction screening, and AI-generated avoidance
                 maneuvers through a clean REST interface. The public tier currently serves a
                 <strong style={{ color: "var(--text-bright)" }}> 500-object propagated slice</strong>,
-                backed by a <strong style={{ color: "var(--text-bright)" }}> 34k+ local TLE record catalog</strong>
-                refreshed from Space-Track.
+                backed by a <strong style={{ color: "var(--text-bright)" }}> 33k+ local TLE record catalog</strong>
+                refreshed from KeepTrack once per hour.
               </p>
               <div className="ap-badges">
                 <span className="ap-badge">REST</span>
                 <span className="ap-badge">JSON</span>
                 <span className="ap-badge">Free + guest keys</span>
-                <span className="ap-badge ap-badge-live">Space-Track cache</span>
+                <span className="ap-badge ap-badge-live">KeepTrack cache</span>
               </div>
               <div className="ap-hero-actions">
                 <a className="ap-btn-primary ap-hero-btn" href="#api-key-section">
@@ -363,7 +333,7 @@ export default function ApiPage() {
 
               <div className="ap-hero-list">
                 <div className="ap-hero-list-item">Saved account keys or instant browser-only guest access</div>
-                <div className="ap-hero-list-item">Public responses cover 500 propagated objects from the current cache</div>
+                <div className="ap-hero-list-item">Public responses cover 500 propagated objects from the current hourly cache</div>
                 <div className="ap-hero-list-item">Paid tier announced for 10k+ objects with 5-second polling</div>
               </div>
             </div>
@@ -618,10 +588,10 @@ export default function ApiPage() {
               <div className="ap-limits-grid">
                 <div className="ap-limit-item"><span className="ap-limit-val">60</span><span className="ap-limit-label">req / min</span></div>
                 <div className="ap-limit-item"><span className="ap-limit-val">500</span><span className="ap-limit-label">public objects</span></div>
-                <div className="ap-limit-item"><span className="ap-limit-val">34k+</span><span className="ap-limit-label">cached tle records</span></div>
+                <div className="ap-limit-item"><span className="ap-limit-val">33k+</span><span className="ap-limit-label">cached tle records</span></div>
                 <div className="ap-limit-item"><span className="ap-limit-val">$10</span><span className="ap-limit-label">paid tier announced</span></div>
               </div>
-            <p className="ap-limits-note">Public requests serve the current 500-object slice from the local debris cache. The announced paid tier expands access to 10k+ objects with a 5-second maximum polling cadence.</p>
+            <p className="ap-limits-note">Public requests serve the current 500-object slice from the local 33k+ TLE catalog. The announced paid tier expands access to 10k+ objects with a 5-second maximum polling cadence.</p>
           </div>
         </section>
 

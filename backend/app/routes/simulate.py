@@ -4,17 +4,25 @@ import time
 import math
 import itertools
 import random
+import threading
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import load_tles_from_cache, parse_tle_text
+from app.services.tle_fetcher import get_local_timestamp, load_tles_from_cache, parse_tle_text
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
 
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = 5000
+MAX_SATELLITES = 500
 LOCAL_TLE_COUNT_LIMIT = 1000000
+SIMULATION_CACHE_TTL_SECONDS = 60
+_SIMULATION_CACHE_LOCK = threading.Lock()
+_SIMULATION_CACHE = {
+    "payload": None,
+    "catalog_stamp": None,
+    "expires_at": 0.0,
+}
 
 # Fallback satellite positions using circular orbit approximation
 def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
@@ -95,14 +103,21 @@ def _build_pairs(sats: list, mode: str) -> dict:
     }
 
 
-@router.get("/simulate")
-def simulate():
+def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
+    if len(all_tles) <= MAX_SATELLITES:
+        return list(all_tles)
+
+    # Keep the public slice diverse without shuffling the full catalog on every request.
+    rng = random.Random(catalog_stamp or len(all_tles))
+    return rng.sample(all_tles, MAX_SATELLITES)
+
+
+def _build_simulation_snapshot() -> dict:
     raw_tles = load_tles_from_cache()
     all_tles = parse_tle_text(raw_tles, limit=LOCAL_TLE_COUNT_LIMIT)
     total_catalog = len(all_tles)
-    if all_tles:
-        random.shuffle(all_tles)
-    selected_tles = all_tles[:MAX_SATELLITES]
+    catalog_stamp = get_local_timestamp()
+    selected_tles = _select_public_tles(all_tles, catalog_stamp)
 
     valid_sats = []
     for name, l1, l2 in selected_tles:
@@ -112,14 +127,9 @@ def simulate():
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
     mode_label = "local" if len(valid_sats) >= 3 else "simulation"
+    tle_source = "cache" if mode_label == "local" else "simulation"
 
     result = _build_pairs(sats_for_pairs, mode=mode_label)
-    result["meta"] = {
-        "total_catalog": total_catalog,
-        "satellites_screened": len(sats_for_pairs),
-        "pairs_checked": result["meta"]["pairs_checked"],
-        "processing_ms": result["meta"]["processing_ms"],
-    }
 
     now_utc = datetime.now(timezone.utc)
     sat_positions = []
@@ -129,8 +139,46 @@ def simulate():
             sat_positions.append({"name": name, "lat": lat, "lon": lon, "alt_km": alt})
         except Exception:
             pass
+
+    result["meta"] = {
+        "satellites": len(sat_positions),
+        "public_objects": len(selected_tles),
+        "tle_records": total_catalog,
+        "tle_source": tle_source,
+        "total_catalog": total_catalog,
+        "satellites_screened": len(sats_for_pairs),
+        "pairs_checked": result["meta"]["pairs_checked"],
+        "processing_ms": result["meta"]["processing_ms"],
+        "cache_last_update": catalog_stamp,
+    }
     result["satellites"] = sat_positions
 
     return result
 
 
+def _get_cached_simulation() -> dict:
+    catalog_stamp = get_local_timestamp() or "cache-missing"
+    now = time.time()
+
+    with _SIMULATION_CACHE_LOCK:
+        cached_payload = _SIMULATION_CACHE["payload"]
+        if (
+            cached_payload is not None
+            and _SIMULATION_CACHE["catalog_stamp"] == catalog_stamp
+            and now < _SIMULATION_CACHE["expires_at"]
+        ):
+            return cached_payload
+
+    result = _build_simulation_snapshot()
+
+    with _SIMULATION_CACHE_LOCK:
+        _SIMULATION_CACHE["payload"] = result
+        _SIMULATION_CACHE["catalog_stamp"] = catalog_stamp
+        _SIMULATION_CACHE["expires_at"] = now + SIMULATION_CACHE_TTL_SECONDS
+
+    return result
+
+
+@router.get("/simulate")
+def simulate():
+    return _get_cached_simulation()

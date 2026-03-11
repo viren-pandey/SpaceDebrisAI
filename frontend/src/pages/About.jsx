@@ -3,7 +3,7 @@
     num: "01",
     label: "TLE",
     title: "TLE Ingestion",
-    desc: "Two-Line Element sets flow through a layered pipeline: live catalogs, a Space-Track-refreshed local debris cache, and a bundled fallback set when remote sources fail.",
+    desc: "Two-Line Element sets are fetched from KeepTrack by an hourly backend job, normalized into a local cache, and served from disk on every user-facing request.",
   },
   {
     num: "02",
@@ -30,7 +30,7 @@ const TECH = [
   { name: "SGP4",          desc: "Industry-standard orbital mechanics propagator for TLE data.", color: "#818cf8" },
   { name: "ML Classifier", desc: "Custom altitude-factor risk engine with multi-threshold scoring.", color: "#f472b6" },
   { name: "React 19",      desc: "Component-driven UI with live data polling and SPA routing.",  color: "#4ade80" },
-  { name: "CelesTrak + Space-Track", desc: "Live GP feeds plus authenticated debris downloads feeding the local cache and future paid tier.", color: "#fb923c" },
+  { name: "KeepTrack Cache", desc: "Hourly KeepTrack catalog refreshes feed the local cache so all user-facing routes stay offline from external TLE providers.", color: "#fb923c" },
   { name: "Docker",        desc: "Containerised deployment of both backend and frontend services.", color: "#60a5fa" },
   { name: "Vite 7",        desc: "Next-generation build tooling with instant hot-module reload.",  color: "#fbbf24" },
   { name: "Python 3.11",   desc: "Core backend runtime with asyncio and numerical libraries.",    color: "#34d399" },
@@ -44,8 +44,8 @@ export default function About() {
         <div className="page-hero-eyebrow">About the project</div>
         <h1 className="page-hero-title">How SpaceDebrisAI works</h1>
         <p className="page-hero-sub">
-          An end-to-end system for real-time satellite conjunction screening, from multi-source TLE
-          ingestion and a 34k+ cached TLE catalog to AI-powered avoidance recommendations.
+          An end-to-end system for real-time satellite conjunction screening, from an hourly-refreshed
+          KeepTrack cache and a 33k+ local TLE catalog to AI-powered avoidance recommendations.
         </p>
       </div>
 
@@ -85,8 +85,8 @@ export default function About() {
         <h2 className="about-section-title">Key capabilities</h2>
         <div className="feature-grid">
           {[
-            ["Layered TLE sourcing", "Catalog ingestion can fall back across live feeds, Space-Track-refreshed local cache, and bundled simulated TLE data"],
-            ["Multi-pair screening", "All N-choose-2 satellite pair combinations screened every request"],
+            ["Hourly cache refresh", "KeepTrack is contacted once per hour by the backend, and every public route reads only from the local TLE cache"],
+            ["Multi-pair screening", "The public simulation screens the current 500-object slice from the cached catalog on a short server-side result cache"],
             ["Risk classification",  "Altitude-weighted scoring mapped to four actionable risk levels"],
             ["Maneuver planning",    "Per-risk-level delta-v recommendations with post-maneuver distance estimates"],
             ["Tiered API access",    "Free public access covers a 500-object slice, with a paid 10k+ object tier announced at $10/month and 5-second polling"],
