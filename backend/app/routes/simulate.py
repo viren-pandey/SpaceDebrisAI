@@ -16,7 +16,7 @@ from app.services.usage_metrics import record_request_usage
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = 500
+MAX_SATELLITES = 2000
 LOCAL_TLE_COUNT_LIMIT = 1000000
 SIMULATION_CACHE_TTL_SECONDS = 300
 CLOSEST_PAIR_COUNT = 20
@@ -116,8 +116,12 @@ def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
     if len(all_tles) <= MAX_SATELLITES:
         return list(all_tles)
 
-    # Keep the public slice stable until the cached TLE catalog changes.
-    return random.Random(catalog_stamp or "default").sample(all_tles, MAX_SATELLITES)
+    # Shuffle before slicing for public selection
+    tle_blocks = list(all_tles)
+    import random
+    random.shuffle(tle_blocks)
+    selected = tle_blocks[:MAX_SATELLITES]
+    return selected
 
 
 def _build_simulation_snapshot() -> dict:
