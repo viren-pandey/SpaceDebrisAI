@@ -64,3 +64,28 @@ desktop.ini
 *.bak
 *.orig
 _css_append.css
+
+# ── Local docs / scratch ─────────────────────────────────────
+SYSTEM_EXPLAINED.md
+*.scratch.*
+
+# ── Test / quick scripts ─────────────────────────────────────
+backend/test_sgp4.py
+scripts/quick_test.py
+
+# ── Docker local overrides ────────────────────────────────────
+docker-compose.override.yml
+
+# ── Coverage / profiling ─────────────────────────────────────
+.coverage
+coverage/
+htmlcov/
+*.prof
+*.trace
+
+# ── Jupyter ──────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── Vercel ───────────────────────────────────────────────────
+.vercel/

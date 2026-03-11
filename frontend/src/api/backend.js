@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL ?? "http://127.0.0.1:8000";
+const API = import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space";
 
 export async function fetchSimulation() {
   const res = await fetch(`${API}/simulate`, {
