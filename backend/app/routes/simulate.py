@@ -13,10 +13,8 @@ router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
 
-# ── Simulated satellite positions (fallback when CelesTrak is unreachable) ────
-#    Uses Keplerian circular-orbit approximation so positions are realistic.
+# Fallback satellite positions using circular orbit approximation
 def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
-    """Return an approximate TEME position vector (km) for a circular orbit."""
     inc  = math.radians(inc_deg)
     raan = math.radians(raan_deg)
     anom = math.radians(anom_deg)
@@ -26,10 +24,6 @@ def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
     z =  yo * math.sin(inc)
     return (x, y, z)
 
-# Designed so the closest pairs span CRITICAL / MEDIUM / LOW risk levels:
-#   ISS ↔ PROGRESS MS-24  ~3 km   → CRITICAL (LEO altitude boost ×1.2)
-#   STARLINK-3456 ↔ 3457  ~14 km  → MEDIUM
-#   TERRA ↔ AQUA           ~49 km  → LOW
 SIMULATED_SATS = [
     ("ISS (ZARYA)",        _orb(6779, 51.6,  45.0, 123.000)),
     ("PROGRESS MS-24",     _orb(6779, 51.6,  45.0, 123.025)),  # ~3 km  CRITICAL
@@ -41,7 +35,6 @@ SIMULATED_SATS = [
     ("SENTINEL-1A",        _orb(7064, 98.2,  55.0, 160.0)),
     ("LANDSAT 8",          _orb(7076, 98.2, 130.0, 290.0)),
     ("COSMOS 2533",        _orb(6771, 65.0, 180.0, 310.0)),
-    # Extended set — representative of all risk zones and orbital shells
     ("NOAA 20",            _orb(7195, 98.74, 190.0,  75.0)),
     ("SUOMI-NPP",          _orb(7195, 98.74, 200.0,  75.5)),   # closer pair
     ("SENTINEL-2A",        _orb(7157, 98.57,  80.0, 200.0)),
@@ -60,14 +53,12 @@ def _altitude(pos):
 
 
 def _build_pairs(sats: list, mode: str) -> dict:
-    """Core logic: compute all pairs, classify risk, recommend maneuvers."""
     t0 = time.time()
 
     all_pairs = []
     for (n1, p1), (n2, p2) in itertools.combinations(sats, 2):
         d = dist3d(p1, p2)
-        # Skip pairs that are physically co-located (docked modules, data artefacts)
-        if d < 0.5:
+        if d < 0.5:  # skip co-located objects
             continue
         alt = (_altitude(p1) + _altitude(p2)) / 2.0
         risk_before  = classify_conjunction(d, alt)
@@ -104,9 +95,6 @@ def _build_pairs(sats: list, mode: str) -> dict:
 
 @router.get("/simulate")
 def simulate():
-    # ── Load all 500 satellites from the local TLE database ───────────────────
-    #    (CelesTrak is tried as an optional refresh but we never wait more than
-    #     1 second for it; the local file is always authoritative for /simulate.)
     live_mode = False
     tles = fetch_tles_local(limit=500)
 
@@ -123,9 +111,8 @@ def simulate():
             tles = ct_tles
             live_mode = True
     except Exception:
-        pass  # silently use local
+        pass
 
-    # SGP4-propagate every TLE → TEME position vector
     valid_sats = []
     for name, l1, l2 in tles:
         pos = tle_to_position(l1, l2)
@@ -138,7 +125,6 @@ def simulate():
     result = _build_pairs(sats_for_pairs, mode=mode_label)
     result["meta"]["satellites"] = len(sats_for_pairs)
 
-    # Build per-satellite position list (lat/lon/alt for all tracked objects)
     now_utc = datetime.now(timezone.utc)
     sat_positions = []
     for name, pos in sats_for_pairs:

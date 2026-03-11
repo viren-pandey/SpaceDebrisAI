@@ -6,6 +6,11 @@ import { supabase } from "../lib/supabase";
 const BASE = "https://virenn77-spacedebrisai.hf.space";
 const LS_KEY   = "sdai_guest_api_key";
 const LS_EMAIL = "sdai_guest_email";
+const PUBLIC_OBJECT_COUNT = 500;
+const CACHED_DEBRIS_COUNT = "17k+";
+const PAID_OBJECT_COUNT = "10k+";
+const PAID_PRICE = "$10";
+const PAID_POLLING = "5s";
 
 const ENDPOINTS = [
   {
@@ -15,12 +20,12 @@ const ENDPOINTS = [
   },
   {
     method: "GET", path: "/satellites", auth: true,
-    desc: "Real-time geodetic positions (lat, lon, altitude) for all 500 tracked satellites via SGP4 orbital propagation from the onboard TLE database.",
+    desc: "Real-time geodetic positions (lat, lon, altitude) for the current 500-object public slice, propagated with SGP4 from the local debris TLE cache.",
     response: { count: 500, errors: 0, timestamp: "2026-03-11T10:00:00.000Z", satellites: [{ name: "ISS (ZARYA)", lat: 51.62, lon: -12.4, alt_km: 408.5 }] },
   },
   {
     method: "GET", path: "/simulate", auth: true,
-    desc: "Full proximity simulation across all 500 tracked satellites. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
+    desc: "Full proximity simulation across the same 500-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
     response: { mode: "live", meta: { satellites: 500, pairs_checked: 124750, processing_ms: 312.8 }, closest_pairs: [{ satellites: ["ISS (ZARYA)", "PROGRESS MS-24"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
   },
   {
@@ -37,10 +42,15 @@ const ENDPOINTS = [
 
 const METHOD_COLOR = { GET: "#22c55e", POST: "#38bdf8", DELETE: "#ef4444" };
 const HERO_STATS = [
-  { value: "500", label: "tracked objects" },
-  { value: "60", label: "req / min" },
-  { value: "JSON", label: "response format" },
-  { value: "Live", label: "Swagger docs" },
+  { value: String(PUBLIC_OBJECT_COUNT), label: "public objects" },
+  { value: CACHED_DEBRIS_COUNT, label: "cached debris tles" },
+  { value: PAID_PRICE, label: "paid tier" },
+  { value: PAID_POLLING, label: "paid polling" },
+];
+const PREMIUM_API_HIGHLIGHTS = [
+  { value: PAID_OBJECT_COUNT, label: "objects" },
+  { value: PAID_PRICE, label: "per month" },
+  { value: PAID_POLLING, label: "max polling" },
 ];
 
 const LANG_CODE = {
@@ -50,7 +60,7 @@ API_KEY = "${key}"
 BASE    = "${BASE}"
 HEADERS = {"X-API-Key": API_KEY}
 
-# All 500 satellite positions
+# Public 500-object snapshot
 r = requests.get(f"{BASE}/satellites", headers=HEADERS)
 sats = r.json()["satellites"]
 for s in sats[:5]:
@@ -68,7 +78,7 @@ for pair in sim["closest_pairs"][:3]:
 const API_KEY = "${key}";
 const headers = { "X-API-Key": API_KEY };
 
-// All 500 satellite positions
+// Public 500-object snapshot
 const { satellites } = await fetch(\`\${BASE}/satellites\`, { headers }).then(r => r.json());
 satellites.slice(0, 5).forEach(s =>
   console.log(s.name, s.lat, s.lon, s.alt_km + " km")
@@ -83,7 +93,7 @@ sim.closest_pairs.slice(0, 3).forEach(({ satellites: [a, b], before }) =>
   curl: (key) => `# Health check (no auth needed)
 curl ${BASE}/health
 
-# 500 satellite positions
+# Public 500-object snapshot
 curl -H "X-API-Key: ${key}" \\
      ${BASE}/satellites | jq '.satellites[:5]'
 
@@ -97,6 +107,39 @@ function mkKey(seed) {
   const rnd = Math.floor(Math.random() * 0xffffffffffff).toString(16).padStart(12, "0");
   const uid = seed.replace(/[^a-z0-9]/gi, "").slice(0, 8).padEnd(8, "0");
   return `sdai_${uid}${ts}${rnd}_live`;
+}
+
+function PremiumApiAnnouncement() {
+  return (
+    <div className="ap-premium-box">
+      <div className="ap-premium-box-head">
+        <div>
+          <p className="ap-premium-eyebrow">New announcement</p>
+          <h3 className="ap-premium-title">Paid API tier for larger debris coverage</h3>
+        </div>
+        <span className="ap-premium-pill">Coming soon</span>
+      </div>
+
+      <p className="ap-premium-copy">
+        The announced paid tier expands access to over 10,000 objects, priced at $10 per
+        month, with a maximum polling cadence of one request every 5 seconds.
+      </p>
+
+      <div className="ap-premium-stats">
+        {PREMIUM_API_HIGHLIGHTS.map((item) => (
+          <div key={item.label} className="ap-premium-stat">
+            <strong>{item.value}</strong>
+            <span>{item.label}</span>
+          </div>
+        ))}
+      </div>
+
+      <p className="ap-premium-footnote">
+        The current free API stays on the public 500-object slice for demos, prototypes,
+        and browser-based exploration.
+      </p>
+    </div>
+  );
 }
 
 export default function ApiPage() {
@@ -258,12 +301,18 @@ export default function ApiPage() {
             <div className="ap-hero-copy">
               <p className="ap-eyebrow">Developer Access</p>
               <h1 className="ap-h1">SpaceDebrisAI<br /><span className="ap-h1-accent">Public API</span></h1>
-              <p className="ap-sub">Real-time satellite positions, proximity risk classifications, and AI-generated avoidance maneuvers through a clean REST interface. Built on SGP4 propagation over <strong style={{ color: "var(--text-bright)" }}>500 tracked objects</strong> with the same visual language as the rest of the platform.</p>
+              <p className="ap-sub">
+                Real-time orbital positions, conjunction screening, and AI-generated avoidance
+                maneuvers through a clean REST interface. The public tier currently serves a
+                <strong style={{ color: "var(--text-bright)" }}> 500-object propagated slice</strong>,
+                backed by a <strong style={{ color: "var(--text-bright)" }}> 17k+ local debris TLE cache</strong>
+                refreshed from Space-Track.
+              </p>
               <div className="ap-badges">
                 <span className="ap-badge">REST</span>
                 <span className="ap-badge">JSON</span>
-                <span className="ap-badge">Free tier</span>
-                <span className="ap-badge ap-badge-live">Live data</span>
+                <span className="ap-badge">Free + guest keys</span>
+                <span className="ap-badge ap-badge-live">Space-Track cache</span>
               </div>
               <div className="ap-hero-actions">
                 <a className="ap-btn-primary ap-hero-btn" href="#api-key-section">
@@ -281,7 +330,7 @@ export default function ApiPage() {
               {activeEmail && (
                 <div className="ap-user-pill">
                   <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-                  <span>{activeEmail}</span>
+                  <span className="ap-user-pill-email">{activeEmail}</span>
                   {user
                     ? <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
                     : <button className="ap-signout-btn" onClick={handleGuestRevoke}>Clear key</button>
@@ -313,9 +362,9 @@ export default function ApiPage() {
               </div>
 
               <div className="ap-hero-list">
-                <div className="ap-hero-list-item">Saved account keys or instant guest access</div>
-                <div className="ap-hero-list-item">Live response samples for every endpoint</div>
-                <div className="ap-hero-list-item">Readable docs, larger type, cleaner layout</div>
+                <div className="ap-hero-list-item">Saved account keys or instant browser-only guest access</div>
+                <div className="ap-hero-list-item">Public responses cover 500 propagated objects from the current cache</div>
+                <div className="ap-hero-list-item">Paid tier announced for 10k+ objects with 5-second polling</div>
               </div>
             </div>
           </div>
@@ -330,7 +379,7 @@ export default function ApiPage() {
             <span className="ap-section-num">01</span>
             <div className="ap-section-heading">
               <h2 className="ap-section-title">Your API key</h2>
-              <p className="ap-section-copy">Choose a saved account key or generate a browser-only guest key for immediate testing.</p>
+              <p className="ap-section-copy">Choose a saved account key or generate a browser-only guest key for immediate testing on the public 500-object tier.</p>
             </div>
           </div>
 
@@ -359,7 +408,7 @@ export default function ApiPage() {
                 <button className="ap-btn-primary ap-cg-btn" onClick={() => navigate("/login", { state: { from: "/api" } })}>
                   Sign in / Create free account
                 </button>
-                <p className="ap-cg-note">No credit card. No spam.</p>
+                <p className="ap-cg-note">Free public tier. No credit card.</p>
               </div>
 
               <div className="ap-cg-divider">
@@ -392,6 +441,7 @@ export default function ApiPage() {
           {/* ── Logged in: Supabase-backed key ── */}
           {user && (
             <div className="ap-key-card">
+              <PremiumApiAnnouncement />
               {keyError && <p className="ap-key-error">{keyError}</p>}
               {!apiKey ? (
                 <div className="ap-key-empty">
@@ -416,7 +466,7 @@ export default function ApiPage() {
                   <div className="ap-key-meta">
                     <span className="ap-key-meta-item"><span className="ap-dot ap-dot-green" />Active</span>
                     <span className="ap-key-meta-sep">·</span>
-                    <span className="ap-key-meta-item">{user.email}</span>
+                    <span className="ap-key-meta-item ap-key-meta-email">{user.email}</span>
                   </div>
                   <div className="ap-key-actions">
                     <button className="ap-btn-regen" onClick={handleRegenerate} disabled={keyLoading}>
@@ -454,6 +504,7 @@ export default function ApiPage() {
                 </button>
               </div>
 
+              <PremiumApiAnnouncement />
               <p className="ap-key-intro">Include as <code className="ap-inline-code">X-API-Key</code> header on every authenticated request.</p>
               <div className="ap-key-display">
                 <div className="ap-key-active-dot" style={{background:"#f59e0b"}} />
@@ -468,7 +519,7 @@ export default function ApiPage() {
                   <span className="ap-guest-badge">Guest</span>
                 </span>
                 <span className="ap-key-meta-sep">·</span>
-                <span className="ap-key-meta-item">{guestEmail}</span>
+                <span className="ap-key-meta-item ap-key-meta-email">{guestEmail}</span>
               </div>
               <div className="ap-key-actions">
                 <button className="ap-btn-regen" onClick={() => { handleGuestRevoke(); setShowWarnModal(true); }}>↻ Regenerate</button>
@@ -484,7 +535,7 @@ export default function ApiPage() {
             <span className="ap-section-num">02</span>
             <div className="ap-section-heading">
               <h2 className="ap-section-title">Base URL</h2>
-              <p className="ap-section-copy">All requests run over HTTPS with the same header convention across the public API.</p>
+              <p className="ap-section-copy">All requests run over HTTPS with the same header convention across the public tier and the announced paid tier.</p>
             </div>
           </div>
           <div className="ap-base-url-card">
@@ -500,7 +551,7 @@ export default function ApiPage() {
             <span className="ap-section-num">03</span>
             <div className="ap-section-heading">
               <h2 className="ap-section-title">Endpoints</h2>
-              <p className="ap-section-copy">Browse the live surface area, inspect payloads, and expand the routes you need.</p>
+              <p className="ap-section-copy">Browse the current public API surface, inspect payloads, and see how the 500-object slice is exposed today.</p>
             </div>
           </div>
           <div className="ap-endpoints">
@@ -538,7 +589,7 @@ export default function ApiPage() {
             <span className="ap-section-num">04</span>
             <div className="ap-section-heading">
               <h2 className="ap-section-title">Code examples</h2>
-              <p className="ap-section-copy">Copy a starter request in the language you want and drop in your key.</p>
+              <p className="ap-section-copy">Copy a starter request in the language you want and drop in your key for the public tier.</p>
             </div>
           </div>
           <div className="ap-code-card">
@@ -559,18 +610,18 @@ export default function ApiPage() {
           <div className="ap-section-label-row">
             <span className="ap-section-num">05</span>
             <div className="ap-section-heading">
-              <h2 className="ap-section-title">Rate limits &amp; fair use</h2>
-              <p className="ap-section-copy">The public tier is generous enough for demos, prototypes, and direct browser exploration.</p>
+              <h2 className="ap-section-title">Access tiers &amp; fair use</h2>
+              <p className="ap-section-copy">The public tier stays lightweight for demos and prototypes, while the announced paid tier targets larger debris coverage and faster polling.</p>
             </div>
           </div>
           <div className="ap-limits-card">
             <div className="ap-limits-grid">
               <div className="ap-limit-item"><span className="ap-limit-val">60</span><span className="ap-limit-label">req / min</span></div>
-              <div className="ap-limit-item"><span className="ap-limit-val">500</span><span className="ap-limit-label">satellites</span></div>
-              <div className="ap-limit-item"><span className="ap-limit-val">SGP4</span><span className="ap-limit-label">propagation</span></div>
-              <div className="ap-limit-item"><span className="ap-limit-val">Free</span><span className="ap-limit-label">no billing</span></div>
+              <div className="ap-limit-item"><span className="ap-limit-val">500</span><span className="ap-limit-label">public objects</span></div>
+              <div className="ap-limit-item"><span className="ap-limit-val">17k+</span><span className="ap-limit-label">cached tle catalog</span></div>
+              <div className="ap-limit-item"><span className="ap-limit-val">$10</span><span className="ap-limit-label">paid tier announced</span></div>
             </div>
-            <p className="ap-limits-note">Research &amp; demonstration API. Data refreshed on each request from the onboard TLE database. For production scale, contact the maintainer.</p>
+            <p className="ap-limits-note">Public requests serve the current 500-object slice from the local debris cache. The announced paid tier expands access to 10k+ objects with a 5-second maximum polling cadence.</p>
           </div>
         </section>
 
