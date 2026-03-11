@@ -6,12 +6,14 @@ import itertools
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import fetch_tles, fetch_tles_local
+from app.services.tle_fetcher import fetch_tles_local, fetch_tles_with_source
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
 
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
+PUBLIC_OBJECT_LIMIT = 500
+LOCAL_TLE_COUNT_LIMIT = 1000000
 
 # Fallback satellite positions using circular orbit approximation
 def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
@@ -95,23 +97,8 @@ def _build_pairs(sats: list, mode: str) -> dict:
 
 @router.get("/simulate")
 def simulate():
-    live_mode = False
-    tles = fetch_tles_local(limit=500)
-
-    try:
-        import requests as _req
-        r = _req.get(
-            "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle",
-            timeout=1,
-        )
-        r.raise_for_status()
-        from app.services.tle_fetcher import _parse_tle_text
-        ct_tles = _parse_tle_text(r.text, 500)
-        if len(ct_tles) >= 200:
-            tles = ct_tles
-            live_mode = True
-    except Exception:
-        pass
+    tles, source = fetch_tles_with_source(limit=PUBLIC_OBJECT_LIMIT)
+    local_tle_records = len(fetch_tles_local(limit=LOCAL_TLE_COUNT_LIMIT))
 
     valid_sats = []
     for name, l1, l2 in tles:
@@ -120,10 +107,13 @@ def simulate():
             valid_sats.append((name, pos))
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
-    mode_label = "live" if live_mode else ("local" if valid_sats else "simulation")
+    mode_label = source if valid_sats else "simulation"
 
     result = _build_pairs(sats_for_pairs, mode=mode_label)
     result["meta"]["satellites"] = len(sats_for_pairs)
+    result["meta"]["public_objects"] = len(valid_sats)
+    result["meta"]["tle_records"] = local_tle_records
+    result["meta"]["tle_source"] = source
 
     now_utc = datetime.now(timezone.utc)
     sat_positions = []
