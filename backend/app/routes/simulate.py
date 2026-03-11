@@ -3,16 +3,17 @@ from datetime import datetime, timezone
 import time
 import math
 import itertools
+import random
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import fetch_tles_local, fetch_tles_with_source
+from app.services.tle_fetcher import fetch_tles_with_source
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
 
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-PUBLIC_OBJECT_LIMIT = 500
+MAX_SATELLITES = 5000
 LOCAL_TLE_COUNT_LIMIT = 1000000
 
 # Fallback satellite positions using circular orbit approximation
@@ -87,7 +88,6 @@ def _build_pairs(sats: list, mode: str) -> dict:
         "closest_pairs": closest,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "meta": {
-            "satellites":    len(sats),
             "pairs_checked": len(all_pairs),
             "processing_ms": ms,
         },
@@ -97,23 +97,28 @@ def _build_pairs(sats: list, mode: str) -> dict:
 
 @router.get("/simulate")
 def simulate():
-    tles, source = fetch_tles_with_source(limit=PUBLIC_OBJECT_LIMIT)
-    local_tle_records = len(fetch_tles_local(limit=LOCAL_TLE_COUNT_LIMIT))
+    all_tles, source = fetch_tles_with_source(limit=LOCAL_TLE_COUNT_LIMIT)
+    total_catalog = len(all_tles)
+    if source == "local":
+        random.shuffle(all_tles)
+    selected_tles = all_tles[:MAX_SATELLITES]
 
     valid_sats = []
-    for name, l1, l2 in tles:
+    for name, l1, l2 in selected_tles:
         pos = tle_to_position(l1, l2)
         if pos is not None:
             valid_sats.append((name, pos))
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
-    mode_label = source if valid_sats else "simulation"
+    mode_label = source if len(valid_sats) >= 3 else "simulation"
 
     result = _build_pairs(sats_for_pairs, mode=mode_label)
-    result["meta"]["satellites"] = len(sats_for_pairs)
-    result["meta"]["public_objects"] = len(valid_sats)
-    result["meta"]["tle_records"] = local_tle_records
-    result["meta"]["tle_source"] = source
+    result["meta"] = {
+        "total_catalog": total_catalog,
+        "satellites_screened": len(sats_for_pairs),
+        "pairs_checked": result["meta"]["pairs_checked"],
+        "processing_ms": result["meta"]["processing_ms"],
+    }
 
     now_utc = datetime.now(timezone.utc)
     sat_positions = []
