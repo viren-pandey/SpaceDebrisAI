@@ -5,7 +5,9 @@ import SatelliteTable from "../components/SatelliteTable";
 
 export default function Dashboard({ data, loading, error }) {
   const tickerItems = data?.closest_pairs ?? [];
-  const publicObjectCount = data?.meta?.satellites ?? "—";
+  const tleRecordCount = data?.meta?.tle_records ?? "—";
+  const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
+  const tleSource = data?.meta?.tle_source ?? data?.mode ?? "—";
   const publicSliceLabel =
     publicObjectCount === "—"
       ? "the current public object slice"
@@ -57,10 +59,10 @@ export default function Dashboard({ data, loading, error }) {
       {data && (
         <div className="db-stats-band">
           <div className="db-stats-inner">
-            <StatCard value={publicObjectCount} label="Public objects" sub="live count" />
+            <StatCard value={tleRecordCount} label="TLE records" sub={`${tleSource} source`} />
+            <StatCard value={publicObjectCount} label="Public objects" sub="screened live" />
             <StatCard value={data.meta?.pairs_checked ?? "—"} label="Pairs screened" sub="conjunctions" />
             <StatCard value={`${data.meta?.processing_ms ?? "—"}`} label="Processing time" sub="milliseconds" />
-            <StatCard value={data.mode ?? "—"} label="Data mode" sub="source" />
           </div>
         </div>
       )}

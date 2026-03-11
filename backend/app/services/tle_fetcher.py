@@ -130,28 +130,33 @@ def fetch_tles_simulated(limit: int = 200) -> list:
     return _parse_tle_text(_SIMULATED_TLE_TEXT, limit)
 
 
-def fetch_tles(limit: int = 25) -> list:
+def fetch_tles_with_source(limit: int = 25) -> tuple[list, str]:
     for url in _CELESTRAK_URLS:
         try:
             response = requests.get(url, timeout=3)
             response.raise_for_status()
             tles = _parse_tle_text(response.text, limit)
             if tles:
-                return tles
+                return tles, "celestrak"
         except Exception as exc:
             print(f"TLE fetch failed ({url}): {exc}")
 
     try:
         tles = _parse_tle_text(fetch_tles_spacetrack(), limit)
         if tles:
-            return tles
+            return tles, "spacetrack"
     except Exception as exc:
         print(f"TLE fetch failed (Space-Track): {exc}")
 
     print("Falling back to local TLE file.")
     tles = fetch_tles_local(limit)
     if tles:
-        return tles
+        return tles, "local"
 
     print("Falling back to bundled simulated TLE data.")
-    return fetch_tles_simulated(limit)
+    return fetch_tles_simulated(limit), "simulation"
+
+
+def fetch_tles(limit: int = 25) -> list:
+    tles, _source = fetch_tles_with_source(limit)
+    return tles
