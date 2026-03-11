@@ -24,6 +24,18 @@ export function AuthProvider({ children }) {
     return () => subscription.unsubscribe();
   }, []);
 
+  useEffect(() => {
+    try {
+      if (user?.email) {
+        localStorage.setItem("sdai_user_email", user.email);
+      } else {
+        localStorage.removeItem("sdai_user_email");
+      }
+    } catch {
+      // localStorage may be unavailable in some environments
+    }
+  }, [user]);
+
   const signUp = (email, password) =>
     supabase ? supabase.auth.signUp({ email, password }) : Promise.reject(new Error("Supabase not configured"));
 
