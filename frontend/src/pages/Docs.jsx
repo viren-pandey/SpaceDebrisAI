@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const BASE = "https://virenn77-spacedebrisai.hf.space";
 const PUBLIC_OBJECT_LIMIT = 500;
-const CACHED_TLE_RECORDS = "34k+";
+const CACHED_TLE_RECORDS = "33k+";
 const PAID_OBJECT_COUNT = "10k+";
 const PAID_PRICE = "$10";
 const PAID_POLLING = "5 sec";
@@ -194,7 +194,7 @@ export default function Docs() {
           <p className="docs-h1-sub">
             REST API for real-time orbital tracking, proximity risk classification,
             and AI-powered avoidance maneuver recommendations.
-            Built on SGP4 propagation over a public 500-object slice backed by a 34k+ cached TLE catalog.
+            Built on SGP4 propagation over a public 500-object slice backed by a 33k+ hourly-refreshed KeepTrack cache.
           </p>
           <div className="docs-header-pills">
             <Pill text="v2.0" />
@@ -210,7 +210,7 @@ export default function Docs() {
             SpaceDebrisAI provides a JSON REST API for monitoring the current public
             500-object slice of tracked satellites and debris. The backend computes
             real-time positions using SGP4/SDP4 orbital propagation and now keeps a
-            larger 34k+ local TLE catalog refreshed from Space-Track for broader coverage.
+            larger 33k+ local TLE catalog refreshed from KeepTrack once per hour for broader coverage.
           </p>
           <div className="docs-callout">
             <strong>Base URL</strong>
@@ -267,7 +267,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             method="GET"
             path="/satellites"
             auth
-            desc="Returns real-time geodetic positions (latitude, longitude, altitude in km) for the current public slice, computed via SGP4 propagation from the local 34k+ TLE catalog. Also includes raw TLE lines for your own propagation."
+            desc="Returns real-time geodetic positions (latitude, longitude, altitude in km) for the current public slice, computed via SGP4 propagation from the local 33k+ TLE catalog. Also includes raw TLE lines for your own propagation."
             params={[]}
             response={{
               count: 414,
@@ -292,11 +292,11 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             method="GET"
             path="/simulate"
             auth
-            desc="Runs a full proximity simulation across the current 500-object public slice. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Processing typically lands in the low hundreds of milliseconds."
+            desc="Runs a proximity simulation across the current 500-object public slice. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Results are served from a short-lived backend cache built from the local TLE catalog."
             params={[]}
             response={{
               mode: "local",
-              meta: { satellites: 414, public_objects: 414, tle_records: 34368, tle_source: "local", pairs_checked: 85491, processing_ms: 559.8 },
+              meta: { satellites: 487, public_objects: 500, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 },
               satellites: [{ name: "THOR ABLESTAR DEB", lat: 24.18, lon: 109.33, alt_km: 455.8 }],
               closest_pairs: [
                 {
@@ -316,11 +316,11 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             method="GET"
             path="/tracker/positions"
             auth
-            desc="Fetches live positions for 20 key satellites from the N2YO API. Results are cached for 2 minutes to stay within N2YO rate limits. Includes azimuth/elevation for ground observation."
+            desc="Fetches propagated positions for the current tracker slice directly from the local TLE cache. No browser request to this endpoint calls KeepTrack or any other external provider."
             params={[]}
             response={{
-              source: "live",
-              fetched_at: 1741689600,
+              source: "cache",
+              cached_at: "2026-03-11 10:05:35",
               satellites: [
                 {
                   noradId: 25544,
@@ -417,8 +417,8 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
           <p className="docs-p" style={{ marginTop: "1.5rem" }}>
             This is still a research and demonstration API. Public access currently exposes
             the 500-object slice, while the announced paid tier targets {PAID_OBJECT_COUNT} objects for
-            {` ${PAID_PRICE} `}per month with faster polling. Debris data is sourced through CelesTrak,
-            Space-Track-backed cache refreshes, and local fallbacks.
+            {` ${PAID_PRICE} `}per month with faster polling. Debris data is sourced through an hourly
+            KeepTrack refresh job and served from the local cache on every public request.
           </p>
         </Section>
       </main>
