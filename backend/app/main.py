@@ -1,8 +1,19 @@
 import os
+from contextlib import asynccontextmanager
+
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from app.services.tle_fetcher import fetch_and_cache, start_refresh_thread
 
-app = FastAPI()
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    fetch_and_cache()
+    start_refresh_thread()
+    yield
+
+
+app = FastAPI(lifespan=lifespan)
 
 _extra = os.getenv("ALLOWED_ORIGIN", "")
 _origins = [

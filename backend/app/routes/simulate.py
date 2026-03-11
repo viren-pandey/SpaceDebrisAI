@@ -7,7 +7,7 @@ import random
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import fetch_tles_with_source
+from app.services.tle_fetcher import load_tles_from_cache, parse_tle_text
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
 
 router = APIRouter()
@@ -97,9 +97,10 @@ def _build_pairs(sats: list, mode: str) -> dict:
 
 @router.get("/simulate")
 def simulate():
-    all_tles, source = fetch_tles_with_source(limit=LOCAL_TLE_COUNT_LIMIT)
+    raw_tles = load_tles_from_cache()
+    all_tles = parse_tle_text(raw_tles, limit=LOCAL_TLE_COUNT_LIMIT)
     total_catalog = len(all_tles)
-    if source == "local":
+    if all_tles:
         random.shuffle(all_tles)
     selected_tles = all_tles[:MAX_SATELLITES]
 
@@ -110,7 +111,7 @@ def simulate():
             valid_sats.append((name, pos))
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
-    mode_label = source if len(valid_sats) >= 3 else "simulation"
+    mode_label = "local" if len(valid_sats) >= 3 else "simulation"
 
     result = _build_pairs(sats_for_pairs, mode=mode_label)
     result["meta"] = {

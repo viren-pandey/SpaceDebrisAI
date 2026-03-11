@@ -1,18 +1,21 @@
-import os
+import json
+import threading
+import time
 from pathlib import Path
 
 import requests
 
-_CELESTRAK_FULL_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=active&FORMAT=tle"
-_CELESTRAK_VISUAL_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP=visual&FORMAT=tle"
-
-_SPACETRACK_LOGIN_URL = "https://www.space-track.org/ajaxauth/login"
-_SPACETRACK_TLE_URL = (
-    "https://www.space-track.org/basicspacedata/query/"
-    "class/gp/OBJECT_TYPE/DEBRIS/format/3le"
-)
-_LOCAL_TLE_FILE = Path(__file__).parent.parent / "data" / "satellites.tle"
-_ENV_FILE = Path(__file__).resolve().parents[3] / ".env"
+_KEEPTRACK_SATS_URL = "https://api.keeptrack.space/v4/sats"
+_KEEPTRACK_LAST_UPDATE_URL = "https://api.keeptrack.space/v4/catalog/last-update"
+_DATA_DIR = Path(__file__).resolve().parent.parent / "data"
+_LOCAL_TLE_FILE = _DATA_DIR / "satellites.tle"
+_LAST_UPDATE_FILE = _DATA_DIR / "last_update.txt"
+_REFRESH_INTERVAL_SECONDS = 3600
+_REFRESH_LOCK = threading.Lock()
+_REFRESH_THREAD_LOCK = threading.Lock()
+_REFRESH_THREAD: threading.Thread | None = None
+TLE_FILE = _LOCAL_TLE_FILE
+TIMESTAMP_FILE = _LAST_UPDATE_FILE
 
 _SIMULATED_TLE_TEXT = """ISS (ZARYA)
 1 25544U 98067A   25344.60000000  .00016717  00000-0  10270-3 0  9001
@@ -62,67 +65,158 @@ def _parse_tle_text(text: str, limit: int) -> list:
     return tles
 
 
-def _load_repo_env() -> None:
-    """Populate missing process env vars from the repo root .env file."""
-    if not _ENV_FILE.exists():
-        return
+def parse_tle_text(text: str, limit: int) -> list:
+    return _parse_tle_text(text, limit)
 
+
+def _ensure_data_dir() -> None:
+    _DATA_DIR.mkdir(parents=True, exist_ok=True)
+
+
+def _write_text_atomic(path: Path, text: str) -> None:
+    temp_path = path.with_suffix(f"{path.suffix}.tmp")
+    temp_path.write_text(text, encoding="utf-8")
+    temp_path.replace(path)
+
+
+def _normalize_last_update(payload: object) -> str:
+    if isinstance(payload, (dict, list)):
+        return json.dumps(payload, sort_keys=True, separators=(",", ":"))
+    return str(payload).strip()
+
+
+def _read_last_update() -> str | None:
     try:
-        for raw_line in _ENV_FILE.read_text(encoding="utf-8").splitlines():
-            line = raw_line.strip()
-            if not line or line.startswith("#") or "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            key = key.strip()
-            value = value.strip().strip('"').strip("'")
-            if key and value:
-                os.environ.setdefault(key, value)
-    except Exception as exc:
-        print(f"Failed to load .env file: {exc}")
+        value = _LAST_UPDATE_FILE.read_text(encoding="utf-8").strip()
+    except FileNotFoundError:
+        return None
+    return value or None
+
+
+def fetch_remote_last_update() -> str:
+    response = requests.get(_KEEPTRACK_LAST_UPDATE_URL, timeout=10)
+    response.raise_for_status()
+    try:
+        payload = response.json()
+    except ValueError:
+        payload = response.text.strip()
+    return _normalize_last_update(payload)
+
+
+def get_remote_timestamp() -> str:
+    return fetch_remote_last_update()
+
+
+def fetch_remote_tles() -> str:
+    """Fetch the full TLE catalog from KeepTrack."""
+    response = requests.get(_KEEPTRACK_SATS_URL, timeout=30)
+    response.raise_for_status()
+    tle_text = response.text.strip()
+    if not tle_text:
+        raise RuntimeError("KeepTrack returned an empty TLE payload.")
+    if not _parse_tle_text(tle_text, 1):
+        raise RuntimeError("KeepTrack returned no valid TLE records.")
+    return tle_text
 
 
 def fetch_tles_spacetrack() -> str:
-    """Fetch debris TLEs from Space-Track and return the raw TLE text."""
-    _load_repo_env()
-    email = os.getenv("SPACETRACK_EMAIL")
-    password = os.getenv("SPACETRACK_PASSWORD")
-    if not email or not password:
-        raise RuntimeError(
-            "Space-Track credentials are missing. Set SPACETRACK_EMAIL and "
-            "SPACETRACK_PASSWORD."
+    """Backward-compatible wrapper for scripts that download the raw TLE catalog."""
+    return fetch_remote_tles()
+
+
+def get_local_timestamp() -> str | None:
+    return _read_last_update()
+
+
+def should_refresh(remote_last_update: str | None = None) -> bool:
+    if not _LOCAL_TLE_FILE.exists():
+        return True
+
+    remote_value = remote_last_update or fetch_remote_last_update()
+    local_value = _read_last_update()
+    if not local_value:
+        return True
+    return remote_value != local_value
+
+
+def fetch_and_cache(force: bool = False) -> bool:
+    with _REFRESH_LOCK:
+        remote_last_update: str | None = None
+
+        if force:
+            try:
+                remote_last_update = fetch_remote_last_update()
+            except Exception as exc:
+                print(f"TLE last-update check failed during forced refresh: {exc}")
+        else:
+            try:
+                remote_last_update = fetch_remote_last_update()
+            except Exception as exc:
+                if _LOCAL_TLE_FILE.exists():
+                    print(f"TLE refresh check failed; keeping local cache: {exc}")
+                    return False
+                print(
+                    "TLE cache missing; last-update check failed, "
+                    f"attempting direct catalog fetch: {exc}"
+                )
+            else:
+                if not should_refresh(remote_last_update):
+                    return False
+
+        tle_text = fetch_remote_tles()
+        _ensure_data_dir()
+        _write_text_atomic(_LOCAL_TLE_FILE, tle_text.rstrip() + "\n")
+        if remote_last_update is not None:
+            _write_text_atomic(_LAST_UPDATE_FILE, remote_last_update)
+        print(f"TLE cache updated: {_LOCAL_TLE_FILE}")
+        return True
+
+
+def load_tles_from_cache() -> str:
+    try:
+        return _LOCAL_TLE_FILE.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        print("Local TLE cache is missing. Falling back to bundled simulated TLE data.")
+    except Exception as exc:
+        print(f"Local TLE cache read failed: {exc}")
+    return _SIMULATED_TLE_TEXT
+
+
+def refresh_loop() -> None:
+    while True:
+        try:
+            fetch_and_cache()
+        except Exception as exc:
+            print(f"TLE refresh failed: {exc}")
+        time.sleep(_REFRESH_INTERVAL_SECONDS)
+
+
+def start_refresh_thread() -> None:
+    global _REFRESH_THREAD
+
+    with _REFRESH_THREAD_LOCK:
+        if _REFRESH_THREAD and _REFRESH_THREAD.is_alive():
+            return
+        _ensure_data_dir()
+        _REFRESH_THREAD = threading.Thread(
+            target=refresh_loop,
+            name="tle-refresh",
+            daemon=True,
         )
-
-    with requests.Session() as session:
-        login_response = session.post(
-            _SPACETRACK_LOGIN_URL,
-            data={"identity": email, "password": password},
-            timeout=10,
-        )
-        login_response.raise_for_status()
-
-        tle_response = session.get(_SPACETRACK_TLE_URL, timeout=10)
-        tle_response.raise_for_status()
-
-    tle_text = tle_response.text.strip()
-    if not tle_text:
-        raise RuntimeError("Space-Track returned an empty TLE payload.")
-    if not _parse_tle_text(tle_text, 1):
-        raise RuntimeError("Space-Track returned no valid TLE records.")
-    return tle_text
+        _REFRESH_THREAD.start()
 
 
 def fetch_tles_local(limit: int = 200) -> list:
     """Read TLEs from the bundled local satellites.tle file."""
     try:
-        text = _LOCAL_TLE_FILE.read_text(encoding="utf-8")
-        return _parse_tle_text(text, limit)
+        return _parse_tle_text(load_tles_from_cache(), limit)
     except Exception as exc:
         print(f"Local TLE read failed: {exc}")
         return []
 
 
 def fetch_tles_simulated(limit: int = 200) -> list:
-    """Return a small bundled TLE set when all live and local sources fail."""
+    """Return a small bundled TLE set when the local cache is unavailable."""
     return _parse_tle_text(_SIMULATED_TLE_TEXT, limit)
 
 
@@ -131,20 +225,7 @@ def fetch_tles_with_source(limit: int = 25) -> tuple[list, str]:
     if tles:
         return tles, "local"
 
-    for url, source in (
-        (_CELESTRAK_FULL_URL, "celestrak-full"),
-        (_CELESTRAK_VISUAL_URL, "celestrak-visual"),
-    ):
-        try:
-            response = requests.get(url, timeout=3)
-            response.raise_for_status()
-            tles = _parse_tle_text(response.text, limit)
-            if tles:
-                return tles, source
-        except Exception as exc:
-            print(f"TLE fetch failed ({url}): {exc}")
-
-    print("Falling back to bundled simulated TLE data.")
+    print("Local TLE cache unavailable. Falling back to bundled simulated TLE data.")
     return fetch_tles_simulated(limit), "simulation"
 
 

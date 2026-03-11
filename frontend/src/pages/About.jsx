@@ -45,7 +45,7 @@ export default function About() {
         <h1 className="page-hero-title">How SpaceDebrisAI works</h1>
         <p className="page-hero-sub">
           An end-to-end system for real-time satellite conjunction screening, from multi-source TLE
-          ingestion and a 17k+ cached debris catalog to AI-powered avoidance recommendations.
+          ingestion and a 34k+ cached TLE catalog to AI-powered avoidance recommendations.
         </p>
       </div>
 
