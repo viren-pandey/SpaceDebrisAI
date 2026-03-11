@@ -14,7 +14,7 @@ from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = 500
+MAX_SATELLITES = 2000
 LOCAL_TLE_COUNT_LIMIT = 1000000
 SIMULATION_CACHE_TTL_SECONDS = 60
 _SIMULATION_CACHE_LOCK = threading.Lock()
@@ -107,9 +107,8 @@ def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
     if len(all_tles) <= MAX_SATELLITES:
         return list(all_tles)
 
-    # Keep the public slice diverse without shuffling the full catalog on every request.
-    rng = random.Random(catalog_stamp or len(all_tles))
-    return rng.sample(all_tles, MAX_SATELLITES)
+    # Randomize across the full cached catalog before taking the public slice.
+    return random.sample(all_tles, MAX_SATELLITES)
 
 
 def _build_simulation_snapshot() -> dict:
