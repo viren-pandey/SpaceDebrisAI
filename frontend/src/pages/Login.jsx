@@ -68,13 +68,13 @@ export default function Login() {
           <h1 className="login-display-title">Access the debris monitoring API with free and paid tiers.</h1>
           <p className="login-copy">
             Create a free account to keep your API key attached to your profile and access the public
-            500-object tier. The backend now keeps a 33k+ local debris TLE catalog refreshed from KeepTrack,
+            2000-object tier. The backend now keeps a 33k+ local debris TLE catalog refreshed from KeepTrack,
             and the announced paid tier expands access to 10k+ objects with 5-second polling.
           </p>
 
           <div className="login-stat-row">
             <div className="login-stat-card">
-              <strong>500</strong>
+              <strong>2000</strong>
               <span>Public objects</span>
             </div>
             <div className="login-stat-card">
