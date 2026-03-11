@@ -1,5 +1,6 @@
 from fastapi import APIRouter, Request
 from datetime import datetime, timezone
+import heapq
 import time
 import math
 import itertools
@@ -15,9 +16,10 @@ from app.services.usage_metrics import record_request_usage
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = 2000
+MAX_SATELLITES = 500
 LOCAL_TLE_COUNT_LIMIT = 1000000
-SIMULATION_CACHE_TTL_SECONDS = 60
+SIMULATION_CACHE_TTL_SECONDS = 300
+CLOSEST_PAIR_COUNT = 20
 _SIMULATION_CACHE_LOCK = threading.Lock()
 _SIMULATION_CACHE = {
     "payload": None,
@@ -67,37 +69,43 @@ def _altitude(pos):
 def _build_pairs(sats: list, mode: str) -> dict:
     t0 = time.time()
 
-    all_pairs = []
+    closest_heap = []
+    pairs_checked = 0
     for (n1, p1), (n2, p2) in itertools.combinations(sats, 2):
         d = dist3d(p1, p2)
         if d < 0.5:  # skip co-located objects
             continue
-        alt = (_altitude(p1) + _altitude(p2)) / 2.0
-        risk_before  = classify_conjunction(d, alt)
-        maneuver     = recommend_maneuver(d, risk_before)
-        risk_after   = classify_conjunction(maneuver["new_distance_km"], alt)
-        all_pairs.append({
-            "_dist":      d,
-            "satellites": [n1, n2],
-            "before":     {"distance_km": round(d, 2), "risk": risk_before},
-            "after":      {
-                "distance_km": maneuver["new_distance_km"],
-                "risk":        risk_after,
-            },
-            "maneuver":   maneuver["action"],
-        })
+        pairs_checked += 1
+        entry = (-d, n1, p1, n2, p2)
+        if len(closest_heap) < CLOSEST_PAIR_COUNT:
+            heapq.heappush(closest_heap, entry)
+            continue
+        if d < -closest_heap[0][0]:
+            heapq.heapreplace(closest_heap, entry)
 
-    all_pairs.sort(key=lambda p: p["_dist"])
-    closest = all_pairs[:20]
-    for p in closest:
-        p.pop("_dist", None)
+    closest = []
+    for neg_dist, n1, p1, n2, p2 in sorted(closest_heap, key=lambda item: -item[0]):
+        d = -neg_dist
+        alt = (_altitude(p1) + _altitude(p2)) / 2.0
+        risk_before = classify_conjunction(d, alt)
+        maneuver = recommend_maneuver(d, risk_before)
+        risk_after = classify_conjunction(maneuver["new_distance_km"], alt)
+        closest.append({
+            "satellites": [n1, n2],
+            "before": {"distance_km": round(d, 2), "risk": risk_before},
+            "after": {
+                "distance_km": maneuver["new_distance_km"],
+                "risk": risk_after,
+            },
+            "maneuver": maneuver["action"],
+        })
 
     ms = round((time.time() - t0) * 1000, 1)
     return {
         "closest_pairs": closest,
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "meta": {
-            "pairs_checked": len(all_pairs),
+            "pairs_checked": pairs_checked,
             "processing_ms": ms,
         },
         "mode": mode,
@@ -108,8 +116,8 @@ def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
     if len(all_tles) <= MAX_SATELLITES:
         return list(all_tles)
 
-    # Randomize across the full cached catalog before taking the public slice.
-    return random.sample(all_tles, MAX_SATELLITES)
+    # Keep the public slice stable until the cached TLE catalog changes.
+    return random.Random(catalog_stamp or "default").sample(all_tles, MAX_SATELLITES)
 
 
 def _build_simulation_snapshot() -> dict:
@@ -180,6 +188,6 @@ def _get_cached_simulation() -> dict:
 
 
 @router.get("/simulate")
-def simulate(request: Request):
+async def simulate(request: Request):
     record_request_usage(request, "simulate")
     return _get_cached_simulation()
