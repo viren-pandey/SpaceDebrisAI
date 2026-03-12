@@ -60,6 +60,11 @@ export default function RiskPanel({ data }) {
   const rgb = RISK_COLORS[lvl] || RISK_COLORS.LOW;
   const afterLvl = pair.after?.risk?.level ?? "LOW";
 
+  const tcaTime = pair.tca_time ? new Date(pair.tca_time).toLocaleString() : "—";
+  const pcValue = pair.pc_scientific ?? "—";
+  const confidence = pair.confidence ?? "LOW";
+  const missDistance = pair.miss_distance_km ?? pair.before.distance_km;
+
   function handleClick() {
     navigate(`/conjunction/${idx}`, {
       state: { pair, satellites: data.satellites ?? [], timestamp: data.timestamp_utc },
@@ -115,10 +120,25 @@ export default function RiskPanel({ data }) {
 
         {/* Big distance */}
         <div className="rp-distance-hero">
-          <div className="rp-distance-label">Closest approach distance</div>
+          <div className="rp-distance-label">Time of Closest Approach</div>
           <div className={`rp-distance-number ${lc}`}>
-            {pair.before.distance_km.toFixed(2)}
-            <span className="km-unit">km</span>
+            {tcaTime}
+          </div>
+        </div>
+
+        {/* TCA Info Row */}
+        <div className="rp-tca-row">
+          <div className="rp-tca-item">
+            <span className="rp-tca-label">Miss Distance</span>
+            <span className="rp-tca-value">{missDistance.toFixed(2)} km</span>
+          </div>
+          <div className="rp-tca-item">
+            <span className="rp-tca-label">Probability of Collision</span>
+            <span className="rp-tca-value pc-value">{pcValue}</span>
+          </div>
+          <div className="rp-tca-item">
+            <span className="rp-tca-label">Confidence</span>
+            <span className={`rp-tca-value rp-confidence rp-conf-${confidence.toLowerCase()}`}>{confidence}</span>
           </div>
         </div>
 

@@ -26,8 +26,18 @@ const ENDPOINTS = [
   },
   {
     method: "GET", path: "/simulate", auth: true,
-    desc: "Full proximity simulation across the same 500-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
-    response: { mode: "local", meta: { satellites: 487, public_objects: 500, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
+    desc: "Full proximity simulation across the same 500-object public slice. Returns positions, 20 closest approach pairs with TCA time, probability of collision (scientific notation), confidence level, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
+    response: { mode: "local", meta: { satellites: 487, public_objects: 500, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], tca_time: "2026-03-12T12:18:53.768158+00:00", miss_distance_km: 24.96, probability_of_collision: 1.39e-17, pc_scientific: "1.39e-17", confidence: "LOW", before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
+  },
+  {
+    method: "GET", path: "/cdm", auth: false,
+    desc: "Returns real Conjunction Data Messages from Space-Track.org (US Space Force 18th Space Defense Squadron). Deduplicated to show unique conjunction events only.",
+    response: { source: "Space-Track.org — 18th Space Defense Squadron", description: "Real operational conjunction screening data", count: 485, original_count: 1030, conjunctions: [{ CDM_ID: "1370103366", TCA: "2026-03-05T13:36:42.100000", MIN_RNG: "263", PC: "0.0008383776", SAT_1_NAME: "SCOUT X-1 R/B", SAT_2_NAME: "FENGYUN 1C DEB" }] },
+  },
+  {
+    method: "POST", path: "/cdm/refresh", auth: false,
+    desc: "Manually trigger a refresh of the CDM cache from Space-Track.org. Returns deduplicated count.",
+    response: { status: "refreshed", count: 485, original_count: 1030 },
   },
   {
     method: "GET", path: "/tracker/positions", auth: true,

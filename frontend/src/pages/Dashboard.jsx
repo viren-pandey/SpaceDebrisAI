@@ -3,6 +3,7 @@ import RiskPanel from "../components/RiskPanel";
 import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
 import ProTierBanner from "../components/ProTierBanner";
+import CDMPanel from "../components/CDMPanel";
 
 export default function Dashboard({ data, loading, error }) {
   const tickerItems = data?.closest_pairs ?? [];
@@ -91,6 +92,11 @@ export default function Dashboard({ data, loading, error }) {
 
       {/* Conjunction table */}
       {data && <SatelliteTable data={data} />}
+
+      {/* Real CDM Data from Space-Track */}
+      <section className="db-cdm-section">
+        <CDMPanel />
+      </section>
 
       {/* Paid-tier announcement — visible to all users */}
       <section className="db-tracker-teaser" style={{ paddingBottom: 0 }}>
