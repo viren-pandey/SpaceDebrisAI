@@ -43,3 +43,36 @@ export async function fetchTrackerPositions() {
   if (!res.ok) throw new Error(`Tracker API error ${res.status}`);
   return await res.json();
 }
+
+export async function fetchCDM() {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(`${API}/cdm`, {
+      cache: "no-store",
+      headers: buildHeaders(),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`CDM API error: ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("CDM request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to fetch CDM: " + err.message);
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function refreshCDM() {
+  const res = await fetch(`${API}/cdm/refresh`, {
+    method: "POST",
+    cache: "no-store",
+    headers: buildHeaders(),
+  });
+  if (!res.ok) throw new Error(`CDM refresh error ${res.status}`);
+  return await res.json();
+}
