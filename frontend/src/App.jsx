@@ -7,10 +7,12 @@ import Navbar from "./components/Navbar";
 import SatelliteBackground from "./components/SatelliteBackground";
 import { fetchSimulation } from "./api/backend";
 import About from "./pages/About";
+import AdminDashboard from "./pages/AdminDashboard";
 import ApiPage from "./pages/ApiPage";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
 import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
+import LiveCongestion from "./pages/LiveCongestion";
 import Login from "./pages/Login";
 import Satellites from "./pages/Satellites";
 import Tracker from "./pages/Tracker";
@@ -79,6 +81,8 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/docs" element={<Docs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
+          <Route path="/admin" element={<AdminDashboard />} />
+          <Route path="/congestion" element={<LiveCongestion />} />
         </Routes>
       </main>
       <Footer />
