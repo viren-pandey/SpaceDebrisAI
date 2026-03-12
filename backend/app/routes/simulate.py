@@ -66,6 +66,83 @@ def _altitude(pos):
     return math.sqrt(pos[0]**2 + pos[1]**2 + pos[2]**2) - EARTH_RADIUS_KM
 
 
+def calculate_tca_and_pc(pos1: tuple, pos2: tuple, v1: tuple, v2: tuple):
+    """
+    Calculate Time of Closest Approach (TCA) and Probability of Collision (Pc).
+    Uses simplified relative motion model.
+    Returns: (tca_datetime, miss_distance_km, pc_value, pc_scientific, confidence)
+    """
+    from datetime import timedelta
+    
+    r_rel = (pos1[0] - pos2[0], pos1[1] - pos2[1], pos1[2] - pos2[2])
+    v_rel = (v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2])
+    
+    a = v_rel[0]**2 + v_rel[1]**2 + v_rel[2]**2
+    b = 2 * (r_rel[0]*v_rel[0] + r_rel[1]*v_rel[1] + r_rel[2]*v_rel[2])
+    c = r_rel[0]**2 + r_rel[1]**2 + r_rel[2]**2
+    
+    if a > 0:
+        discriminant = b**2 - 4*a*c
+        if discriminant >= 0:
+            t1 = (-b - math.sqrt(discriminant)) / (2*a)
+            t2 = (-b + math.sqrt(discriminant)) / (2*a)
+            if t1 > 0:
+                t_tca = t1
+            elif t2 > 0:
+                t_tca = t2
+            else:
+                t_tca = 0
+        else:
+            t_tca = 0
+    else:
+        t_tca = 0
+    
+    t_tca = max(0, min(t_tca, 86400))
+    
+    miss_distance = math.sqrt(c)
+    if a > 0 and t_tca > 0:
+        future_pos1 = (pos1[0] + v1[0]*t_tca, pos1[1] + v1[1]*t_tca, pos1[2] + v1[2]*t_tca)
+        future_pos2 = (pos2[0] + v2[0]*t_tca, pos2[1] + v2[1]*t_tca, pos2[2] + v2[2]*t_tca)
+        miss_distance = math.sqrt(
+            (future_pos1[0]-future_pos2[0])**2 + 
+            (future_pos1[1]-future_pos2[1])**2 + 
+            (future_pos1[2]-future_pos2[2])**2
+        )
+    
+    combined_radius_km = 0.005
+    uncertainty_km = max(miss_distance * 0.1, 0.1)
+    
+    if miss_distance < 0.001:
+        miss_distance = 0.001
+    
+    pc = (combined_radius_km**2) / (4 * uncertainty_km**2) * math.exp(-miss_distance**2 / (4 * uncertainty_km**2))
+    pc = min(pc, 1.0)
+    
+    pc_scientific = f"{pc:.2e}"
+    
+    if pc > 1e-4:
+        confidence = "HIGH"
+    elif pc > 1e-6:
+        confidence = "MEDIUM"
+    else:
+        confidence = "LOW"
+    
+    tca_time = datetime.now(timezone.utc) + timedelta(seconds=t_tca)
+    
+    return tca_time, miss_distance, pc, pc_scientific, confidence
+
+
+def _estimate_velocity(pos: tuple, alt_km: float) -> tuple:
+    """Estimate orbital velocity for a circular orbit at given altitude."""
+    mu = 398600.4418
+    r = EARTH_RADIUS_KM + alt_km
+    v = math.sqrt(mu / r)
+    if pos[0] == 0 and pos[1] == 0:
+        return (v, 0, 0)
+    mag = math.sqrt(pos[0]**2 + pos[1]**2 + pos[2]**2)
+    return (pos[0]/mag * v, pos[1]/mag * v, pos[2]/mag * v)
+
+
 def _build_pairs(sats: list, mode: str) -> dict:
     t0 = time.time()
 
@@ -86,12 +163,25 @@ def _build_pairs(sats: list, mode: str) -> dict:
     closest = []
     for neg_dist, n1, p1, n2, p2 in sorted(closest_heap, key=lambda item: -item[0]):
         d = -neg_dist
-        alt = (_altitude(p1) + _altitude(p2)) / 2.0
+        alt1 = _altitude(p1)
+        alt2 = _altitude(p2)
+        alt = (alt1 + alt2) / 2.0
+        
+        v1 = _estimate_velocity(p1, alt1)
+        v2 = _estimate_velocity(p2, alt2)
+        
+        tca_time, tca_miss, pc, pc_scientific, confidence = calculate_tca_and_pc(p1, p2, v1, v2)
+        
         risk_before = classify_conjunction(d, alt)
         maneuver = recommend_maneuver(d, risk_before)
         risk_after = classify_conjunction(maneuver["new_distance_km"], alt)
         closest.append({
             "satellites": [n1, n2],
+            "tca_time": tca_time.isoformat() if tca_time else None,
+            "miss_distance_km": round(tca_miss, 2),
+            "probability_of_collision": pc,
+            "pc_scientific": pc_scientific,
+            "confidence": confidence,
             "before": {"distance_km": round(d, 2), "risk": risk_before},
             "after": {
                 "distance_km": maneuver["new_distance_km"],

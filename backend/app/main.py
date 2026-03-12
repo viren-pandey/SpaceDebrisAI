@@ -54,3 +54,5 @@ app.include_router(health_router)
 app.include_router(tracker_router)
 app.include_router(satellites_router)
 app.include_router(usage_router)
+from app.routes.cdm import router as cdm_router
+app.include_router(cdm_router)

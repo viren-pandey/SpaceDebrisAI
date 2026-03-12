@@ -4,3 +4,4 @@ requests==2.32.5
 sgp4==2.25
 pydantic==2.12.5
 httpx==0.28.1
+scipy==1.13.1
