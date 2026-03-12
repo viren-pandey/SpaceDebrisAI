@@ -1,23 +1,51 @@
 import { useState, useEffect } from "react";
-import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "admin_secret_key_12345";
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
+const ADMIN_EMAIL = "pandeyviren68@gmail.com";
+const ADMIN_PASSWORD = "asdf1234@99";
+
 export default function AdminDashboard() {
-  const { user } = useAuth();
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("users");
-  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("admin_key") || ADMIN_KEY);
+  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("admin_key") || "");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
+  const [loginError, setLoginError] = useState("");
   const [banForm, setBanForm] = useState({ identifier: "", ip: "", email: "", reason: "" });
   const [unbanForm, setUnbanForm] = useState({ identifier: "", ip: "" });
   const [actionStatus, setActionStatus] = useState(null);
 
   useEffect(() => {
+    const storedKey = localStorage.getItem("admin_key");
+    if (storedKey === ADMIN_KEY) {
+      setIsAuthenticated(true);
+      setAdminKey(storedKey);
+    }
+  }, []);
+
+  useEffect(() => {
     localStorage.setItem("admin_key", adminKey);
   }, [adminKey]);
+
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setLoginError("");
+    
+    if (loginForm.email !== ADMIN_EMAIL || loginForm.password !== ADMIN_PASSWORD) {
+      setLoginError("Invalid credentials");
+      return;
+    }
+    
+    setIsAuthenticated(true);
+    setAdminKey(ADMIN_KEY);
+    localStorage.setItem("admin_key", ADMIN_KEY);
+  };
 
   const fetchData = async () => {
     if (!adminKey) {
@@ -45,10 +73,12 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 10000);
-    return () => clearInterval(interval);
-  }, [adminKey]);
+    if (isAuthenticated) {
+      fetchData();
+      const interval = setInterval(fetchData, 10000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, adminKey]);
 
   const handleBan = async (e) => {
     e.preventDefault();
@@ -100,19 +130,43 @@ export default function AdminDashboard() {
     }
   };
 
-  if (!user && !adminKey) {
+  const handleLogout = () => {
+    setIsAuthenticated(false);
+    setLoginForm({ email: "", password: "" });
+    localStorage.removeItem("admin_key");
+    navigate("/");
+  };
+
+  if (!isAuthenticated) {
     return (
       <div className="admin-page">
-        <div className="admin-setup">
-          <h2>Admin Access Required</h2>
-          <p>Enter your admin key to access the dashboard</p>
-          <input
-            type="password"
-            placeholder="Admin Key"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            className="admin-key-input"
-          />
+        <div className="admin-login">
+          <h2>Admin Login</h2>
+          <p>Please enter your credentials to access the admin dashboard</p>
+          <form className="login-form" onSubmit={handleLogin}>
+            <div className="form-group">
+              <label>Email</label>
+              <input
+                type="email"
+                value={loginForm.email}
+                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
+                placeholder="Enter admin email"
+              />
+            </div>
+            <div className="form-group">
+              <label>Password</label>
+              <input
+                type="password"
+                value={loginForm.password}
+                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
+                placeholder="Enter password"
+              />
+            </div>
+            {loginError && <div className="login-error">{loginError}</div>}
+            <button type="submit" className="login-btn">
+              Login
+            </button>
+          </form>
         </div>
       </div>
     );
@@ -123,15 +177,11 @@ export default function AdminDashboard() {
       <div className="admin-header">
         <h1>Admin Dashboard</h1>
         <div className="admin-controls">
-          <input
-            type="password"
-            placeholder="Admin Key"
-            value={adminKey}
-            onChange={(e) => setAdminKey(e.target.value)}
-            className="admin-key-input"
-          />
           <button onClick={fetchData} className="refresh-btn">
             Refresh
+          </button>
+          <button onClick={handleLogout} className="logout-btn">
+            Logout
           </button>
         </div>
       </div>

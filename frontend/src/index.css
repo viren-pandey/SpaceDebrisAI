@@ -6413,3 +6413,118 @@ body {
   width: 100%;
   text-align: center;
 }
+
+/* Admin Login */
+.admin-login {
+  max-width: 400px;
+  margin: 100px auto;
+  text-align: center;
+  padding: 40px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+}
+
+.admin-login h2 {
+  margin-bottom: 8px;
+  color: var(--text-bright);
+}
+
+.admin-login > p {
+  color: var(--text-dim);
+  margin-bottom: 32px;
+}
+
+.login-form {
+  text-align: left;
+}
+
+.login-form .form-group {
+  margin-bottom: 20px;
+}
+
+.login-form .form-group label {
+  display: block;
+  font-size: 14px;
+  color: var(--text-dim);
+  margin-bottom: 6px;
+}
+
+.login-form .form-group input {
+  width: 100%;
+  background: rgba(0,0,0,0.2);
+  border: 1px solid rgba(255,255,255,0.1);
+  color: var(--text);
+  padding: 12px 14px;
+  border-radius: 6px;
+  font-size: 14px;
+}
+
+.login-form .form-group input:focus {
+  outline: none;
+  border-color: var(--accent);
+}
+
+.login-btn {
+  width: 100%;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  padding: 12px 24px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+  font-size: 16px;
+  margin-top: 8px;
+}
+
+.login-btn:hover {
+  opacity: 0.85;
+}
+
+.login-error {
+  color: #ef4444;
+  font-size: 14px;
+  margin-bottom: 16px;
+  text-align: center;
+}
+
+.logout-btn {
+  background: rgba(255,255,255,0.1);
+  border: 1px solid rgba(255,255,255,0.2);
+  color: var(--text);
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.logout-btn:hover {
+  background: rgba(255,255,255,0.2);
+}
+
+/* Congestion Auth */
+.congestion-auth {
+  max-width: 400px;
+  margin: 80px auto;
+  text-align: center;
+  padding: 40px;
+  background: rgba(255,255,255,0.02);
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: 16px;
+}
+
+.congestion-auth h2 {
+  margin-bottom: 8px;
+  color: var(--text-bright);
+}
+
+.congestion-auth > p {
+  color: var(--text-dim);
+  margin-bottom: 32px;
+}
+
+.congestion-auth .admin-key-input {
+  width: 100%;
+  margin-bottom: 16px;
+}

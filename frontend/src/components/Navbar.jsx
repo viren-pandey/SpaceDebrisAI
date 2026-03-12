@@ -8,7 +8,6 @@ const NAV_LINKS = [
   { label: "Tracker",   to: "/tracker" },
   { label: "Docs",      to: "/docs" },
   { label: "About",     to: "/about" },
-  { label: "Congestion", to: "/congestion" },
 ];
 
 const BRAND = [
