@@ -1,27 +1,42 @@
 import { useState, useEffect } from "react";
+import { useNavigate } from "react-router-dom";
+import { supabase } from "../lib/supabase";
 
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "admin_secret_key_12345";
 const API_BASE = import.meta.env.VITE_API_URL || "";
 
 export default function LiveCongestion() {
+  const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [polls, setPolls] = useState([]);
-  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("admin_key") || ADMIN_KEY);
+  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("congestion_key") || "");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [history, setHistory] = useState([]);
 
   useEffect(() => {
-    localStorage.setItem("admin_key", adminKey);
+    localStorage.setItem("congestion_key", adminKey);
+  }, [adminKey]);
+
+  useEffect(() => {
+    if (adminKey === ADMIN_KEY) {
+      setIsAuthenticated(true);
+    } else {
+      setIsAuthenticated(false);
+      setData(null);
+      setPolls([]);
+    }
   }, [adminKey]);
 
   const fetchData = async () => {
-    if (!adminKey) {
-      setError("Admin key required");
+    if (!adminKey || adminKey !== ADMIN_KEY) {
+      setError("Valid API key required");
       setLoading(false);
       return;
     }
     try {
+      setLoading(true);
       const [congRes, pollsRes] = await Promise.all([
         fetch(`${API_BASE}/usage/congestion`, {
           headers: { "X-Admin-Key": adminKey },
@@ -54,13 +69,36 @@ export default function LiveCongestion() {
   };
 
   useEffect(() => {
-    fetchData();
-    const interval = setInterval(fetchData, 3000);
-    return () => clearInterval(interval);
-  }, [adminKey]);
+    if (isAuthenticated) {
+      fetchData();
+      const interval = setInterval(fetchData, 3000);
+      return () => clearInterval(interval);
+    }
+  }, [isAuthenticated, adminKey]);
 
   const maxConnections = Math.max(data?.total_active_connections || 1, 1);
-  const maxUsers = Math.max(data?.unique_users_polling || 1, 1);
+
+  if (!isAuthenticated) {
+    return (
+      <div className="congestion-page">
+        <div className="congestion-header">
+          <h1>Live API Congestion</h1>
+        </div>
+        <div className="congestion-auth">
+          <h2>API Key Required</h2>
+          <p>Enter your API key to view live congestion data</p>
+          <input
+            type="password"
+            placeholder="Enter API Key"
+            value={adminKey}
+            onChange={(e) => setAdminKey(e.target.value)}
+            className="admin-key-input"
+          />
+          {error && <div className="congestion-error">{error}</div>}
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="congestion-page">
@@ -69,7 +107,7 @@ export default function LiveCongestion() {
         <div className="congestion-controls">
           <input
             type="password"
-            placeholder="Admin Key"
+            placeholder="API Key"
             value={adminKey}
             onChange={(e) => setAdminKey(e.target.value)}
             className="admin-key-input"
