@@ -2,16 +2,14 @@ import { useState } from "react";
 
 const ACCESS_KEY = "5671fd75-8422-4d8e-859b-ec0e67f6d6db";
 
-type Status = "idle" | "loading" | "success" | "error";
-
 export default function Contact() {
   const [name, setName] = useState("");
   const [email, setEmail] = useState("");
   const [subject, setSubject] = useState("");
   const [message, setMessage] = useState("");
-  const [status, setStatus] = useState<Status>("idle");
+  const [status, setStatus] = useState("idle");
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setStatus("loading");
 
