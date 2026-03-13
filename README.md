@@ -1,9 +1,9 @@
 ---
 title: SpaceDebrisAI
 emoji: 🛰️
-colorFrom: Blue
-colorTo: Indigo
-sdk: Docker
+colorFrom: blue
+colorTo: indigo
+sdk: docker
 pinned: False
 ---
 
