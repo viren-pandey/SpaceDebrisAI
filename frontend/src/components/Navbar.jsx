@@ -7,6 +7,7 @@ const NAV_LINKS = [
   { label: "Satellites", to: "/satellites" },
   { label: "Tracker",   to: "/tracker" },
   { label: "Debris",    to: "/all-debris" },
+  { label: "Real CDM",  to: "/real-conjunctions" },
   { label: "Docs",      to: "/docs" },
   { label: "About",     to: "/about" },
 ];
