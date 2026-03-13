@@ -53,10 +53,14 @@ export default function AdminDashboard() {
     setIsAuthenticated(true);
     setAdminKey(ADMIN_KEY);
     localStorage.setItem("admin_key", ADMIN_KEY);
+    
+    // Fetch immediately after login
+    setTimeout(() => fetchData(ADMIN_KEY), 100);
   };
 
-  const fetchData = async () => {
-    if (!adminKey) {
+  const fetchData = async (keyOverride = null) => {
+    const key = keyOverride || adminKey;
+    if (!key) {
       setError("Admin key required");
       setLoading(false);
       return;
@@ -64,7 +68,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const res = await fetch(`${API_BASE}/usage`, {
-        headers: { "X-Admin-Key": adminKey },
+        headers: { "X-Admin-Key": key },
       });
       if (!res.ok) {
         const err = await res.json();
@@ -81,9 +85,9 @@ export default function AdminDashboard() {
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && adminKey) {
       fetchData();
-      const interval = setInterval(fetchData, 10000);
+      const interval = setInterval(() => fetchData(), 10000);
       return () => clearInterval(interval);
     }
   }, [isAuthenticated, adminKey]);
