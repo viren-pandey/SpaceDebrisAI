@@ -1325,6 +1325,56 @@ body {
   letter-spacing: 0.5px;
 }
 
+.debris-header-right {
+  display: flex;
+  align-items: center;
+  gap: 16px;
+}
+.debris-expand {
+  color: var(--text-faint);
+  font-size: 10px;
+  width: 24px;
+  text-align: center;
+}
+.debris-row {
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.debris-row:hover td {
+  background: rgba(56,189,248,.06);
+}
+.debris-detail-row td {
+  background: rgba(0,0,0,0.2);
+  padding: 0;
+}
+.debris-detail {
+  padding: 12px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.debris-detail-section {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+.debris-detail-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text-faint);
+  text-transform: uppercase;
+  letter-spacing: 0.5px;
+}
+.debris-tle {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-dim);
+  background: rgba(0,0,0,0.3);
+  padding: 6px 10px;
+  border-radius: 4px;
+  word-break: break-all;
+}
+
 .spc-grid-header {
   max-width: 1280px; margin: 0 auto;
   padding: 0 48px 20px;
