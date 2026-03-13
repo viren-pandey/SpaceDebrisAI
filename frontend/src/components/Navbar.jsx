@@ -90,11 +90,6 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             API
           </NavLink>
 
-          {/* Admin link */}
-          <NavLink to="/admin" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
-            Admin
-          </NavLink>
-
           {/* Auth button */}
           {user ? (
             <button className="nb-auth-btn nb-auth-btn--out" onClick={signOut} title={user.email}>
