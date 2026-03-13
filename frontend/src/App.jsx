@@ -15,6 +15,7 @@ import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
 import LiveCongestion from "./pages/LiveCongestion";
 import Login from "./pages/Login";
+import RealConjunctions from "./pages/RealConjunctions";
 import Satellites from "./pages/Satellites";
 import Tracker from "./pages/Tracker";
 
@@ -78,6 +79,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/satellites" element={<Satellites data={data} loading={loading} error={error} />} />
           <Route path="/tracker" element={<Tracker />} />
           <Route path="/all-debris" element={<AllDebris />} />
+          <Route path="/real-conjunctions" element={<RealConjunctions />} />
           <Route path="/conjunction/:id" element={<ConjunctionDetail />} />
           <Route path="/api" element={<ApiPage />} />
           <Route path="/docs" element={<Docs />} />
