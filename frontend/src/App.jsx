@@ -8,6 +8,7 @@ import SatelliteBackground from "./components/SatelliteBackground";
 import { fetchSimulation } from "./api/backend";
 import About from "./pages/About";
 import AdminDashboard from "./pages/AdminDashboard";
+import AllDebris from "./pages/AllDebris";
 import ApiPage from "./pages/ApiPage";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
 import Dashboard from "./pages/Dashboard";
@@ -76,6 +77,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/" element={<Dashboard data={data} loading={loading} error={error} />} />
           <Route path="/satellites" element={<Satellites data={data} loading={loading} error={error} />} />
           <Route path="/tracker" element={<Tracker />} />
+          <Route path="/all-debris" element={<AllDebris />} />
           <Route path="/conjunction/:id" element={<ConjunctionDetail />} />
           <Route path="/api" element={<ApiPage />} />
           <Route path="/docs" element={<Docs />} />

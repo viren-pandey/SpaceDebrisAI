@@ -35,8 +35,11 @@ export async function fetchSimulation() {
   }
 }
 
-export async function fetchTrackerPositions() {
-  const res = await fetch(`${API}/tracker/positions`, {
+export async function fetchTrackerPositions(filter = "all") {
+  const url = filter === "all" 
+    ? `${API}/tracker/positions` 
+    : `${API}/tracker/positions?filter=${filter}`;
+  const res = await fetch(url, {
     cache: "no-store",
     headers: buildHeaders(),
   });
