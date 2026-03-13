@@ -9,7 +9,7 @@ import threading
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import get_local_timestamp, load_tles_from_cache, parse_tle_text
+from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
 from app.services.usage_metrics import record_request_usage
 
@@ -215,7 +215,8 @@ def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
 
 
 def _build_simulation_snapshot() -> dict:
-    raw_tles = load_tles_from_cache()
+    raw_tle_lines = get_tle_lines(cache="debris_merged")
+    raw_tles = "\n".join(raw_tle_lines)
     all_tles = parse_tle_text(raw_tles, limit=LOCAL_TLE_COUNT_LIMIT)
     total_catalog = len(all_tles)
     catalog_stamp = get_local_timestamp()

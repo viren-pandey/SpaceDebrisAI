@@ -3,7 +3,7 @@ from datetime import datetime, timezone
 from fastapi import APIRouter, Request
 
 from app.services.orbit_real import tle_to_position, teme_to_geodetic
-from app.services.tle_fetcher import get_local_timestamp, load_tles_from_cache, parse_tle_text
+from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text
 from app.services.usage_metrics import record_request_usage
 
 router = APIRouter()
@@ -19,9 +19,18 @@ def _extract_norad_id(line1: str) -> int | None:
 
 
 @router.get("/tracker/positions")
-async def tracker_positions(request: Request):
+async def tracker_positions(request: Request, filter: str = "all"):
     record_request_usage(request, "tracker")
-    raw_tles = load_tles_from_cache()
+    
+    if filter == "leo_debris":
+        cache = "debris_leo"
+    elif filter == "all_debris":
+        cache = "debris_all"
+    else:
+        cache = "full"
+    
+    raw_tle_lines = get_tle_lines(cache=cache)
+    raw_tles = "\n".join(raw_tle_lines)
     tles = parse_tle_text(raw_tles, limit=TRACKER_TLE_LIMIT)
     now_utc = datetime.now(timezone.utc)
     timestamp = int(now_utc.timestamp())
