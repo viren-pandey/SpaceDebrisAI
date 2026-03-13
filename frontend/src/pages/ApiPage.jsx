@@ -71,7 +71,7 @@ API_KEY = "${key}"
 BASE    = "${BASE}"
 HEADERS = {"X-API-Key": API_KEY}
 
-# Public 500-object snapshot
+# Public 2000+-object snapshot
 r = requests.get(f"{BASE}/satellites", headers=HEADERS)
 sats = r.json()["satellites"]
 for s in sats[:5]:
