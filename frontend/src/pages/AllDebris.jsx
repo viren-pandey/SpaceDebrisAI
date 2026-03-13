@@ -28,6 +28,7 @@ export default function AllDebris() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [expanded, setExpanded] = useState(null);
   const timerRef = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -58,6 +59,10 @@ export default function AllDebris() {
     },
     { LEO: 0, MEO: 0, GEO: 0 }
   );
+
+  const toggleExpand = (noradId) => {
+    setExpanded(expanded === noradId ? null : noradId);
+  };
 
   return (
     <>
@@ -119,15 +124,21 @@ export default function AllDebris() {
                 {formatNumber(debris.length)} debris tracked — click a row to expand
               </p>
             </div>
-            <span className="spc-india-note">
-              Last updated: {lastUpdate?.toLocaleTimeString() ?? "—"}
-            </span>
+            <div className="debris-header-right">
+              <span className="spc-india-note">
+                Last updated: {lastUpdate?.toLocaleTimeString() ?? "—"}
+              </span>
+              <button className="trk-refresh" onClick={refresh}>
+                Refresh
+              </button>
+            </div>
           </div>
 
           <div className="debris-table-wrap">
             <table className="debris-table">
               <thead>
                 <tr>
+                  <th></th>
                   <th>NORAD ID</th>
                   <th>Name</th>
                   <th>Latitude</th>
@@ -140,26 +151,50 @@ export default function AllDebris() {
                 {debris.map((sat) => {
                   const orbit = getOrbit(sat.alt);
                   const orbitColor = ORBIT_COLORS[orbit];
+                  const isExpanded = expanded === sat.noradId;
                   return (
-                    <tr key={sat.noradId}>
-                      <td className="debris-norad">{sat.noradId}</td>
-                      <td className="debris-name">{sat.name}</td>
-                      <td className="debris-num">{sat.lat?.toFixed(4) ?? "—"}</td>
-                      <td className="debris-num">{sat.lon?.toFixed(4) ?? "—"}</td>
-                      <td className="debris-num">{sat.alt?.toFixed(1) ?? "—"}</td>
-                      <td>
-                        <span
-                          className="orbit-badge"
-                          style={{
-                            color: orbitColor,
-                            borderColor: orbitColor + "55",
-                            background: orbitColor + "12",
-                          }}
-                        >
-                          {orbit}
-                        </span>
-                      </td>
-                    </tr>
+                    <>
+                      <tr 
+                        key={sat.noradId} 
+                        className="debris-row"
+                        onClick={() => toggleExpand(sat.noradId)}
+                      >
+                        <td className="debris-expand">{isExpanded ? "▼" : "▶"}</td>
+                        <td className="debris-norad">{sat.noradId}</td>
+                        <td className="debris-name">{sat.name}</td>
+                        <td className="debris-num">{sat.lat?.toFixed(4) ?? "—"}</td>
+                        <td className="debris-num">{sat.lon?.toFixed(4) ?? "—"}</td>
+                        <td className="debris-num">{sat.alt?.toFixed(1) ?? "—"}</td>
+                        <td>
+                          <span
+                            className="orbit-badge"
+                            style={{
+                              color: orbitColor,
+                              borderColor: orbitColor + "55",
+                              background: orbitColor + "12",
+                            }}
+                          >
+                            {orbit}
+                          </span>
+                        </td>
+                      </tr>
+                      {isExpanded && sat.raw && (
+                        <tr key={`${sat.noradId}-detail`} className="debris-detail-row">
+                          <td colSpan={7}>
+                            <div className="debris-detail">
+                              <div className="debris-detail-section">
+                                <span className="debris-detail-label">TLE Line 1</span>
+                                <code className="debris-tle">{sat.raw.TLE_LINE_1}</code>
+                              </div>
+                              <div className="debris-detail-section">
+                                <span className="debris-detail-label">TLE Line 2</span>
+                                <code className="debris-tle">{sat.raw.TLE_LINE_2}</code>
+                              </div>
+                            </div>
+                          </td>
+                        </tr>
+                      )}
+                    </>
                   );
                 })}
               </tbody>
