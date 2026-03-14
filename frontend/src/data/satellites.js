@@ -1,5 +1,5 @@
 /**
- * Satellite metadata database — 200 satellites.
+ * Satellite metadata database — 500 satellites.
  * Synced with backend/app/data/tles.txt
  * No emojis. Country represented as ISO countryCode.
  */
