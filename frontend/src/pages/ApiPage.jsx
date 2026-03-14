@@ -36,6 +36,12 @@ const ENDPOINTS = [
 ];
 
 const METHOD_COLOR = { GET: "#22c55e", POST: "#38bdf8", DELETE: "#ef4444" };
+const HERO_STATS = [
+  { value: "500", label: "tracked objects" },
+  { value: "60", label: "req / min" },
+  { value: "JSON", label: "response format" },
+  { value: "Live", label: "Swagger docs" },
+];
 
 const LANG_CODE = {
   python: (key) => `import requests
@@ -198,6 +204,9 @@ export default function ApiPage() {
   }
 
   const displayKey = activeKey || "sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live";
+  const heroPreviewKey = activeKey
+    ? `${activeKey.slice(0, 18)}...`
+    : "sdai_demo_key_live";
 
   if (authLoading) return (
     <div className="ap-loading-gate"><div className="spinner" /><p>Loading...</p></div>
@@ -245,61 +254,137 @@ export default function ApiPage() {
         <div className="ap-hero-glow ap-glow-1" />
         <div className="ap-hero-glow ap-glow-2" />
         <div className="ap-hero-inner">
-          <p className="ap-eyebrow">Developer Access</p>
-          <h1 className="ap-h1">SpaceDebrisAI<br /><span className="ap-h1-accent">Public API</span></h1>
-          <p className="ap-sub">Real-time satellite positions, proximity risk classifications, and AI-generated avoidance maneuvers — all via a simple REST API. Built on SGP4 propagation over <strong style={{color:"#fff"}}>500 tracked objects</strong>.</p>
-          <div className="ap-badges">
-            <span className="ap-badge">REST</span>
-            <span className="ap-badge">JSON</span>
-            <span className="ap-badge">Free tier</span>
-            <span className="ap-badge ap-badge-live">● Live data</span>
-          </div>
-          {activeEmail && (
-            <div className="ap-user-pill">
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
-              <span>{activeEmail}</span>
-              {user
-                ? <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
-                : <button className="ap-signout-btn" onClick={handleGuestRevoke}>Clear key</button>
-              }
-              {!user && <span className="ap-guest-badge">Guest</span>}
+          <div className="ap-hero-grid">
+            <div className="ap-hero-copy">
+              <p className="ap-eyebrow">Developer Access</p>
+              <h1 className="ap-h1">SpaceDebrisAI<br /><span className="ap-h1-accent">Public API</span></h1>
+              <p className="ap-sub">Real-time satellite positions, proximity risk classifications, and AI-generated avoidance maneuvers through a clean REST interface. Built on SGP4 propagation over <strong style={{ color: "var(--text-bright)" }}>500 tracked objects</strong> with the same visual language as the rest of the platform.</p>
+              <div className="ap-badges">
+                <span className="ap-badge">REST</span>
+                <span className="ap-badge">JSON</span>
+                <span className="ap-badge">Free tier</span>
+                <span className="ap-badge ap-badge-live">Live data</span>
+              </div>
+              <div className="ap-hero-actions">
+                <a className="ap-btn-primary ap-hero-btn" href="#api-key-section">
+                  {hasAccess ? "View your API key" : "Get free API key"}
+                </a>
+                <a
+                  className="ap-btn-outline ap-hero-btn"
+                  href={`${BASE}/docs`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                >
+                  Open Swagger
+                </a>
+              </div>
+              {activeEmail && (
+                <div className="ap-user-pill">
+                  <svg width="14" height="14" viewBox="0 0 14 14" fill="none"><circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/><path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/></svg>
+                  <span>{activeEmail}</span>
+                  {user
+                    ? <button className="ap-signout-btn" onClick={signOut}>Sign out</button>
+                    : <button className="ap-signout-btn" onClick={handleGuestRevoke}>Clear key</button>
+                  }
+                  {!user && <span className="ap-guest-badge">Guest</span>}
+                </div>
+              )}
             </div>
-          )}
+
+            <div className="ap-hero-panel">
+              <div className="ap-hero-panel-top">
+                <span className="ap-hero-panel-label">Build faster</span>
+                <span className="ap-badge ap-badge-live">Production-ready docs</span>
+              </div>
+
+              <div className="ap-hero-kpis">
+                {HERO_STATS.map((stat) => (
+                  <div key={stat.label} className="ap-hero-kpi">
+                    <span className="ap-hero-kpi-value">{stat.value}</span>
+                    <span className="ap-hero-kpi-label">{stat.label}</span>
+                  </div>
+                ))}
+              </div>
+
+              <div className="ap-hero-request">
+                <p className="ap-label">Quick request</p>
+                <pre className="ap-pre ap-hero-pre">{`curl -H "X-API-Key: ${heroPreviewKey}" \\
+  ${BASE}/simulate`}</pre>
+              </div>
+
+              <div className="ap-hero-list">
+                <div className="ap-hero-list-item">Saved account keys or instant guest access</div>
+                <div className="ap-hero-list-item">Live response samples for every endpoint</div>
+                <div className="ap-hero-list-item">Readable docs, larger type, cleaner layout</div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
 
       <div className="ap-body">
 
         {/* ── 01 API key ───────────────────────────────────── */}
-        <section className="ap-section">
+        <section className="ap-section" id="api-key-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">01</span>
-            <h2 className="ap-section-title">Your API key</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Your API key</h2>
+              <p className="ap-section-copy">Choose a saved account key or generate a browser-only guest key for immediate testing.</p>
+            </div>
           </div>
 
           {/* ── Not logged in, no guest key: choice gate ── */}
           {!hasAccess && (
-            <div className="ap-key-card ap-choice-card">
-              <p className="ap-choice-title">Get your free API key</p>
-              <p className="ap-choice-sub">Choose how you'd like to access the API.</p>
-              <div className="ap-choice-grid">
-                <div className="ap-choice-option ap-choice-recommended">
-                  <div className="ap-choice-badge-top">Recommended</div>
-                  <div className="ap-choice-icon">🔐</div>
-                  <h4>Sign in / Sign up</h4>
-                  <p>Your key is saved to your account. Access it from any device, anytime.</p>
-                  <button className="ap-btn-primary" onClick={() => navigate("/login", { state: { from: "/api" } })}>
-                    Sign in / Sign up free
-                  </button>
+            <div className="ap-choice-gate">
+              {/* Option A — Sign in */}
+              <div className="ap-cg-option ap-cg-primary">
+                <div className="ap-cg-top">
+                  <div className="ap-cg-icon-wrap ap-cg-icon-blue">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                      <rect x="3" y="11" width="16" height="10" rx="2.5" stroke="#38bdf8" strokeWidth="1.5"/>
+                      <path d="M7 11V7.5a4 4 0 0 1 8 0V11" stroke="#38bdf8" strokeWidth="1.5" strokeLinecap="round"/>
+                      <circle cx="11" cy="16" r="1.5" fill="#38bdf8"/>
+                    </svg>
+                  </div>
+                  <span className="ap-cg-rec-pill">Recommended</span>
                 </div>
-                <div className="ap-choice-option">
-                  <div className="ap-choice-icon">⚡</div>
-                  <h4>Continue without account</h4>
-                  <p>Get a key instantly. Stored only in this browser — you may lose it if you clear data.</p>
-                  <button className="ap-btn-outline" onClick={handleContinueWithoutLogin}>
-                    Continue without login
-                  </button>
+                <h3 className="ap-cg-title">Sign in free</h3>
+                <p className="ap-cg-body">Your key is permanently saved to your account. Access it from any device, regenerate it anytime, and never lose it.</p>
+                <ul className="ap-cg-perks">
+                  <li><span className="ap-cg-check">✓</span> Key persisted to your account</li>
+                  <li><span className="ap-cg-check">✓</span> Works across all devices</li>
+                  <li><span className="ap-cg-check">✓</span> Regenerate &amp; revoke anytime</li>
+                </ul>
+                <button className="ap-btn-primary ap-cg-btn" onClick={() => navigate("/login", { state: { from: "/api" } })}>
+                  Sign in / Create free account
+                </button>
+                <p className="ap-cg-note">No credit card. No spam.</p>
+              </div>
+
+              <div className="ap-cg-divider">
+                <span>or</span>
+              </div>
+
+              {/* Option B — Guest */}
+              <div className="ap-cg-option ap-cg-guest">
+                <div className="ap-cg-top">
+                  <div className="ap-cg-icon-wrap ap-cg-icon-amber">
+                    <svg width="22" height="22" viewBox="0 0 22 22" fill="none">
+                      <path d="M11 2 L13.5 8.5 H20.5 L14.5 12.5 L16.5 19 L11 15 L5.5 19 L7.5 12.5 L1.5 8.5 H8.5 Z" stroke="#f59e0b" strokeWidth="1.4" strokeLinejoin="round"/>
+                    </svg>
+                  </div>
                 </div>
+                <h3 className="ap-cg-title">Quick access</h3>
+                <p className="ap-cg-body">Get a key instantly without signing up. Stored only in this browser — if you clear site data, the key is gone.</p>
+                <ul className="ap-cg-perks ap-cg-perks-warn">
+                  <li><span className="ap-cg-warn">⚠</span> Browser storage only</li>
+                  <li><span className="ap-cg-warn">⚠</span> Lost if you clear data</li>
+                  <li><span className="ap-cg-check">✓</span> No account needed</li>
+                </ul>
+                <button className="ap-btn-outline ap-cg-btn" onClick={handleContinueWithoutLogin}>
+                  Continue without account
+                </button>
               </div>
             </div>
           )}
@@ -355,9 +440,20 @@ export default function ApiPage() {
           {/* ── Guest key active ── */}
           {!user && guestKey && (
             <div className="ap-key-card">
-              <div className="ap-guest-key-warn">
-                ⚠️ <strong>Guest key</strong> — stored in this browser only. Save it somewhere safe.
+              {/* Banner */}
+              <div className="ap-guest-banner">
+                <div className="ap-guest-banner-left">
+                  <span className="ap-guest-banner-icon">⚠️</span>
+                  <div>
+                    <strong>Guest key — browser only</strong>
+                    <p>This key lives only in this browser. Clear site data and it's gone permanently.</p>
+                  </div>
+                </div>
+                <button className="ap-guest-upgrade-btn" onClick={() => navigate("/login", { state: { from: "/api" } })}>
+                  Save to account →
+                </button>
               </div>
+
               <p className="ap-key-intro">Include as <code className="ap-inline-code">X-API-Key</code> header on every authenticated request.</p>
               <div className="ap-key-display">
                 <div className="ap-key-active-dot" style={{background:"#f59e0b"}} />
@@ -367,16 +463,16 @@ export default function ApiPage() {
                 </button>
               </div>
               <div className="ap-key-meta">
-                <span className="ap-key-meta-item"><span className="ap-dot" style={{background:"#f59e0b"}} />Guest</span>
+                <span className="ap-key-meta-item">
+                  <span className="ap-dot" style={{background:"#f59e0b"}} />
+                  <span className="ap-guest-badge">Guest</span>
+                </span>
                 <span className="ap-key-meta-sep">·</span>
                 <span className="ap-key-meta-item">{guestEmail}</span>
               </div>
               <div className="ap-key-actions">
                 <button className="ap-btn-regen" onClick={() => { handleGuestRevoke(); setShowWarnModal(true); }}>↻ Regenerate</button>
                 <button className="ap-btn-revoke" onClick={handleGuestRevoke}>Clear key</button>
-                <button className="ap-btn-primary" style={{marginLeft:"auto"}} onClick={() => navigate("/login", { state: { from: "/api" } })}>
-                  Sign in to save key →
-                </button>
               </div>
             </div>
           )}
@@ -386,7 +482,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">02</span>
-            <h2 className="ap-section-title">Base URL</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Base URL</h2>
+              <p className="ap-section-copy">All requests run over HTTPS with the same header convention across the public API.</p>
+            </div>
           </div>
           <div className="ap-base-url-card">
             <span className="ap-env-pill">PRODUCTION</span>
@@ -399,7 +498,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">03</span>
-            <h2 className="ap-section-title">Endpoints</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Endpoints</h2>
+              <p className="ap-section-copy">Browse the live surface area, inspect payloads, and expand the routes you need.</p>
+            </div>
           </div>
           <div className="ap-endpoints">
             {ENDPOINTS.map((ep) => (
@@ -434,7 +536,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">04</span>
-            <h2 className="ap-section-title">Code examples</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Code examples</h2>
+              <p className="ap-section-copy">Copy a starter request in the language you want and drop in your key.</p>
+            </div>
           </div>
           <div className="ap-code-card">
             <div className="ap-code-tabs">
@@ -453,7 +558,10 @@ export default function ApiPage() {
         <section className="ap-section">
           <div className="ap-section-label-row">
             <span className="ap-section-num">05</span>
-            <h2 className="ap-section-title">Rate limits &amp; fair use</h2>
+            <div className="ap-section-heading">
+              <h2 className="ap-section-title">Rate limits &amp; fair use</h2>
+              <p className="ap-section-copy">The public tier is generous enough for demos, prototypes, and direct browser exploration.</p>
+            </div>
           </div>
           <div className="ap-limits-card">
             <div className="ap-limits-grid">
