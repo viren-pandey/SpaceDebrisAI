@@ -17,7 +17,7 @@ from app.services.usage_metrics import (
 
 router = APIRouter()
 
-ADMIN_KEY = os.getenv("USAGE_ADMIN_KEY", "admin_secret_key_12345")
+ADMIN_KEY = os.getenv("USAGE_ADMIN_KEY")
 
 
 def _require_admin(request: Request) -> None:

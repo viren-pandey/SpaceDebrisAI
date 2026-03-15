@@ -1,11 +1,15 @@
 import { createContext, useContext, useEffect, useState } from "react";
 import { supabase } from "../lib/supabase";
 
+const OWNER_EMAIL = "pandeyviren68@gmail.com";
+const OWNER_MODE_KEY = "sdai_is_owner";
+
 const AuthContext = createContext(null);
 
 export function AuthProvider({ children }) {
   const [user, setUser]       = useState(null);
   const [loading, setLoading] = useState(true);
+  const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
     if (!supabase) {
@@ -13,12 +17,20 @@ export function AuthProvider({ children }) {
       return;
     }
     supabase.auth.getSession().then(({ data: { session } }) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      const owner = Boolean(u?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase());
+      setIsOwner(owner);
+      try { localStorage.setItem(OWNER_MODE_KEY, owner ? "1" : "0"); } catch {}
       setLoading(false);
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
-      setUser(session?.user ?? null);
+      const u = session?.user ?? null;
+      setUser(u);
+      const owner = Boolean(u?.email?.toLowerCase() === OWNER_EMAIL.toLowerCase());
+      setIsOwner(owner);
+      try { localStorage.setItem(OWNER_MODE_KEY, owner ? "1" : "0"); } catch {}
     });
 
     return () => subscription.unsubscribe();
@@ -46,7 +58,7 @@ export function AuthProvider({ children }) {
     supabase ? supabase.auth.signOut() : Promise.resolve();
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
+    <AuthContext.Provider value={{ user, loading, isOwner, signIn, signUp, signOut }}>
       {children}
     </AuthContext.Provider>
   );

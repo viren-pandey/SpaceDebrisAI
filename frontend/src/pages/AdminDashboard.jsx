@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "admin_secret_key_12345";
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY;
 const API_BASE = (import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "pandeyviren68@gmail.com";
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "asdf1234@99";
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
@@ -13,25 +13,21 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("users");
-  const [adminKey, setAdminKey] = useState(() => {
-    const stored = localStorage.getItem("admin_key");
-    return stored === ADMIN_KEY ? stored : "";
-  });
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const stored = localStorage.getItem("admin_key");
-    return stored === ADMIN_KEY;
-  });
+  const [adminKey, setAdminKey] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [banForm, setBanForm] = useState({ identifier: "", ip: "", email: "", reason: "" });
-  const [unbanForm, setUnbanForm] = useState({ identifier: "", ip: "" });
+  const [, setUnbanForm] = useState({ identifier: "", ip: "" });
   const [actionStatus, setActionStatus] = useState(null);
+  const [loginLogs, setLoginLogs] = useState([]);
+  const [loginLogsLoading, setLoginLogsLoading] = useState(false);
 
   useEffect(() => {
     const storedKey = localStorage.getItem("admin_key");
-    if (storedKey === ADMIN_KEY) {
-      setIsAuthenticated(true);
+    if (storedKey) {
       setAdminKey(storedKey);
+      setIsAuthenticated(true);
     }
   }, []);
 
@@ -44,16 +40,33 @@ export default function AdminDashboard() {
   const handleLogin = async (e) => {
     e.preventDefault();
     setLoginError("");
-    
+    const logAttempt = async (success, failureReason = null) => {
+      try {
+        await fetch(`${API_BASE}/admin/login-attempt`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            email: loginForm.email,
+            success,
+            failure_reason: failureReason,
+          }),
+        });
+      } catch {
+        // Silently fail - don't block login for logging errors
+      }
+    };
+
     if (loginForm.email !== ADMIN_EMAIL || loginForm.password !== ADMIN_PASSWORD) {
+      await logAttempt(false, "Invalid credentials");
       setLoginError("Invalid credentials");
       return;
     }
-    
+
+    await logAttempt(true);
     setIsAuthenticated(true);
     setAdminKey(ADMIN_KEY);
     localStorage.setItem("admin_key", ADMIN_KEY);
-    
+
     // Fetch immediately after login
     setTimeout(() => fetchData(ADMIN_KEY), 100);
   };
@@ -77,10 +90,27 @@ export default function AdminDashboard() {
       const json = await res.json();
       setData(json);
       setError(null);
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const fetchLoginLogs = async () => {
+    if (!adminKey) return;
+    try {
+      setLoginLogsLoading(true);
+      const res = await fetch(`${API_BASE}/admin/login-logs?limit=100`, {
+        headers: { "X-Admin-Key": adminKey },
+      });
+      if (!res.ok) throw new Error("Failed to fetch login logs");
+      const json = await res.json();
+      setLoginLogs(json.logs || []);
+    } catch (e) {
+      console.error("Login logs error:", e);
+    } finally {
+      setLoginLogsLoading(false);
     }
   };
 
@@ -90,6 +120,7 @@ export default function AdminDashboard() {
       const interval = setInterval(() => fetchData(), 10000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, adminKey]);
 
   const handleBan = async (e) => {
@@ -114,7 +145,7 @@ export default function AdminDashboard() {
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch (err) {
+    } catch {
       setActionStatus("error");
     }
   };
@@ -137,7 +168,7 @@ export default function AdminDashboard() {
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch (err) {
+    } catch {
       setActionStatus("error");
     }
   };
@@ -174,6 +205,7 @@ export default function AdminDashboard() {
                 placeholder="Enter password"
               />
             </div>
+            {/* Ma ka bhosda nhi ho rha baad m krunga */}
             {loginError && <div className="login-error">{loginError}</div>}
             <button type="submit" className="login-btn">
               Login
@@ -228,6 +260,12 @@ export default function AdminDashboard() {
               onClick={() => setActiveTab("actions")}
             >
               Actions
+            </button>
+            <button
+              className={`tab-btn ${activeTab === "logs" ? "active" : ""}`}
+              onClick={() => { setActiveTab("logs"); fetchLoginLogs(); }}
+            >
+              Login Logs
             </button>
           </div>
 
@@ -422,6 +460,57 @@ export default function AdminDashboard() {
                 {actionStatus === "success" && <span className="action-success">Action completed!</span>}
                 {actionStatus === "error" && <span className="action-error">Action failed</span>}
               </form>
+            </div>
+          )}
+
+          {activeTab === "logs" && (
+            <div className="admin-section">
+              <h2>Login Attempt Logs</h2>
+              <div className="admin-controls" style={{ marginBottom: "1rem" }}>
+                <button onClick={fetchLoginLogs} className="refresh-btn">
+                  Refresh
+                </button>
+              </div>
+              {loginLogsLoading ? (
+                <div className="admin-loading">Loading...</div>
+              ) : loginLogs.length === 0 ? (
+                <p className="empty-state">No login attempts recorded</p>
+              ) : (
+                <div className="logs-table-wrapper">
+                  <table className="logs-table">
+                    <thead>
+                      <tr>
+                        <th>Time</th>
+                        <th>Email</th>
+                        <th>IP Address</th>
+                        <th>Forwarded For</th>
+                        <th>User Agent</th>
+                        <th>Status</th>
+                        <th>Failure Reason</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {loginLogs.map((log, idx) => (
+                        <tr key={idx} className={log.success ? "log-success" : "log-failed"}>
+                          <td>{new Date(log.timestamp).toLocaleString()}</td>
+                          <td>{log.email}</td>
+                          <td><code>{log.ip}</code></td>
+                          <td><code>{log.forwarded_for || "-"}</code></td>
+                          <td className="user-agent-cell" title={log.user_agent}>
+                            {log.user_agent ? log.user_agent.substring(0, 50) + "..." : "-"}
+                          </td>
+                          <td>
+                            <span className={`status-badge ${log.success ? "success" : "failed"}`}>
+                              {log.success ? "Success" : "Failed"}
+                            </span>
+                          </td>
+                          <td className="failure-reason">{log.failure_reason || "-"}</td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
             </div>
           )}
         </>

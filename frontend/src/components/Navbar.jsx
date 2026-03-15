@@ -1,15 +1,28 @@
-﻿import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+﻿import { useState, useRef, useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-const NAV_LINKS = [
+const MAIN_LINKS = [
   { label: "Dashboard", to: "/" },
   { label: "Satellites", to: "/satellites" },
   { label: "Tracker",   to: "/tracker" },
-  { label: "Debris",    to: "/all-debris" },
-  { label: "Real CDM",  to: "/real-conjunctions" },
-  { label: "Docs",      to: "/docs" },
-  { label: "About",     to: "/about" },
+  { label: "CDM",  to: "/real-conjunctions" },
+  { label: "Cascade",   to: "/cascade-intelligence" },
+];
+
+const MONITOR_DROPDOWN = [
+  { label: "CDM Timeline", to: "/cdm-timeline" },
+  { label: "Shell Risk", to: "/shell-instability" },
+  { label: "Space Weather", to: "/spaceweather" },
+  { label: "High-Risk", to: "/high-risk-collisions" },
+  { label: "Simulation Stats", to: "/simulation-stats" },
+  { label: "Change Report", to: "/change-report" },
+  { label: "Debris", to: "/all-debris" },
+];
+
+const SECONDARY_LINKS = [
+  { label: "Docs", to: "/docs" },
+  { label: "About", to: "/about" },
 ];
 
 const BRAND = [
@@ -20,14 +33,36 @@ const BRAND = [
 
 export default function Navbar({ live, theme, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [monitorOpen, setMonitorOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const isDark = theme === "dark";
-  const { user, signOut } = useAuth();
+  const { user, signOut, isOwner } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+ 
+  const isMonitorActive = MONITOR_DROPDOWN.some(item => location.pathname === item.to);
+
+
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setMonitorOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+
+  useEffect(() => {
+    setMonitorOpen(false);
+  }, [location.pathname]);
 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
-        {/* Brand — every letter falls in individually */}
+        {/* Brand */}
         <NavLink to="/" className="navbar-brand" onClick={() => setMenuOpen(false)}>
           <span className="nb-brand-text">
             {BRAND.map(({ chars, base, accent }) =>
@@ -49,7 +84,7 @@ export default function Navbar({ live, theme, onToggleTheme }) {
 
         {/* Desktop nav links */}
         <div className="navbar-navs">
-          {NAV_LINKS.map(({ label, to }) => (
+          {MAIN_LINKS.map(({ label, to }) => (
             <NavLink
               key={label}
               to={to}
@@ -59,10 +94,55 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               {label}
             </NavLink>
           ))}
+
+          {/* Monitor dropdown */}
+          <div className="nav-dropdown" ref={dropdownRef}>
+            <button
+              className={`nav-link nav-dropdown-trigger ${isMonitorActive ? "nav-link-active" : ""}`}
+              onClick={() => setMonitorOpen(!monitorOpen)}
+            >
+              Monitor
+              <span className="dropdown-arrow">▾</span>
+            </button>
+            
+            {monitorOpen && (
+              <div className="nav-dropdown-menu">
+                {MONITOR_DROPDOWN.map(({ label, to }) => (
+                  <NavLink
+                    key={label}
+                    to={to}
+                    end
+                    className={({ isActive }) => 
+                      `nav-dropdown-item ${isActive ? "dropdown-item-active" : ""}`
+                    }
+                    onClick={() => setMonitorOpen(false)}
+                  >
+                    {label}
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right side controls */}
         <div className="navbar-right">
+          {/* Secondary links */}
+          {SECONDARY_LINKS.map(({ label, to }) => (
+            <NavLink
+              key={label}
+              to={to}
+              className={({ isActive }) => isActive ? "nav-link nav-link-active" : "nav-link"}
+            >
+              {label}
+            </NavLink>
+          ))}
+
+          {/* API link */}
+          <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
+            API
+          </NavLink>
+
           {/* Theme toggle */}
           <button
             className="theme-toggle"
@@ -85,11 +165,6 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             )}
           </button>
 
-          {/* API link */}
-          <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
-            API
-          </NavLink>
-
           {/* Auth button */}
           {user ? (
             <button className="nb-auth-btn nb-auth-btn--out" onClick={signOut} title={user.email}>
@@ -103,6 +178,13 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             <button className="nb-auth-btn nb-auth-btn--in" onClick={() => navigate("/login")}>
               Sign in
             </button>
+          )}
+
+          {/* Owner mode badge */}
+          {isOwner && (
+            <span className="nb-owner-badge" title="Owner tier — no rate limit">
+              Owner
+            </span>
           )}
 
           {/* Live status pill — desktop only */}
@@ -124,8 +206,16 @@ export default function Navbar({ live, theme, onToggleTheme }) {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
-          {NAV_LINKS.map(({ label, to }) => (
+        <div className="mobile-menu">
+          <div className="mobile-menu-header">
+            <span className="mobile-menu-title">Menu</span>
+            <button className="mobile-menu-close" onClick={() => setMenuOpen(false)}>
+              ✕
+            </button>
+          </div>
+          
+          <div className="mobile-section-title">Main</div>
+          {MAIN_LINKS.map(({ label, to }) => (
             <NavLink
               key={label}
               to={to}
@@ -136,13 +226,34 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               {label}
             </NavLink>
           ))}
+          
+          <div className="mobile-section-title">Monitor</div>
+          {MONITOR_DROPDOWN.map(({ label, to }) => (
+            <NavLink
+              key={label}
+              to={to}
+              className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"}
+              onClick={() => setMenuOpen(false)}
+            >
+              {label}
+            </NavLink>
+          ))}
+          
+          <div className="mobile-section-title">Other</div>
           <NavLink to="/api" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>API</NavLink>
           <NavLink to="/docs" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>Docs</NavLink>
+          <NavLink to="/about" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>About</NavLink>
+          
           {user ? (
-            <button className="mobile-link mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>Sign out</button>
+            <button className="mobile-auth-btn mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>
+              Sign out
+            </button>
           ) : (
-            <button className="mobile-link mobile-signin" onClick={() => { navigate("/login"); setMenuOpen(false); }}>Sign in</button>
+            <button className="mobile-auth-btn mobile-signin" onClick={() => { navigate("/login"); setMenuOpen(false); }}>
+              Sign in
+            </button>
           )}
+          
           <div className={`mobile-status${live ? "" : " offline"}`}>
             <span className={`live-dot${live ? "" : " offline"}`} />
             {live ? "Live" : "Offline"}

@@ -1,14 +1,26 @@
 import json
+import os
 import threading
 import time
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_KEEPTRACK_API_KEY = os.getenv("KEEPTRACK_API_KEY", "")
+_KEEPTRACK_HEADERS = {"X-API-Key": _KEEPTRACK_API_KEY} if _KEEPTRACK_API_KEY else {}
 
 _KEEPTRACK_FULL_URL = "https://api.keeptrack.space/v4/sats"
 _KEEPTRACK_LEO_DEBRIS_URL = "https://api.keeptrack.space/v4/sats/leo/debris"
 _KEEPTRACK_ALL_DEBRIS_URL = "https://api.keeptrack.space/v4/sats/debris"
 _KEEPTRACK_LAST_UPDATE_URL = "https://api.keeptrack.space/v4/catalog/last-update"
+
+_CELESTRAK_LEO_DEBRIS_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= debris&FORMAT=tle"
+_CELESTRAK_ALL_DEBRIS_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= operational&FORMAT=tle"
+_CELESTRAK_STARLINK_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= starlink&FORMAT=tle"
+_CELESTRAK_LAST_UPDATE_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= last-30-days&FORMAT=tle"
 
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _FULL_TLE_FILE = _DATA_DIR / "satellites.tle"
@@ -38,6 +50,36 @@ NOAA 19
 METOP-B
 1 38771U 12049A   25344.52597222  .00000054  00000-0  49234-4 0  9998
 2 38771  98.7255  58.9543 0001680 109.3822 250.7548 14.21491256694541
+HUBBLE SPACE TELESCOPE
+1 20580U 90037B   25344.50000000  .00000000  00000-0  50000-4 0  9999
+2 20580  28.4700 287.9500 0003000  300.0000  50.0000 15.09999999224091
+STARLINK-1007
+1 44713U 19074AE  25344.50000000  .00000211  00000-0  20750-4 0  9994
+2 44713  53.0537 126.4825 0001752 89.8766 270.2546 15.21970799256421
+STARLINK-1113
+1 44958U 19096N   25344.50000000  .00000219  00000-0  21130-4 0  9995
+2 44958  53.0547  89.3256 0001588 84.6259 275.5005 15.21972279256721
+STARLINK-1459
+1 45569U 20030J   25344.50000000  .00000222  00000-0  21070-4 0  9992
+2 45569  53.0549  53.1234 0001618 83.5674 276.5625 15.21974589256425
+STARLINK-1637
+1 46133U 20057W   25344.50000000  .00000230  00000-0  22240-4 0  9993
+2 46133  53.0550  38.4521 0001595 85.1234 274.9989 15.21978969256727
+STARLINK-2213
+1 48725U 21021AK  25344.50000000  .00000235  00000-0  22370-4 0  9995
+2 48725  53.0552  25.1234 0001567 82.3456 277.7856 15.21981239256921
+STARLINK-3619
+1 51889U 20222S   25344.50000000  .00000240  00000-0  23050-4 0  9996
+2 51889  53.0553  18.7654 0001554 81.2345 278.8967 15.21984569257123
+STARLINK-3622
+1 51892U 20222V   25344.50000000  .00000242  00000-0  23210-4 0  9997
+2 51892  53.0554  18.9876 0001548 80.9876 279.1434 15.21984899257125
+STARLINK-3632
+1 51903U 20222AK  25344.50000000  .00000238  00000-0  22680-4 0  9998
+2 51903  53.0555  19.1234 0001542 80.7654 279.3656 15.21985129257127
+STARLINK-3808
+1 52404U 21032S   25344.50000000  .00000245  00000-0  23560-4 0  9999
+2 52404  53.0556  15.4321 0001539 79.8765 280.2545 15.21987899257321
 """
 
 
@@ -62,8 +104,10 @@ def _serialize_keeptrack_catalog(payload: object) -> str:
         raise RuntimeError("KeepTrack returned an unexpected catalog payload.")
 
     lines: list[str] = []
+    invalid_count = 0
     for index, item in enumerate(payload, start=1):
         if not isinstance(item, dict):
+            invalid_count += 1
             continue
 
         name = str(item.get("name") or item.get("altName") or f"OBJECT {index}").strip()
@@ -71,11 +115,37 @@ def _serialize_keeptrack_catalog(payload: object) -> str:
         line2 = str(item.get("tle2") or "").strip()
 
         if not name or not line1.startswith("1 ") or not line2.startswith("2 "):
+            invalid_count += 1
+            continue
+
+        if not _validate_tle_format(line1, line2):
+            invalid_count += 1
             continue
 
         lines.extend([name, line1, line2, ""])
 
+    if invalid_count > 0:
+        print(f"[TLE_FETCH] Skipped {invalid_count} invalid records from KeepTrack catalog")
+    
     return "\n".join(lines).strip()
+
+
+def _validate_tle_format(line1: str, line2: str) -> bool:
+    """Validate TLE line format (basic checksum and structure check)."""
+    if len(line1) < 69 or len(line2) < 69:
+        return False
+    try:
+        line1_sum = sum(ord(c) for c in line1[:-1] if c.isdigit() or c.isalpha() or c in ['+', '-', ' ', '.'])
+        line1_checksum = int(line1[-1])
+        if line1_sum % 10 != line1_checksum:
+            return False
+        line2_sum = sum(ord(c) for c in line2[:-1] if c.isdigit() or c.isalpha() or c in ['+', '-', ' ', '.'])
+        line2_checksum = int(line2[-1])
+        if line2_sum % 10 != line2_checksum:
+            return False
+    except (ValueError, IndexError):
+        return False
+    return True
 
 
 def _read_last_update() -> str | None:
@@ -92,7 +162,7 @@ def _write_last_update(value: str) -> None:
 
 
 def fetch_remote_last_update() -> str:
-    response = requests.get(_KEEPTRACK_LAST_UPDATE_URL, timeout=10)
+    response = requests.get(_KEEPTRACK_LAST_UPDATE_URL, headers=_KEEPTRACK_HEADERS, timeout=10)
     response.raise_for_status()
     try:
         payload = response.json()
@@ -102,7 +172,7 @@ def fetch_remote_last_update() -> str:
 
 
 def _fetch_from_url(url: str) -> str:
-    response = requests.get(url, timeout=30)
+    response = requests.get(url, headers=_KEEPTRACK_HEADERS, timeout=30)
     response.raise_for_status()
     tle_text = ""
     try:
@@ -115,12 +185,41 @@ def _fetch_from_url(url: str) -> str:
     return tle_text
 
 
+def _fetch_celestrak_urls(urls: list[str]) -> str:
+    all_lines = []
+    for url in urls:
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            text = response.text.strip()
+            if text:
+                all_lines.append(text)
+        except Exception:
+            continue
+    if not all_lines:
+        raise RuntimeError("All CelesTrak sources failed")
+    return "\n".join(all_lines)
+
+
 def _fetch_all_caches() -> dict[str, str]:
-    return {
-        "full": _fetch_from_url(_KEEPTRACK_FULL_URL),
-        "debris_leo": _fetch_from_url(_KEEPTRACK_LEO_DEBRIS_URL),
-        "debris_all": _fetch_from_url(_KEEPTRACK_ALL_DEBRIS_URL),
-    }
+    result = {}
+    
+    for cache_name, keeptrack_url, celestrak_urls in [
+        ("full", _KEEPTRACK_FULL_URL, [_CELESTRAK_STARLINK_URL, _CELESTRAK_LAST_UPDATE_URL]),
+        ("debris_leo", _KEEPTRACK_LEO_DEBRIS_URL, [_CELESTRAK_LEO_DEBRIS_URL]),
+        ("debris_all", _KEEPTRACK_ALL_DEBRIS_URL, [_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL]),
+    ]:
+        try:
+            result[cache_name] = _fetch_from_url(keeptrack_url)
+        except Exception as exc:
+            print(f"KeepTrack failed for {cache_name}, trying CelesTrak: {exc}")
+            try:
+                result[cache_name] = _fetch_celestrak_urls(celestrak_urls)
+            except Exception as exc2:
+                print(f"CelesTrak also failed for {cache_name}: {exc2}")
+                raise
+    
+    return result
 
 
 def _cache_needs_refresh(remote_last_update: str) -> bool:
@@ -129,7 +228,7 @@ def _cache_needs_refresh(remote_last_update: str) -> bool:
     local_value = _read_last_update()
     if not local_value:
         return True
-    return remote_value != local_value
+    return remote_last_update != local_value
 
 
 def fetch_and_cache(force: bool = False) -> bool:
@@ -175,7 +274,42 @@ def refresh_all_caches(force: bool = False) -> bool:
     return fetch_and_cache(force=force)
 
 
+def _trigger_force_refresh() -> None:
+    fetch_and_cache(force=True)
+
+
+def _cache_needs_refresh(path: Path) -> bool:
+    try:
+        content = path.read_text(encoding="utf-8").strip()
+        return not content
+    except FileNotFoundError:
+        return True
+
+
+def _caches_are_empty() -> bool:
+    return (
+        _cache_needs_refresh(_FULL_TLE_FILE)
+        and _cache_needs_refresh(_LEO_DEBRIS_FILE)
+        and _cache_needs_refresh(_ALL_DEBRIS_FILE)
+    )
+
+
+def _ensure_initial_cache() -> None:
+    needs_full_refresh = _caches_are_empty()
+    needs_leo = _cache_needs_refresh(_LEO_DEBRIS_FILE)
+    needs_all = _cache_needs_refresh(_ALL_DEBRIS_FILE)
+    
+    if needs_full_refresh or needs_leo or needs_all:
+        print(f"Cache missing/empty: full={needs_full_refresh}, leo={needs_leo}, all={needs_all}. Forcing TLE refresh...")
+        try:
+            refresh_all_caches(force=True)
+            print("Initial TLE cache refresh completed")
+        except Exception as exc:
+            print(f"Initial TLE cache refresh failed: {exc}")
+
+
 def start_background_refresh() -> None:
+    _ensure_initial_cache()
     start_refresh_thread()
 
 
@@ -186,31 +320,61 @@ def _get_norad_id_from_tle_line1(line1: str) -> str | None:
 
 
 def get_tle_lines(cache: str = "full") -> list[str]:
-    if cache == "full":
-        if not _FULL_TLE_FILE.exists():
-            _trigger_force_refresh()
-        return _FULL_TLE_FILE.read_text(encoding="utf-8").splitlines()
-    elif cache == "debris_leo":
-        if not _LEO_DEBRIS_FILE.exists():
-            _trigger_force_refresh()
-        return _LEO_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
-    elif cache == "debris_all":
-        if not _ALL_DEBRIS_FILE.exists():
-            _trigger_force_refresh()
-        return _ALL_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
-    elif cache == "debris_merged":
-        leo_lines = []
-        all_lines = []
+    def _safe_read(path: Path) -> list[str]:
+        try:
+            return path.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            return []
 
-        if _LEO_DEBRIS_FILE.exists():
-            leo_lines = _LEO_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
-        if _ALL_DEBRIS_FILE.exists():
-            all_lines = _ALL_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
+    def _read_non_empty(path: Path) -> list[str]:
+        lines = _safe_read(path)
+        return lines if any(line.strip() for line in lines) else []
+
+    if cache == "full":
+        full_lines = _read_non_empty(_FULL_TLE_FILE)
+        if not full_lines:
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+            full_lines = _read_non_empty(_FULL_TLE_FILE)
+        if full_lines:
+            return full_lines
+        print("Full TLE cache is empty, falling back to merged debris cache")
+        return get_tle_lines("debris_merged")
+    elif cache == "debris_leo":
+        leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+        if not leo_lines:
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+            leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+        return leo_lines
+    elif cache == "debris_all":
+        all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
+        if not all_lines:
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+            all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
+        return all_lines
+    elif cache == "debris_merged":
+        leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+        all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
 
         if not leo_lines and not all_lines:
-            _trigger_force_refresh()
-            leo_lines = _LEO_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
-            all_lines = _ALL_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+            leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+            all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
+
+        if not leo_lines and not all_lines:
+            print("No TLE data available, returning empty list")
+            return []
 
         seen_ids: set[str] = set()
         merged: list[str] = []
@@ -345,16 +509,38 @@ def should_refresh(remote_last_update: str | None = None) -> bool:
 
 def load_tles_from_cache() -> str:
     try:
-        return _FULL_TLE_FILE.read_text(encoding="utf-8")
+        full_text = _FULL_TLE_FILE.read_text(encoding="utf-8")
+        if full_text.strip():
+            return full_text
+        print("Full TLE cache is empty. Trying merged debris cache...")
     except FileNotFoundError:
-        print("Local TLE cache is missing. Falling back to bundled simulated TLE data.")
+        print("Local TLE cache is missing. Trying CelesTrak as fallback...")
     except Exception as exc:
         print(f"Local TLE cache read failed: {exc}")
+
+    merged_lines = get_tle_lines("debris_merged")
+    if merged_lines:
+        print("Using merged debris cache as fallback for TLE data")
+        return "\n".join(merged_lines)
+    
+    try:
+        celestrak_data = _fetch_celestrak_urls([_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL])
+        if celestrak_data.strip():
+            print("Successfully fetched TLE data from CelesTrak")
+            return celestrak_data
+    except Exception as exc:
+        print(f"CelesTrak fallback also failed: {exc}")
+    
+    print("Falling back to bundled simulated TLE data.")
     return _SIMULATED_TLE_TEXT
 
 
 def fetch_remote_tles() -> str:
-    return _fetch_from_url(_KEEPTRACK_FULL_URL)
+    try:
+        return _fetch_from_url(_KEEPTRACK_FULL_URL)
+    except Exception as exc:
+        print(f"KeepTrack fetch failed, trying CelesTrak: {exc}")
+        return _fetch_celestrak_urls([_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL])
 
 
 def fetch_tles_spacetrack() -> str:
@@ -362,4 +548,7 @@ def fetch_tles_spacetrack() -> str:
 
 
 def get_remote_timestamp() -> str:
-    return fetch_remote_last_update()
+    try:
+        return fetch_remote_last_update()
+    except Exception:
+        return "celestrak-fallback"

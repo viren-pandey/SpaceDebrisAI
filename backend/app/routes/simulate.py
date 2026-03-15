@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Request
 from datetime import datetime, timezone
 import heapq
@@ -6,26 +7,87 @@ import math
 import itertools
 import random
 import threading
+import json
+from pathlib import Path
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text
+from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text, refresh_all_caches
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
-from app.services.usage_metrics import record_request_usage
 
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = 2000
+MAX_SATELLITES = max(120, int(os.getenv("SIMULATION_PUBLIC_OBJECT_LIMIT", "2000")))
 LOCAL_TLE_COUNT_LIMIT = 1000000
-SIMULATION_CACHE_TTL_SECONDS = 300
+SIMULATION_CACHE_TTL_SECONDS = max(300, int(os.getenv("SIMULATION_CACHE_TTL_SECONDS", "3600")))
+TLE_BACKGROUND_REFRESH_SECONDS = 900  # 15 minutes
 CLOSEST_PAIR_COUNT = 20
 _SIMULATION_CACHE_LOCK = threading.Lock()
+_SIMULATION_CACHE_CONDITION = threading.Condition(_SIMULATION_CACHE_LOCK)
+
+# Previous state for change detection
+_PREVIOUS_STATE = {
+    "norad_ids": set(),
+    "pairs": {},  # {(id1, id2): {distance, risk}}
+    "timestamp": None,
+}
+
 _SIMULATION_CACHE = {
     "payload": None,
     "catalog_stamp": None,
     "expires_at": 0.0,
+    "building": False,
+    "norad_ids": set(),
+    "pairs": {},  # Track pairs for consistency
 }
+
+_CHANGE_AUDIT_LOG = []
+_MAX_AUDIT_ENTRIES = 100
+
+_TLE_REFRESH_THREAD: threading.Thread | None = None
+_TLE_REFRESH_LOCK = threading.Lock()
+
+
+def _audit_log(action: str, details: dict, reason: str = None):
+    """Log changes for auditability."""
+    entry = {
+        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "action": action,
+        "reason": reason,
+        "details": details,
+    }
+    _CHANGE_AUDIT_LOG.append(entry)
+    if len(_CHANGE_AUDIT_LOG) > _MAX_AUDIT_ENTRIES:
+        _CHANGE_AUDIT_LOG.pop(0)
+    print(f"[AUDIT] {action}: {reason or 'No reason provided'}")
+    if details:
+        print(f"[AUDIT] Details: {json.dumps(details, default=str)[:200]}")
+
+
+def _start_tle_background_refresh():
+    """Start background thread to refresh TLE caches periodically."""
+    global _TLE_REFRESH_THREAD
+
+    def _refresh_loop():
+        while True:
+            try:
+                time.sleep(TLE_BACKGROUND_REFRESH_SECONDS)
+                print("[SIMULATE] Triggering background TLE cache refresh...")
+                refresh_all_caches(force=False)
+                print("[SIMULATE] Background TLE cache refresh completed")
+            except Exception as exc:
+                print(f"[SIMULATE] Background TLE refresh failed: {exc}")
+
+    with _TLE_REFRESH_LOCK:
+        if _TLE_REFRESH_THREAD is None or not _TLE_REFRESH_THREAD.is_alive():
+            _TLE_REFRESH_THREAD = threading.Thread(
+                target=_refresh_loop,
+                name="simulate-tle-refresh",
+                daemon=True,
+            )
+            _TLE_REFRESH_THREAD.start()
+            print("[SIMULATE] Background TLE refresh thread started")
 
 # Fallback satellite positions using circular orbit approximation
 def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
@@ -39,26 +101,27 @@ def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
     return (x, y, z)
 
 SIMULATED_SATS = [
-    ("ISS (ZARYA)",        _orb(6779, 51.6,  45.0, 123.000)),
-    ("PROGRESS MS-24",     _orb(6779, 51.6,  45.0, 123.025)),  # ~3 km  CRITICAL
-    ("STARLINK-3456",      _orb(6921, 53.0, 120.0, 210.000)),
-    ("STARLINK-3457",      _orb(6921, 53.0, 120.0, 210.115)),  # ~14 km MEDIUM
-    ("TERRA",              _orb(7076, 98.2, 310.0,  87.000)),
-    ("AQUA",               _orb(7076, 98.2, 310.0,  87.400)),  # ~49 km LOW
-    ("NOAA 18",            _orb(7222, 99.0, 210.0,  45.0)),
-    ("SENTINEL-1A",        _orb(7064, 98.2,  55.0, 160.0)),
-    ("LANDSAT 8",          _orb(7076, 98.2, 130.0, 290.0)),
-    ("COSMOS 2533",        _orb(6771, 65.0, 180.0, 310.0)),
-    ("NOAA 20",            _orb(7195, 98.74, 190.0,  75.0)),
-    ("SUOMI-NPP",          _orb(7195, 98.74, 200.0,  75.5)),   # closer pair
-    ("SENTINEL-2A",        _orb(7157, 98.57,  80.0, 200.0)),
-    ("SENTINEL-2B",        _orb(7157, 98.57,  80.5, 200.0)),
-    ("GRACE-FO A",         _orb(6861, 89.0,  10.0,  30.0)),
-    ("GRACE-FO B",         _orb(6861, 89.0,  10.0,  31.8)),    # 220 km behind
-    ("IRIDIUM 91",         _orb(7152, 86.4,  35.0, 100.0)),
-    ("IRIDIUM NEXT-101",   _orb(7152, 86.4,  95.0, 100.0)),
-    ("METOP-B",            _orb(7188, 98.7, 270.0, 150.0)),
-    ("METOP-C",            _orb(7188, 98.7, 270.0, 152.0)),
+    # (name, position, norad_id)
+    ("ISS (ZARYA)",        _orb(6779, 51.6,  45.0, 123.000), 25544),
+    ("PROGRESS MS-24",     _orb(6779, 51.6,  45.0, 123.025), 58400),  # ~3 km  CRITICAL
+    ("STARLINK-3456",      _orb(6921, 53.0, 120.0, 210.000), 44713),
+    ("STARLINK-3457",      _orb(6921, 53.0, 120.0, 210.115), 44714),  # ~14 km MEDIUM
+    ("TERRA",              _orb(7076, 98.2, 310.0,  87.000), 25994),
+    ("AQUA",               _orb(7076, 98.2, 310.0,  87.400), 27424),  # ~49 km LOW
+    ("NOAA 18",            _orb(7222, 99.0, 210.0,  45.0), 28654),
+    ("SENTINEL-1A",        _orb(7064, 98.2,  55.0, 160.0), 39384),
+    ("LANDSAT 8",          _orb(7076, 98.2, 130.0, 290.0), 39084),
+    ("COSMOS 2533",        _orb(6771, 65.0, 180.0, 310.0), 44594),
+    ("NOAA 20",            _orb(7195, 98.74, 190.0,  75.0), 43206),
+    ("SUOMI-NPP",          _orb(7195, 98.74, 200.0,  75.5), 37849),  # closer pair
+    ("SENTINEL-2A",        _orb(7157, 98.57,  80.0, 200.0), 40697),
+    ("SENTINEL-2B",        _orb(7157, 98.57,  80.5, 200.0), 42063),
+    ("GRACE-FO A",         _orb(6861, 89.0,  10.0,  30.0), 43476),
+    ("GRACE-FO B",         _orb(6861, 89.0,  10.0,  31.8), 43477),  # 220 km behind
+    ("IRIDIUM 91",         _orb(7152, 86.4,  35.0, 100.0), 24793),
+    ("IRIDIUM NEXT-101",   _orb(7152, 86.4,  95.0, 100.0), 42960),
+    ("METOP-B",            _orb(7188, 98.7, 270.0, 150.0), 38771),
+    ("METOP-C",            _orb(7188, 98.7, 270.0, 152.0), 43641),
 ]
 
 
@@ -144,24 +207,62 @@ def _estimate_velocity(pos: tuple, alt_km: float) -> tuple:
 
 
 def _build_pairs(sats: list, mode: str) -> dict:
+    """
+    Build conjunction pairs from satellite list using spatial binning.
+    sats: list of (name, pos, norad_id) tuples
+    """
     t0 = time.time()
 
     closest_heap = []
     pairs_checked = 0
-    for (n1, p1), (n2, p2) in itertools.combinations(sats, 2):
-        d = dist3d(p1, p2)
-        if d < 0.5:  # skip co-located objects
-            continue
-        pairs_checked += 1
-        entry = (-d, n1, p1, n2, p2)
-        if len(closest_heap) < CLOSEST_PAIR_COUNT:
-            heapq.heappush(closest_heap, entry)
-            continue
-        if d < -closest_heap[0][0]:
-            heapq.heapreplace(closest_heap, entry)
+    max_distance_threshold = 5000  # Skip pairs further than 5000 km
+    
+    # Pre-compute altitudes and group by altitude shell (500km bins)
+    shell_size = 500  # km
+    shells = {}
+    for i, (name, pos, norad_id) in enumerate(sats):
+        alt = _altitude(pos)
+        shell_key = int(alt / shell_size)
+        if shell_key not in shells:
+            shells[shell_key] = []
+        shells[shell_key].append((i, name, pos, norad_id))
+    
+    # Only check adjacent shells (within threshold)
+    checked_pairs = set()
+    
+    for shell_key, satellites in shells.items():
+        for i, n1, p1, id1 in satellites:
+            # Check satellites in current and adjacent shells
+            for offset in [-1, 0, 1]:
+                neighbor_key = shell_key + offset
+                if neighbor_key not in shells:
+                    continue
+                for j, n2, p2, id2 in shells[neighbor_key]:
+                    if j <= i:
+                        continue
+                    pair_key = (min(i, j), max(i, j))
+                    if pair_key in checked_pairs:
+                        continue
+                    checked_pairs.add(pair_key)
+                    
+                    if id1 is not None and id2 is not None and id1 == id2:
+                        continue
+                    
+                    d = dist3d(p1, p2)
+                    if d < 0.5 or d > max_distance_threshold:
+                        continue
+                    
+                    pairs_checked += 1
+                    entry = (-d, n1, p1, n2, p2, id1, id2)
+                    if len(closest_heap) < CLOSEST_PAIR_COUNT:
+                        heapq.heappush(closest_heap, entry)
+                        continue
+                    if d < -closest_heap[0][0]:
+                        heapq.heapreplace(closest_heap, entry)
 
     closest = []
-    for neg_dist, n1, p1, n2, p2 in sorted(closest_heap, key=lambda item: -item[0]):
+    for item in sorted(closest_heap, key=lambda item: -item[0]):
+        neg_dist, n1, p1, n2, p2, id1, id2 = item
         d = -neg_dist
         alt1 = _altitude(p1)
         alt2 = _altitude(p2)
@@ -170,18 +271,23 @@ def _build_pairs(sats: list, mode: str) -> dict:
         v1 = _estimate_velocity(p1, alt1)
         v2 = _estimate_velocity(p2, alt2)
         
+        dv = (v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2])
+        rel_vel_km_s = math.sqrt(dv[0]**2 + dv[1]**2 + dv[2]**2)
+        
         tca_time, tca_miss, pc, pc_scientific, confidence = calculate_tca_and_pc(p1, p2, v1, v2)
         
-        risk_before = classify_conjunction(d, alt)
+        risk_before = classify_conjunction(d, alt, v1, v2)
         maneuver = recommend_maneuver(d, risk_before)
-        risk_after = classify_conjunction(maneuver["new_distance_km"], alt)
+        risk_after = classify_conjunction(maneuver["new_distance_km"], alt, v1, v2)
         closest.append({
             "satellites": [n1, n2],
+            "norad_ids": [id1, id2],
             "tca_time": tca_time.isoformat() if tca_time else None,
             "miss_distance_km": round(tca_miss, 2),
             "probability_of_collision": pc,
             "pc_scientific": pc_scientific,
             "confidence": confidence,
+            "relative_velocity_km_s": round(rel_vel_km_s, 3),
             "before": {"distance_km": round(d, 2), "risk": risk_before},
             "after": {
                 "distance_km": maneuver["new_distance_km"],
@@ -202,31 +308,154 @@ def _build_pairs(sats: list, mode: str) -> dict:
     }
 
 
+def _extract_norad_id(line1: str) -> int | None:
+    """Extract NORAD catalog number from TLE line 1."""
+    try:
+        return int(line1[2:7].strip())
+    except (ValueError, IndexError):
+        return None
+
+
+# Known active constellation name patterns (case-insensitive)
+ACTIVE_CONSTELLATION_PATTERNS = [
+    "STARLINK", "ONEWEB", "IRIDIUM", "GPS", "GALILEO", "GLONASS", "BEIDOU",
+    "SES-", "EUTELSAT", "INTELSAT", "VIASTAR", "ARABSAT", "TURKSAT",
+    "NOAA", "METOP", "SENTINEL", "LANDSAT", "TERRA", "AQUA", "SUOMI",
+    "ISS", "TIANGONG", "HST", "HUBBLE", "JWST", "GOES", "HIMAWARI",
+    "ELECTRO-L", "FY-", "ZY-", "HY-", "GEO-KOMPSAT",
+    "COSMOS", "FENGYUN", "YAOGAN",  # Recent operational
+]
+
+# NORAD ID ranges for active operational satellites (approximate)
+ACTIVE_NORAD_RANGES = [
+    (20000, 99999),  # Modern operational satellites
+]
+
+
+def _is_active_satellite(name: str, norad_id: int | None) -> bool:
+    """Check if a satellite is likely an active operational satellite."""
+    name_upper = name.upper()
+    
+    # Check by name pattern
+    for pattern in ACTIVE_CONSTELLATION_PATTERNS:
+        if pattern in name_upper:
+            return True
+    
+    # Check by NORAD ID range (newer IDs are more likely active)
+    if norad_id is not None:
+        for low, high in ACTIVE_NORAD_RANGES:
+            if low <= norad_id <= high:
+                # But exclude if name indicates debris
+                if "DEB" in name_upper or "R/B" in name_upper or "FRAG" in name_upper:
+                    continue
+                return True
+    
+    return False
+
+
 def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
+    """
+    Select TLEs for public demo, prioritizing active constellation satellites.
+    Ensures the demo includes real operators, not just Cold War debris.
+    """
     if len(all_tles) <= MAX_SATELLITES:
         return list(all_tles)
 
-    # Shuffle before slicing for public selection
-    tle_blocks = list(all_tles)
-    import random
-    random.shuffle(tle_blocks)
-    selected = tle_blocks[:MAX_SATELLITES]
+    # Separate active satellites from debris
+    active_sats = []
+    debris_and_old = []
+    
+    for tle in all_tles:
+        name, l1, l2 = tle[0], tle[1], tle[2]
+        norad_id = tle[3] if len(tle) > 3 else None
+        
+        if _is_active_satellite(name, norad_id):
+            active_sats.append(tle)
+        else:
+            debris_and_old.append(tle)
+    
+    # Shuffle both groups
+    random.shuffle(active_sats)
+    random.shuffle(debris_and_old)
+    
+    # Fill with active satellites first (up to 60% of max), then debris
+    active_limit = int(MAX_SATELLITES * 0.6)
+    selected_active = active_sats[:active_limit]
+    remaining_slots = MAX_SATELLITES - len(selected_active)
+    selected_debris = debris_and_old[:remaining_slots]
+    
+    # Combine and shuffle final selection for variety
+    selected = selected_active + selected_debris
+    random.shuffle(selected)
+    
     return selected
 
 
+def _dedup_by_norad(tles: list) -> list:
+    """Deduplicate TLEs by NORAD ID, keeping first occurrence."""
+    seen_ids = set()
+    result = []
+    for name, l1, l2 in tles:
+        norad_id = _extract_norad_id(l2)  # NORAD ID is in line 2
+        if norad_id is None:
+            result.append((name, l1, l2, None))
+            continue
+        if norad_id not in seen_ids:
+            seen_ids.add(norad_id)
+            result.append((name, l1, l2, norad_id))
+    return result
+
+
 def _build_simulation_snapshot() -> dict:
+    """Build simulation with comprehensive change detection and auditability."""
+    t_build_start = time.time()
+    
     raw_tle_lines = get_tle_lines(cache="debris_merged")
     raw_tles = "\n".join(raw_tle_lines)
     all_tles = parse_tle_text(raw_tles, limit=LOCAL_TLE_COUNT_LIMIT)
-    total_catalog = len(all_tles)
+    
+    # Track TLE parsing stats
+    parsing_stats = {
+        "total_tle_lines": len(raw_tle_lines) // 3 if raw_tle_lines else 0,
+        "parsed_tle_count": len(all_tles),
+        "parsing_errors": 0,
+    }
+    
+    # Deduplicate by NORAD ID before selection
+    deduped_tles = _dedup_by_norad(all_tles)
+    total_catalog = len(deduped_tles)
+    dedup_stats = {
+        "before_dedup": len(all_tles),
+        "after_dedup": total_catalog,
+        "duplicates_removed": len(all_tles) - total_catalog,
+    }
+    
     catalog_stamp = get_local_timestamp()
-    selected_tles = _select_public_tles(all_tles, catalog_stamp)
+    selected_tles = _select_public_tles(deduped_tles, catalog_stamp)
+    
+    selection_stats = {
+        "total_available": total_catalog,
+        "selected_count": len(selected_tles),
+        "selection_ratio": f"{len(selected_tles)/total_catalog*100:.1f}%" if total_catalog > 0 else "N/A",
+        "max_limit": MAX_SATELLITES,
+    }
 
     valid_sats = []
-    for name, l1, l2 in selected_tles:
+    current_norad_ids = set()
+    invalid_tles = []
+    
+    for name, l1, l2, norad_id in selected_tles:
         pos = tle_to_position(l1, l2)
         if pos is not None:
-            valid_sats.append((name, pos))
+            # Validate position
+            if _validate_position(pos):
+                valid_sats.append((name, pos, norad_id))
+                if norad_id is not None:
+                    current_norad_ids.add(norad_id)
+            else:
+                invalid_tles.append({"name": name, "norad_id": norad_id, "reason": "Invalid position (out of bounds)"})
+        else:
+            invalid_tles.append({"name": name, "norad_id": norad_id, "reason": "TLE propagation failed"})
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
     mode_label = "local" if len(valid_sats) >= 3 else "simulation"
@@ -236,53 +465,360 @@ def _build_simulation_snapshot() -> dict:
 
     now_utc = datetime.now(timezone.utc)
     sat_positions = []
-    for name, pos in sats_for_pairs:
+    for sat_data in sats_for_pairs:
+        name = sat_data[0]
+        pos = sat_data[1]
+        norad_id = sat_data[2] if len(sat_data) > 2 else None
         try:
             lat, lon, alt = teme_to_geodetic(pos, utc_dt=now_utc)
-            sat_positions.append({"name": name, "lat": lat, "lon": lon, "alt_km": alt})
-        except Exception:
-            pass
+            sat_positions.append({
+                "name": name, 
+                "lat": lat, 
+                "lon": lon, 
+                "alt_km": alt,
+                "norad_id": norad_id,
+            })
+        except Exception as e:
+            print(f"[VALIDATION] Geodetic conversion failed for {name}: {e}")
+
+    # === COMPREHENSIVE CHANGE DETECTION ===
+    prev_norad_ids = _SIMULATION_CACHE.get("norad_ids", set())
+    added_ids = current_norad_ids - prev_norad_ids
+    removed_ids = prev_norad_ids - current_norad_ids
+    
+    # Get names for added/removed satellites
+    name_map = {tle[3]: tle[0] for tle in selected_tles if tle[3] is not None}
+    added_sats = [{"norad_id": nid, "name": name_map.get(nid, "Unknown")} for nid in sorted(added_ids)]
+    removed_sats = [{"norad_id": nid} for nid in sorted(removed_ids)]
+    
+    # Track collision pair changes
+    current_pairs = {}
+    for pair in result.get("closest_pairs", []):
+        norad_ids = pair.get("norad_ids", [None, None])
+        if norad_ids[0] and norad_ids[1]:
+            key = tuple(sorted([norad_ids[0], norad_ids[1]]))
+            current_pairs[key] = {
+                "distance": pair.get("miss_distance_km"),
+                "risk": pair.get("before", {}).get("risk", {}).get("level"),
+                "pc": pair.get("probability_of_collision"),
+            }
+    
+    prev_pairs = _SIMULATION_CACHE.get("pairs", {})
+    
+    # Find new, removed, and changed pairs
+    new_pairs = set(current_pairs.keys()) - set(prev_pairs.keys())
+    removed_pairs = set(prev_pairs.keys()) - set(current_pairs.keys())
+    changed_pairs = []
+    preserved_pairs = []
+    
+    for key in set(current_pairs.keys()) & set(prev_pairs.keys()):
+        curr = current_pairs[key]
+        prev = prev_pairs[key]
+        if curr["distance"] != prev["distance"] or curr["risk"] != prev["risk"]:
+            changed_pairs.append({
+                "pair": key,
+                "before": prev,
+                "after": curr,
+                "change_reason": "Orbital position update" if curr["distance"] != prev["distance"] else "Risk recalculation",
+            })
+        else:
+            preserved_pairs.append(key)
+    
+    # Audit log all changes
+    if added_ids or removed_ids:
+        _audit_log(
+            "CATALOG_UPDATE",
+            {
+                "added": len(added_ids),
+                "removed": len(removed_ids),
+                "net_change": len(added_ids) - len(removed_ids),
+            },
+            "Routine catalog refresh from KeepTrack/CelesTrak"
+        )
+    
+    if new_pairs or removed_pairs or changed_pairs:
+        _audit_log(
+            "COLLISION_PAIRS_CHANGED",
+            {
+                "new_pairs": len(new_pairs),
+                "removed_pairs": len(removed_pairs),
+                "changed_pairs": len(changed_pairs),
+                "preserved_pairs": len(preserved_pairs),
+            },
+            "Pair changes due to TLE updates or spatial binning optimization"
+        )
+    
+    # Build detailed change report
+    change_report = {
+        "satellites": {
+            "previous_count": len(prev_norad_ids),
+            "current_count": len(current_norad_ids),
+            "added": added_sats,
+            "removed": removed_sats,
+            "change_pct": f"{abs(len(current_norad_ids) - len(prev_norad_ids)) / max(len(prev_norad_ids), 1) * 100:.1f}%",
+        },
+        "pairs": {
+            "previous_count": len(prev_pairs),
+            "current_count": len(current_pairs),
+            "new_pairs": len(new_pairs),
+            "removed_pairs": len(removed_pairs),
+            "changed_pairs": len(changed_pairs),
+            "preserved_pairs": len(preserved_pairs),
+        },
+        "processing": {
+            "total_tle_records": total_catalog,
+            "valid_satellites": len(valid_sats),
+            "invalid_tles": len(invalid_tles),
+            "pairs_checked": result["meta"]["pairs_checked"],
+            "processing_ms": result["meta"]["processing_ms"],
+            "build_time_ms": round((time.time() - t_build_start) * 1000, 1),
+        },
+    }
+    
+    # Log processing stats
+    _audit_log(
+        "SIMULATION_COMPLETE",
+        {
+            "satellites_screened": len(sats_for_pairs),
+            "pairs_analyzed": result["meta"]["pairs_checked"],
+            "processing_time_ms": result["meta"]["processing_ms"],
+        },
+        f"Spatial binning: Only adjacent altitude shells checked (vs O(n²) brute force)"
+    )
+    
+    # Update cache
+    _SIMULATION_CACHE["norad_ids"] = current_norad_ids
+    _SIMULATION_CACHE["pairs"] = current_pairs
+    _SIMULATION_CACHE["timestamp"] = datetime.now(timezone.utc).isoformat()
 
     result["meta"] = {
         "satellites": len(sat_positions),
         "public_objects": len(selected_tles),
-        "tle_records": total_catalog,
+        "total_tle_records": total_catalog,
+        "deduplicated_records": dedup_stats["after_dedup"],
+        "duplicates_removed": dedup_stats["duplicates_removed"],
         "tle_source": tle_source,
-        "total_catalog": total_catalog,
         "satellites_screened": len(sats_for_pairs),
         "pairs_checked": result["meta"]["pairs_checked"],
         "processing_ms": result["meta"]["processing_ms"],
         "cache_last_update": catalog_stamp,
+        "catalog_changes": {
+            "added": len(added_ids),
+            "removed": len(removed_ids),
+            "change_pct": change_report["satellites"]["change_pct"],
+        },
+        "change_report": change_report,
     }
     result["satellites"] = sat_positions
 
     return result
 
 
+def _validate_position(pos: tuple) -> bool:
+    """Validate satellite position is physically reasonable."""
+    if not pos:
+        return False
+    x, y, z = pos
+    r = math.sqrt(x**2 + y**2 + z**2)
+    # Earth radius ~6371 km, LEO max ~35786 km (GEO)
+    if r < 6371 * 0.9 or r > 70000:
+        return False
+    return True
+
+
 def _get_cached_simulation() -> dict:
     catalog_stamp = get_local_timestamp() or "cache-missing"
     now = time.time()
 
-    with _SIMULATION_CACHE_LOCK:
-        cached_payload = _SIMULATION_CACHE["payload"]
-        if (
-            cached_payload is not None
-            and _SIMULATION_CACHE["catalog_stamp"] == catalog_stamp
-            and now < _SIMULATION_CACHE["expires_at"]
-        ):
-            return cached_payload
+    with _SIMULATION_CACHE_CONDITION:
+        while True:
+            cached_payload = _SIMULATION_CACHE["payload"]
+            if (
+                cached_payload is not None
+                and _SIMULATION_CACHE["catalog_stamp"] == catalog_stamp
+                and now < _SIMULATION_CACHE["expires_at"]
+            ):
+                return cached_payload
 
-    result = _build_simulation_snapshot()
+            if not _SIMULATION_CACHE["building"]:
+                _SIMULATION_CACHE["building"] = True
+                break
 
-    with _SIMULATION_CACHE_LOCK:
-        _SIMULATION_CACHE["payload"] = result
-        _SIMULATION_CACHE["catalog_stamp"] = catalog_stamp
-        _SIMULATION_CACHE["expires_at"] = now + SIMULATION_CACHE_TTL_SECONDS
+            _SIMULATION_CACHE_CONDITION.wait(timeout=5)
+            now = time.time()
+
+    try:
+        result = _build_simulation_snapshot()
+    finally:
+        completed_at = time.time()
+        with _SIMULATION_CACHE_CONDITION:
+            _SIMULATION_CACHE["building"] = False
+            if "result" in locals():
+                _SIMULATION_CACHE["payload"] = result
+                _SIMULATION_CACHE["catalog_stamp"] = catalog_stamp
+                _SIMULATION_CACHE["expires_at"] = completed_at + SIMULATION_CACHE_TTL_SECONDS
+            _SIMULATION_CACHE_CONDITION.notify_all()
 
     return result
 
 
 @router.get("/simulate")
 async def simulate(request: Request):
-    record_request_usage(request, "simulate")
+    force = request.query_params.get("refresh", "").lower() in ("1", "true", "yes")
+    if force:
+        print("[SIMULATE] Force refresh requested, triggering TLE cache refresh...")
+        refresh_all_caches(force=True)
+        with _SIMULATION_CACHE_CONDITION:
+            _SIMULATION_CACHE["expires_at"] = 0
     return _get_cached_simulation()
+
+
+@router.get("/simulate/high-risk")
+async def get_high_risk_collisions(request: Request, threshold: str = "HIGH"):
+    """
+    Get high-risk collision events filtered by risk level.
+    threshold: CRITICAL, HIGH, MEDIUM (default: HIGH)
+    """
+    data = _get_cached_simulation()
+    risk_levels = {"CRITICAL": 3, "HIGH": 2, "MEDIUM": 1}
+    min_level = risk_levels.get(threshold.upper(), 2)
+    
+    high_risk = []
+    for pair in data.get("closest_pairs", []):
+        risk = pair.get("before", {}).get("risk", {})
+        level = risk.get("level", "LOW")
+        level_val = risk_levels.get(level, 0)
+        if level_val >= min_level:
+            high_risk.append({
+                "satellites": pair["satellites"],
+                "norad_ids": pair.get("norad_ids", []),
+                "miss_distance_km": pair.get("miss_distance_km"),
+                "probability_of_collision": pair.get("probability_of_collision"),
+                "relative_velocity_km_s": pair.get("relative_velocity_km_s"),
+                "risk_level": level,
+                "risk_score": risk.get("score"),
+                "maneuver": pair.get("maneuver"),
+                "tca_time": pair.get("tca_time"),
+            })
+    
+    return {
+        "threshold": threshold.upper(),
+        "count": len(high_risk),
+        "high_risk_collisions": high_risk,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/simulate/stats")
+async def get_simulation_stats():
+    """Get simulation statistics and change summary."""
+    data = _get_cached_simulation()
+    meta = data.get("meta", {})
+    
+    risk_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    for pair in data.get("closest_pairs", []):
+        level = pair.get("before", {}).get("risk", {}).get("level", "LOW")
+        if level in risk_counts:
+            risk_counts[level] += 1
+    
+    return {
+        "satellites_screened": meta.get("satellites_screened", 0),
+        "total_catalog_records": meta.get("total_tle_records", 0),
+        "pairs_checked": meta.get("pairs_checked", 0),
+        "processing_ms": meta.get("processing_ms", 0),
+        "tle_source": meta.get("tle_source", "unknown"),
+        "catalog_changes": meta.get("catalog_changes", {"added": 0, "removed": 0}),
+        "risk_distribution": risk_counts,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/simulate/changes")
+async def get_change_report():
+    """
+    Get detailed change report for the current simulation.
+    Includes satellite additions/removals, pair changes, and justifications.
+    """
+    try:
+        data = _get_cached_simulation()
+    except Exception as e:
+        print(f"[SIMULATE/CHANGES] Cache build failed: {e}")
+        raise
+
+    meta = data.get("meta", {}) or {}
+    change_report = meta.get("change_report") or {}
+
+    satellites_data = change_report.get("satellites", {}) or {}
+    pairs_data = change_report.get("pairs", {}) or {}
+
+    return {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "report": {
+            "satellites": satellites_data,
+            "pairs": pairs_data,
+            "processing": change_report.get("processing", {}),
+        },
+        "audit_trail": list(_CHANGE_AUDIT_LOG[-20:]),  # Last 20 entries
+        "summary": {
+            "total_changes": len(satellites_data.get("added", [])) +
+                           len(satellites_data.get("removed", [])),
+            "pair_stability": f"{len(pairs_data.get('preserved_pairs', [])) / max(pairs_data.get('current_count', 1) or 1, 1) * 100:.1f}%",
+            "optimization_explanation": (
+                "Using spatial binning: satellites are grouped by altitude (500km shells). "
+                "Only satellites in adjacent shells are checked for conjunctions. "
+                "This reduces O(n²) brute-force to O(n*k) where k is avg satellites per shell."
+            ),
+        },
+    }
+
+
+@router.get("/simulate/audit")
+async def get_audit_log():
+    """
+    Get the audit log of recent changes.
+    All catalog updates, pair changes, and processing events are logged.
+    """
+    return {
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+        "total_entries": len(_CHANGE_AUDIT_LOG),
+        "entries": list(_CHANGE_AUDIT_LOG),
+    }
+
+
+@router.get("/simulate/explain")
+async def explain_simulation():
+    """
+    Explain the current simulation methodology and performance characteristics.
+    """
+    return {
+        "methodology": {
+            "tle_sources": ["KeepTrack API", "CelesTrak"],
+            "propagation": "SGP4 (Simplified General Perturbations model 4)",
+            "position_calculation": "TEME (True Equator Mean Equinox) to Geodetic",
+            "conjunction_detection": "Spatial binning by altitude shells",
+        },
+        "performance": {
+            "algorithm": "Spatial binning (not brute force O(n²))",
+            "shell_size_km": 500,
+            "why_pairs_reduced": (
+                "Old: Checked ALL n*(n-1)/2 pairs = ~2M pairs for 2000 satellites. "
+                "New: Only check satellites in adjacent altitude shells (within 500km). "
+                "Most satellites are in different orbital regimes, so their orbits don't intersect. "
+                "This is physically accurate - debris in LEO won't collide with GEO satellites."
+            ),
+            "accuracy_tradeoff": (
+                "Zero accuracy loss: satellites at different altitudes cannot collide. "
+                "The spatial binning only excludes physically impossible conjunctions."
+            ),
+        },
+        "change_detection": {
+            "tracked_fields": ["satellite_catalog", "conjunction_pairs", "risk_levels"],
+            "deduplication": "By NORAD catalog ID",
+            "validation": "Position bounds check (0.9x Earth radius to 70,000km)",
+        },
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+# Start background refresh thread on module load
+_start_tle_background_refresh()
