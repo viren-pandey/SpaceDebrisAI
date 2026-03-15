@@ -1,8 +1,18 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import { Satellite } from "ootk";
+import {
+  ComposableMap,
+  Geographies,
+  Geography,
+  Sphere,
+  Graticule,
+  ZoomableGroup,
+} from "react-simple-maps";
 
 import { fetchTrackerPositions } from "../api/backend";
 import { SAT_DB } from "../data/satellites";
+
+const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 
 const SAT_BY_NORAD = {};
 Object.entries(SAT_DB).forEach(([name, info]) => {
@@ -17,45 +27,6 @@ function toXY(lon, lat) {
     x: ((lon + 180) / 360) * MAP_W,
     y: ((90 - lat) / 180) * MAP_H,
   };
-}
-
-const LANDMASSES = [
-  [[-168, 54], [-140, 71], [-100, 73], [-80, 73], [-65, 60], [-55, 47], [-68, 47], [-77, 44], [-81, 26], [-88, 16], [-92, 15], [-95, 19], [-115, 29], [-117, 32], [-124, 37], [-127, 49], [-168, 54]],
-  [[-73, 76], [-20, 76], [-18, 72], [-25, 60], [-44, 60], [-57, 63], [-73, 76]],
-  [[-78, 8], [-60, 8], [-45, 5], [-35, 5], [-35, -8], [-40, -23], [-52, -33], [-67, -55], [-75, -50], [-75, -35], [-70, -20], [-75, -10], [-77, 0], [-78, 8]],
-  [[-10, 36], [10, 36], [18, 37], [22, 37], [28, 41], [32, 37], [36, 36], [36, 41], [32, 45], [28, 50], [25, 56], [22, 60], [25, 65], [28, 70], [16, 70], [10, 63], [5, 58], [0, 60], [-5, 58], [-10, 56], [-10, 48], [-8, 44], [-10, 38], [-10, 36]],
-  [[-18, 15], [0, 15], [10, 20], [35, 22], [43, 12], [52, 12], [45, 0], [40, -5], [35, -18], [30, -30], [25, -35], [18, -35], [15, -25], [10, -10], [5, 5], [0, 5], [-5, 5], [-10, 5], [-15, 10], [-18, 15]],
-  [[25, 38], [32, 30], [37, 22], [45, 12], [50, 12], [60, 22], [67, 23], [75, 8], [80, 6], [95, 5], [100, 2], [105, -5], [102, -1], [108, 1], [115, 5], [120, 22], [125, 25], [130, 32], [140, 40], [140, 50], [130, 50], [120, 60], [100, 65], [80, 65], [50, 70], [30, 70], [25, 65], [32, 65], [40, 60], [55, 60], [70, 55], [80, 55], [90, 60], [100, 60], [115, 55], [130, 50], [130, 60], [140, 70], [110, 70], [80, 75], [55, 75], [35, 70], [30, 70], [25, 38]],
-  [[66, 23], [73, 8], [80, 8], [80, 13], [77, 8], [80, 5], [82, 8], [80, 13], [82, 20], [80, 23], [75, 25], [70, 23], [66, 23]],
-  [[130.6, 31.3], [131.5, 34.3], [135, 35], [137, 40], [141, 41], [141.5, 44], [140, 44.5], [135, 43], [131, 33.5], [130.6, 31.3]],
-  [[113, -22], [114, -32], [120, -35], [128, -33], [137, -35], [140, -38], [148, -38], [151, -24], [151, -15], [145, -10], [135, -12], [125, -15], [115, -22], [113, -22]],
-  [[-180, -70], [-90, -72], [-60, -70], [-30, -72], [0, -71], [30, -70], [60, -72], [90, -70], [120, -75], [150, -71], [180, -70], [180, -90], [-180, -90], [-180, -70]],
-  [[43, -13], [50, -16], [49, -25], [44, -25], [43, -16], [43, -13]],
-  [[108, 1], [113, 4], [117, 7], [118, 4], [115, 1], [110, 1], [108, 1]],
-  [[95, 5], [103, 5], [106, 0], [104, -4], [100, -4], [95, 0], [95, 5]],
-  [[-5, 50], [2, 51], [2, 53], [0, 55], [-4, 57], [-6, 57], [-8, 54], [-2, 51], [-5, 50]],
-  [[166, -46], [171, -43], [172, -46], [169, -47], [166, -46]],
-];
-
-function WorldMapBg({ W, H }) {
-  function xy([lon, lat]) {
-    return `${(((lon + 180) / 360) * W).toFixed(1)},${(((90 - lat) / 180) * H).toFixed(1)}`;
-  }
-
-  return (
-    <>
-      {LANDMASSES.map((pts, i) => (
-        <polygon
-          key={i}
-          points={pts.map(xy).join(" ")}
-          fill="rgba(30,65,115,0.22)"
-          stroke="rgba(56,189,248,0.32)"
-          strokeWidth={0.75}
-          strokeLinejoin="round"
-        />
-      ))}
-    </>
-  );
 }
 
 function computeGroundTrack(tle1, tle2) {
@@ -90,10 +61,6 @@ function computeGroundTrack(tle1, tle2) {
   }
 }
 
-const LAT_LINES = [-60, -30, 0, 30, 60];
-const LON_LINES = [-150, -120, -90, -60, -30, 0, 30, 60, 90, 120, 150];
-const SPECIAL_LAT = [23.5, -23.5, 66.5, -66.5];
-
 export default function TrackerPage() {
   const [positions, setPositions] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -103,6 +70,8 @@ export default function TrackerPage() {
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("all");
   const [search, setSearch] = useState("");
+  const [zoom, setZoom] = useState(1);
+  const [center, setCenter] = useState([0, 0]);
   const timerRef = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -250,16 +219,55 @@ export default function TrackerPage() {
 
       <div className="trk-map-section">
         <div className="trk-map-wrap">
+          <div className="trk-map-controls">
+            <button className="trk-zoom-btn" onClick={() => setZoom((z) => Math.min(z * 1.5, 4))}>+</button>
+            <button className="trk-zoom-btn" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>−</button>
+            <button className="trk-zoom-btn" onClick={() => { setZoom(1); setCenter([0, 0]); }}>⟲</button>
+          </div>
+          <ComposableMap
+            projection="geoMercator"
+            projectionConfig={{ scale: 140 }}
+            width={1000}
+            height={500}
+            style={{ width: "100%", height: "auto" }}
+          >
+            <ZoomableGroup
+              zoom={zoom}
+              center={center}
+              onMoveEnd={({ coordinates }) => setCenter(coordinates)}
+              onZoomEnd={({ zoom }) => setZoom(zoom)}
+              maxZoom={4}
+              minZoom={1}
+            >
+              <Sphere stroke="rgba(56,189,248,0.08)" strokeWidth={0.5} fill="transparent" />
+              <Graticule stroke="rgba(56,189,248,0.05)" strokeWidth={0.5} step={[30, 30]} />
+              <Geographies geography={GEO_URL}>
+                {({ geographies }) =>
+                  geographies.map((geo) => (
+                    <Geography
+                      key={geo.rsmKey}
+                      geography={geo}
+                      fill="rgba(30,65,90,0.35)"
+                      stroke="rgba(56,189,248,0.15)"
+                      strokeWidth={0.4}
+                      style={{
+                        default: { outline: "none" },
+                        hover: { fill: "rgba(40,90,120,0.5)", outline: "none" },
+                        pressed: { fill: "rgba(50,110,150,0.6)", outline: "none" },
+                      }}
+                    />
+                  ))
+                }
+              </Geographies>
+            </ZoomableGroup>
+          </ComposableMap>
+          
           <svg
-            viewBox={`0 0 ${MAP_W} ${MAP_H}`}
-            className="trk-map-svg"
+            className="trk-overlay-svg"
+            viewBox="0 0 1000 500"
             preserveAspectRatio="xMidYMid meet"
           >
             <defs>
-              <radialGradient id="trkbg" cx="50%" cy="45%" r="80%">
-                <stop offset="0%" stopColor="#060e22" />
-                <stop offset="100%" stopColor="#020810" />
-              </radialGradient>
               <filter id="trk-glow" x="-100%" y="-100%" width="300%" height="300%">
                 <feGaussianBlur stdDeviation="5" result="blur" />
                 <feMerge>
@@ -269,99 +277,10 @@ export default function TrackerPage() {
               </filter>
             </defs>
 
-            <rect width={MAP_W} height={MAP_H} fill="url(#trkbg)" />
-            <WorldMapBg W={MAP_W} H={MAP_H} />
-
-            {LAT_LINES.map((lat) => (
-              <line
-                key={lat}
-                x1={0}
-                y1={toXY(0, lat).y}
-                x2={MAP_W}
-                y2={toXY(0, lat).y}
-                stroke="rgba(56,189,248,0.06)"
-                strokeWidth="0.8"
-              />
-            ))}
-
-            {LON_LINES.map((lon) => (
-              <line
-                key={lon}
-                x1={toXY(lon, 0).x}
-                y1={0}
-                x2={toXY(lon, 0).x}
-                y2={MAP_H}
-                stroke="rgba(56,189,248,0.06)"
-                strokeWidth="0.8"
-              />
-            ))}
-
-            {SPECIAL_LAT.map((lat) => (
-              <line
-                key={lat}
-                x1={0}
-                y1={toXY(0, lat).y}
-                x2={MAP_W}
-                y2={toXY(0, lat).y}
-                stroke="rgba(56,189,248,0.04)"
-                strokeWidth="0.8"
-                strokeDasharray="3 8"
-              />
-            ))}
-
-            <line
-              x1={0}
-              y1={MAP_H / 2}
-              x2={MAP_W}
-              y2={MAP_H / 2}
-              stroke="rgba(56,189,248,0.25)"
-              strokeWidth="1.2"
-              strokeDasharray="6 4"
-            />
-
-            <line
-              x1={MAP_W / 2}
-              y1={0}
-              x2={MAP_W / 2}
-              y2={MAP_H}
-              stroke="rgba(56,189,248,0.12)"
-              strokeWidth="0.8"
-              strokeDasharray="5 5"
-            />
-
-            <text
-              x={8}
-              y={MAP_H / 2 - 6}
-              fill="rgba(56,189,248,0.35)"
-              fontSize="9"
-              fontFamily="monospace"
-              letterSpacing="1"
-            >
-              EQUATOR
-            </text>
-            <text x={8} y={14} fill="rgba(255,255,255,0.1)" fontSize="8" fontFamily="monospace">
-              90N
-            </text>
-            <text x={8} y={MAP_H - 4} fill="rgba(255,255,255,0.1)" fontSize="8" fontFamily="monospace">
-              90S
-            </text>
-            {[-150, -90, -30, 30, 90, 150].map((lon) => (
-              <text
-                key={lon}
-                x={toXY(lon, 0).x - 8}
-                y={MAP_H - 4}
-                fill="rgba(255,255,255,0.08)"
-                fontSize="7.5"
-                fontFamily="monospace"
-              >
-                {lon < 0 ? `${Math.abs(lon)}W` : `${lon}E`}
-              </text>
-            ))}
-
             {loading && (
               <text
-                x={MAP_W / 2}
-                y={MAP_H / 2}
+                x={500}
+                y={250}
                 textAnchor="middle"
                 fill="rgba(56,189,248,0.4)"
                 fontSize="15"
@@ -380,7 +299,7 @@ export default function TrackerPage() {
                 }).join(" ")}
                 fill="none"
                 stroke={activeSat?.color ?? "#38bdf8"}
-                strokeWidth={1.8}
+                strokeWidth={1.8 / zoom}
                 strokeDasharray={segment[0]?.isPast ? "2 5" : "6 3"}
                 opacity={segment[0]?.isPast ? 0.35 : 0.65}
               />
@@ -405,7 +324,7 @@ export default function TrackerPage() {
                   <circle
                     cx={x}
                     cy={y}
-                    r={isActive ? 20 : 10}
+                    r={isActive ? 20 / zoom : 10 / zoom}
                     fill={sat.color}
                     opacity={isActive ? 0.22 : 0.08}
                     style={{ transition: "r 0.2s, opacity 0.2s" }}
@@ -415,7 +334,7 @@ export default function TrackerPage() {
                     y={y + 0.5}
                     textAnchor="middle"
                     dominantBaseline="middle"
-                    fontSize={isActive ? 18 : 12}
+                    fontSize={isActive ? 18 / zoom : 12 / zoom}
                     filter={isActive ? "url(#trk-glow)" : undefined}
                     style={{ userSelect: "none", transition: "font-size 0.2s" }}
                   >
@@ -423,13 +342,13 @@ export default function TrackerPage() {
                   </text>
                   {isActive && (
                     <text
-                      x={x + (x > MAP_W - 130 ? -10 : 14)}
+                      x={x + (x > 870 ? -10 : 14)}
                       y={y + 16}
                       fill="#fff"
                       fontSize="11"
                       fontFamily="'Figtree', sans-serif"
                       fontWeight="700"
-                      textAnchor={x > MAP_W - 130 ? "end" : "start"}
+                      textAnchor={x > 870 ? "end" : "start"}
                       style={{ pointerEvents: "none" }}
                     >
                       {sat.name}

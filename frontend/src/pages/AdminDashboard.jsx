@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "admin_secret_key_12345";
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "asdfA1234@99";
 const API_BASE = (import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "pandeyviren68@gmail.com";
@@ -24,7 +24,7 @@ export default function AdminDashboard() {
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [banForm, setBanForm] = useState({ identifier: "", ip: "", email: "", reason: "" });
-  const [unbanForm, setUnbanForm] = useState({ identifier: "", ip: "" });
+  const [, setUnbanForm] = useState({ identifier: "", ip: "" });
   const [actionStatus, setActionStatus] = useState(null);
 
   useEffect(() => {
@@ -77,8 +77,8 @@ export default function AdminDashboard() {
       const json = await res.json();
       setData(json);
       setError(null);
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
@@ -90,6 +90,7 @@ export default function AdminDashboard() {
       const interval = setInterval(() => fetchData(), 10000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, adminKey]);
 
   const handleBan = async (e) => {
@@ -114,7 +115,7 @@ export default function AdminDashboard() {
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch (err) {
+    } catch {
       setActionStatus("error");
     }
   };
@@ -137,7 +138,7 @@ export default function AdminDashboard() {
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch (err) {
+    } catch {
       setActionStatus("error");
     }
   };
