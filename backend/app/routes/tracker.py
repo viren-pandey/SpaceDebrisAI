@@ -9,7 +9,6 @@ router = APIRouter()
 N2YO_KEY  = "S2Q3WD-YRGKVA-9Y84VW-5ODD"
 N2YO_BASE = "https://api.n2yo.com/rest/v1/satellite"
 
-# All 15 satellites from the frontend SAT_DB — same NORAD IDs
 TRACKED = {
     25544: "ISS (ZARYA)",
     57329: "PROGRESS MS-24",
@@ -28,14 +27,13 @@ TRACKED = {
     45026: "GSAT-30",
 }
 
-# Simple in-memory cache — reduces N2YO API transactions
+# simple in-memory cache
 _cache: dict = {"ts": 0.0, "data": []}
-CACHE_TTL = 120  # seconds (2 min)
+CACHE_TTL = 120  # seconds
 
 
 @router.get("/tracker/positions")
 async def tracker_positions():
-    """Return current lat/lon/alt for all tracked satellites via N2YO REST API."""
     global _cache
     now = time.time()
 

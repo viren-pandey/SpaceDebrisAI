@@ -1,37 +1,20 @@
-"""Multi-factor conjunction risk classifier.
-
-Combines distance-based risk from the risk engine with an altitude
-adjustment factor: low-earth orbit conjunctions are more dangerous
-because debris density is higher and maneuver time is shorter.
-"""
-
 from ml_logic.risk_engine import calculate_risk
 
-# Altitude bands (km)
-_LEO_MAX  = 500
-_MEO_MAX  = 2000
+_LEO_MAX  = 500   # km
+_MEO_MAX  = 2000  # km
 
 
 def classify_conjunction(distance_km: float, altitude_km: float = 400.0) -> dict:
-    """
-    Classify conjunction risk for a satellite pair.
-
-    Args:
-        distance_km:  3-D separation distance between the two objects.
-        altitude_km:  Mean orbital altitude of the pair (km above surface).
-
-    Returns:
-        dict with keys: level, score, message, altitude_factor
-    """
+    """Classify risk for a satellite pair, adjusted by orbital altitude."""
     base = calculate_risk(distance_km)
 
-    # Altitude danger factor
+    # LEO is more dangerous — higher debris density and less time to maneuver
     if altitude_km < _LEO_MAX:
-        factor = 1.20   # LEO — most debris, fastest response needed
+        factor = 1.20
     elif altitude_km < _MEO_MAX:
-        factor = 1.00   # MEO — nominal
+        factor = 1.00
     else:
-        factor = 0.80   # HEO / GEO — slower relative velocities
+        factor = 0.80
 
     adjusted_score = min(int(base["score"] * factor), 100)
 

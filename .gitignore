@@ -21,6 +21,7 @@ backend/venv/
 
 # ── Environment variables ─────────────────────────────────────
 .env
+.env.example
 .env.local
 .env.*.local
 *.env
