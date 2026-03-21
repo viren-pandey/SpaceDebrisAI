@@ -29,6 +29,7 @@
   --display:    'Figtree', 'Montserrat', sans-serif;
   --mono:       'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
   --font-mono:  'Figtree', -apple-system, BlinkMacSystemFont, sans-serif;
+  --robotic:    'Share Tech Mono', 'Orbitron', monospace;
   --card-bg:    rgba(7, 13, 26, 0.86);
 
   /* theme-aware bright text (white in dark, near-black in light) */
@@ -713,7 +714,14 @@ body {
   border-top: 1px solid rgba(255,255,255,.04);
   position: relative; z-index: 1;
 }
-.rp-nav-ts { font-family: var(--mono); font-size: 11px; color: var(--text-faint); }
+.rp-nav-ts { 
+  font-family: var(--robotic); 
+  font-size: 11px; 
+  color: var(--accent);
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  text-shadow: 0 0 8px rgba(56, 189, 248, 0.4);
+}
 
 /* --------------------------------------------------------------
    SIMULATION CONTEXT � HUD Terminal
@@ -736,15 +744,17 @@ body {
   background: rgba(255,255,255,.08);
 }
 .sc-term-title {
-  font-family: var(--mono); font-size: 13px;
+  font-family: var(--robotic); font-size: 11px;
   letter-spacing: .12em; text-transform: uppercase;
-  color: rgba(74,222,128,.5); margin-left: auto;
+  color: rgba(74,222,128,.7); margin-left: auto;
+  text-shadow: 0 0 6px rgba(34, 197, 94, 0.3);
 }
-.sc-terminal-body { padding: 20px 18px; font-family: var(--mono); font-size: 15px; }
+.sc-terminal-body { padding: 20px 18px; font-family: var(--robotic); font-size: 13px; }
 .sc-term-section {
-  font-size: 13px; letter-spacing: .18em;
+  font-family: var(--robotic);
+  font-size: 10px; letter-spacing: .18em;
   text-transform: uppercase;
-  color: rgba(34,197,94,.3);
+  color: rgba(34,197,94,.5);
   padding: 8px 0 4px;
   border-bottom: 1px solid rgba(34,197,94,.06);
   margin-bottom: 4px;
@@ -753,11 +763,23 @@ body {
   display: flex; justify-content: space-between;
   gap: 12px; padding: 4px 0;
   border-bottom: 1px solid rgba(34,197,94,.04);
+  font-family: var(--robotic);
 }
 .sc-term-line:last-child { border-bottom: none; }
-.sc-term-line .tl-key { color: rgba(74,222,128,.42); }
-.sc-term-line .tl-val { color: rgba(74,222,128,.78); }
-.sc-term-line .tl-val.hi { color: #4ade80; font-weight: 600; }
+.sc-term-line .tl-key { 
+  color: rgba(74,222,128,.55); 
+  font-family: var(--robotic);
+}
+.sc-term-line .tl-val { 
+  color: rgba(74,222,128,.9); 
+  font-family: var(--robotic);
+  text-shadow: 0 0 4px rgba(34, 197, 94, 0.2);
+}
+.sc-term-line .tl-val.hi { 
+  color: #4ade80; 
+  font-weight: 600;
+  text-shadow: 0 0 8px rgba(74, 222, 128, 0.5);
+}
 .sc-prompt {
   margin-top: 14px; display: flex; align-items: center;
   gap: 7px; color: rgba(74,222,128,.55); font-size: 15px;
@@ -1777,8 +1799,7 @@ body {
 }
 .spc-grid-sub { font-size: 15px; color: var(--text-faint); margin-top: 4px; }
 
-/* -- Font overhaul: remove mono from non-data labels ----------- */
-/* All eyebrow/label text uses Figtree instead of mono */
+/* -- Font overhaul: robotic fonts for data/timestamps ----------- */
 .db-hero-eyebrow,
 .db-status-badge,
 .sph-pre,
@@ -1788,17 +1809,20 @@ body {
 .about-section-title,
 .spc-grid-hint,
 .rp-distance-label,
-.rp-nav-ts,
-.sc-term-section,
-.sc-term-title,
 .sat-table-sub,
 .footer-copy,
 .footer-link {
   font-family: var(--font);
 }
 
-/* Keep mono only where it shows code/data */
+/* Robotic fonts for timestamps and terminal data */
 .rp-nav-ts,
+.sc-term-section,
+.sc-term-title,
+.congestion-timestamp {
+  font-family: var(--robotic);
+}
+
 .sc-terminal-body,
 .sc-prompt,
 .sc-term-line,
@@ -6756,8 +6780,11 @@ body {
 
 .congestion-timestamp {
   text-align: center;
-  color: var(--text-faint);
-  font-size: 13px;
+  font-family: var(--robotic);
+  color: var(--accent);
+  font-size: 12px;
+  letter-spacing: 0.5px;
+  text-shadow: 0 0 6px rgba(56, 189, 248, 0.3);
 }
 
 .admin-setup {
