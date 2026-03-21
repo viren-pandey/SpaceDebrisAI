@@ -129,7 +129,7 @@ def _cache_needs_refresh(remote_last_update: str) -> bool:
     local_value = _read_last_update()
     if not local_value:
         return True
-    return remote_value != local_value
+    return remote_last_update != local_value
 
 
 def fetch_and_cache(force: bool = False) -> bool:
@@ -175,6 +175,10 @@ def refresh_all_caches(force: bool = False) -> bool:
     return fetch_and_cache(force=force)
 
 
+def _trigger_force_refresh() -> None:
+    fetch_and_cache(force=True)
+
+
 def start_background_refresh() -> None:
     start_refresh_thread()
 
@@ -186,31 +190,48 @@ def _get_norad_id_from_tle_line1(line1: str) -> str | None:
 
 
 def get_tle_lines(cache: str = "full") -> list[str]:
+    def _safe_read(path: Path) -> list[str]:
+        try:
+            return path.read_text(encoding="utf-8").splitlines()
+        except FileNotFoundError:
+            return []
+
     if cache == "full":
         if not _FULL_TLE_FILE.exists():
-            _trigger_force_refresh()
-        return _FULL_TLE_FILE.read_text(encoding="utf-8").splitlines()
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+        return _safe_read(_FULL_TLE_FILE) if _FULL_TLE_FILE.exists() else []
     elif cache == "debris_leo":
         if not _LEO_DEBRIS_FILE.exists():
-            _trigger_force_refresh()
-        return _LEO_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+        return _safe_read(_LEO_DEBRIS_FILE) if _LEO_DEBRIS_FILE.exists() else []
     elif cache == "debris_all":
         if not _ALL_DEBRIS_FILE.exists():
-            _trigger_force_refresh()
-        return _ALL_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+        return _safe_read(_ALL_DEBRIS_FILE) if _ALL_DEBRIS_FILE.exists() else []
     elif cache == "debris_merged":
-        leo_lines = []
-        all_lines = []
-
-        if _LEO_DEBRIS_FILE.exists():
-            leo_lines = _LEO_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
-        if _ALL_DEBRIS_FILE.exists():
-            all_lines = _ALL_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
+        leo_lines = _safe_read(_LEO_DEBRIS_FILE) if _LEO_DEBRIS_FILE.exists() else []
+        all_lines = _safe_read(_ALL_DEBRIS_FILE) if _ALL_DEBRIS_FILE.exists() else []
 
         if not leo_lines and not all_lines:
-            _trigger_force_refresh()
-            leo_lines = _LEO_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
-            all_lines = _ALL_DEBRIS_FILE.read_text(encoding="utf-8").splitlines()
+            try:
+                _trigger_force_refresh()
+            except Exception as exc:
+                print(f"TLE refresh failed: {exc}")
+            leo_lines = _safe_read(_LEO_DEBRIS_FILE) if _LEO_DEBRIS_FILE.exists() else []
+            all_lines = _safe_read(_ALL_DEBRIS_FILE) if _ALL_DEBRIS_FILE.exists() else []
+
+        if not leo_lines and not all_lines:
+            print("No TLE data available, returning empty list")
+            return []
 
         seen_ids: set[str] = set()
         merged: list[str] = []
