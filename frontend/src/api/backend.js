@@ -1,4 +1,4 @@
-const API = import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space";
+const API = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const isBrowser = typeof window !== "undefined";
 
 function buildHeaders() {
@@ -13,14 +13,26 @@ function buildHeaders() {
 }
 
 export async function fetchSimulation() {
-  const res = await fetch(`${API}/simulate`, {
-    cache: "no-store",
-    headers: buildHeaders(),
-  });
-  if (!res.ok) {
-    throw new Error("Failed to fetch simulation its our fault sorry");
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), 25000);
+  try {
+    const res = await fetch(`${API}/simulate`, {
+      cache: "no-store",
+      headers: buildHeaders(),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(`Simulation API error: ${res.status}`);
+    }
+    return await res.json();
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Simulation request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to fetch simulation: " + err.message);
+  } finally {
+    clearTimeout(timeout);
   }
-  return await res.json();
 }
 
 export async function fetchTrackerPositions() {
