@@ -4,14 +4,7 @@ import numpy as np
 from scipy.stats import norm
 import math
 
-# TCA calculation
-
 def calculate_tca(sat1, sat2, steps=144, step_seconds=600):
-    """
-    Propagate both satellites forward over 24 hours in 10-minute steps.
-    Find the moment of minimum separation — Time of Closest Approach.
-    Returns (min_distance_km, tca_datetime, relative_velocity_km_s)
-    """
     now = datetime.now(timezone.utc)
     min_dist = float('inf')
     tca_time = now
@@ -40,16 +33,7 @@ def calculate_tca(sat1, sat2, steps=144, step_seconds=600):
 
     return min_dist, tca_time, rel_vel_at_tca
 
-# Probability of Collision
-
 def probability_of_collision(miss_distance_km, sigma_km=1.0, hard_body_radius_km=0.01):
-    """
-    Simplified 1D Pc calculation.
-    miss_distance_km: TCA minimum distance
-    sigma_km: combined position uncertainty (default 1km for TLE-based data)
-    hard_body_radius_km: combined physical size of both objects (default 10m)
-    Returns Pc as float between 0 and 1
-    """
     if miss_distance_km <= 0:
         return 1.0
     pc = norm.cdf(hard_body_radius_km, loc=miss_distance_km, scale=sigma_km)
@@ -64,8 +48,6 @@ def pc_to_risk_level(pc):
         return "MEDIUM"
     else:
         return "LOW"
-
-# TLE freshness filter
 
 def tle_age_hours(satrec):
     yr = satrec.epochyr

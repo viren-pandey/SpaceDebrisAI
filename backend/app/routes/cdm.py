@@ -5,7 +5,7 @@ router = APIRouter()
 
 
 def deduplicate_cdms(cdms: list) -> list:
-    """Deduplicate CDMs by pairing min(sat1,sat2)+max(sat1,sat2)+TCA."""
+    # Deduplicate CDMs by pairing min(sat1,sat2)+max(sat1,sat2)+TCA.
     seen = set()
     unique = []
     for cdm in cdms:
@@ -21,10 +21,8 @@ def deduplicate_cdms(cdms: list) -> list:
 
 @router.get("/cdm")
 async def get_cdm():
-    """
-    Returns real Conjunction Data Messages from Space-Track.org
-    These are actual close approach events screened by US Space Force.
-    """
+    # Returns real Conjunction Data Messages from Space-Track.org
+    # These are actual close approach events screened by US Space Force.
     cdms = load_cdm_cache()
     unique_cdms = deduplicate_cdms(cdms)
     return {

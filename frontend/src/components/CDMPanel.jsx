@@ -89,7 +89,7 @@ export default function CDMPanel() {
               <div className="cdm-details">
                 <div className="cdm-detail">
                   <span className="cdm-label">TCA</span>
-                  <span className="cdm-value">{new Date(conj.TCA).toLocaleString()}</span>
+                  <span className="cdm-value cdm-tca">{new Date(conj.TCA).toLocaleDateString()} {new Date(conj.TCA).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}</span>
                 </div>
                 <div className="cdm-detail">
                   <span className="cdm-label">Miss Distance</span>
