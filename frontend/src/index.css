@@ -574,6 +574,53 @@ body {
 .rp-distance-number.med  { color: var(--amber); }
 .rp-distance-number.low  { color: var(--green); }
 
+.rp-tca-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+  margin-bottom: 20px;
+  padding: 14px 16px;
+  border-radius: 12px;
+  background: rgba(255,255,255,.03);
+  border: 1px solid rgba(255,255,255,.06);
+}
+.rp-tca-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+}
+.rp-tca-label {
+  font-family: var(--mono);
+  font-size: 9px;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text-faint);
+  margin-bottom: 4px;
+}
+.rp-tca-value {
+  font-family: var(--display);
+  font-size: 1.1rem;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+.rp-tca-value.pc-value {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  color: var(--cyan);
+}
+.rp-confidence {
+  display: inline-block;
+  padding: 3px 10px;
+  border-radius: 20px;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: .08em;
+}
+.rp-conf-high { background: rgba(239,68,68,.2); color: var(--red); }
+.rp-conf-medium { background: rgba(245,158,11,.2); color: var(--amber); }
+.rp-conf-low { background: rgba(34,197,94,.2); color: var(--green); }
+
 .rp-compare-row {
   display: grid; grid-template-columns: 1fr 1fr;
   gap: 10px; margin-bottom: 16px;
@@ -5560,4 +5607,171 @@ body {
   background: linear-gradient(180deg, rgba(255,255,255,.94), rgba(248,250,252,.98));
   border-color: rgba(56,189,248,.16);
   box-shadow: 0 18px 44px rgba(15,23,42,.06);
+}
+
+/* CDM Panel Styles */
+.cdm-panel {
+  background: rgba(5, 12, 28, 0.94);
+  border: 1px solid rgba(56, 189, 248, 0.12);
+  border-radius: 16px;
+  overflow: hidden;
+}
+
+.cdm-header {
+  padding: 20px 24px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.08);
+}
+
+.cdm-title-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-bottom: 8px;
+}
+
+.cdm-badge {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.1em;
+  padding: 4px 10px;
+  border-radius: 20px;
+}
+
+.cdm-title {
+  font-family: var(--display);
+  font-size: 1.3rem;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin: 0;
+}
+
+.cdm-subtitle {
+  font-size: 0.85rem;
+  color: var(--text-dim);
+  margin: 0 0 16px 0;
+}
+
+.cdm-actions {
+  display: flex;
+  gap: 12px;
+}
+
+.cdm-refresh-btn {
+  background: rgba(56, 189, 248, 0.1);
+  border: 1px solid rgba(56, 189, 248, 0.2);
+  color: var(--accent);
+  padding: 8px 16px;
+  border-radius: 8px;
+  font-size: 0.85rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.cdm-refresh-btn:hover:not(:disabled) {
+  background: rgba(56, 189, 248, 0.2);
+}
+
+.cdm-refresh-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.cdm-list {
+  max-height: 500px;
+  overflow-y: auto;
+}
+
+.cdm-item {
+  padding: 16px 24px;
+  border-bottom: 1px solid rgba(56, 189, 248, 0.06);
+  transition: background 0.2s;
+}
+
+.cdm-item:hover {
+  background: rgba(56, 189, 248, 0.04);
+}
+
+.cdm-sat-names {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.cdm-sat {
+  font-family: var(--mono);
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.cdm-vs {
+  color: var(--text-faint);
+  font-size: 0.85rem;
+}
+
+.cdm-details {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 16px;
+}
+
+.cdm-detail {
+  display: flex;
+  flex-direction: column;
+}
+
+.cdm-label {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+  color: var(--text-faint);
+  margin-bottom: 3px;
+}
+
+.cdm-value {
+  font-size: 0.85rem;
+  color: var(--text);
+}
+
+.cdm-value.pc {
+  font-family: var(--mono);
+  color: var(--cyan);
+}
+
+.cdm-emergency {
+  margin-top: 10px;
+  padding: 6px 12px;
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+  font-size: 11px;
+  font-weight: 700;
+  border-radius: 6px;
+  display: inline-block;
+}
+
+.cdm-loading, .cdm-error, .cdm-empty {
+  padding: 40px;
+  text-align: center;
+  color: var(--text-dim);
+}
+
+.cdm-error button {
+  margin-top: 12px;
+  background: var(--accent);
+  color: var(--bg);
+  border: none;
+  padding: 8px 20px;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.db-cdm-section {
+  max-width: 1200px;
+  margin: 0 auto 40px;
+  padding: 0 20px;
 }
