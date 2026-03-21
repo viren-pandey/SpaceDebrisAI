@@ -5,8 +5,12 @@ from pydantic import BaseModel
 from app.services.usage_metrics import (
     ban_identifier,
     ban_ip,
+    get_active_polls,
+    get_congestion_stats,
     get_usage_snapshot,
     identifiers_by_email,
+    start_polling,
+    stop_polling,
     unban_identifier,
     unban_ip,
 )
@@ -71,3 +75,17 @@ def unban_usage(request: Request, payload: UsageBanRequest):
     if not unbanned:
         raise HTTPException(status_code=400, detail="Provide identifier or IP to unblock")
     return {"status": "ok", "unbanned": unbanned}
+
+
+@router.get("/usage/polls")
+def get_polls(request: Request):
+    """Get active polling requests."""
+    _require_admin(request)
+    return {"polls": get_active_polls()}
+
+
+@router.get("/usage/congestion")
+def get_congestion(request: Request):
+    """Get congestion statistics."""
+    _require_admin(request)
+    return get_congestion_stats()

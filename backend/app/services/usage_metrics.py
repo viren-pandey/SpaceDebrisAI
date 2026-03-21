@@ -1,10 +1,22 @@
 from __future__ import annotations
 
+import time
 from collections import Counter
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
 from threading import Lock
 from typing import Dict, Iterable, List
+
+
+@dataclass
+class ActivePollingRequest:
+    identifier: str
+    email: str | None
+    ip: str
+    endpoint: str
+    started_at: datetime
+    last_poll: datetime
+    poll_count: int = 1
 
 from fastapi import HTTPException, Request
 
@@ -64,12 +76,15 @@ class UsageRecord:
 
 
 class UsageTracker:
+    POLLING_THRESHOLD_SECONDS = 10
+
     def __init__(self) -> None:
         self._lock = Lock()
         self._records: Dict[str, UsageRecord] = {}
         self._total_requests = 0
         self._banned_identifiers: Dict[str, Dict[str, object]] = {}
         self._banned_ips: Dict[str, Dict[str, object]] = {}
+        self._active_polls: Dict[str, ActivePollingRequest] = {}
 
     def _identify(self, request: Request) -> tuple[str, str | None]:
         user_email = request.headers.get("X-User-Email")
@@ -151,6 +166,66 @@ class UsageTracker:
                 "ips": dict(self._banned_ips),
             }
 
+    def start_polling(self, request: Request, endpoint: str) -> None:
+        identifier, email = self._identify(request)
+        ip = self._current_ip(request)
+        timestamp = datetime.now(timezone.utc)
+        with self._lock:
+            poll_key = f"{identifier}:{endpoint}"
+            if poll_key in self._active_polls:
+                self._active_polls[poll_key].last_poll = timestamp
+                self._active_polls[poll_key].poll_count += 1
+            else:
+                self._active_polls[poll_key] = ActivePollingRequest(
+                    identifier=identifier,
+                    email=email,
+                    ip=ip,
+                    endpoint=endpoint,
+                    started_at=timestamp,
+                    last_poll=timestamp,
+                )
+
+    def stop_polling(self, request: Request, endpoint: str) -> None:
+        identifier, _ = self._identify(request)
+        with self._lock:
+            poll_key = f"{identifier}:{endpoint}"
+            self._active_polls.pop(poll_key, None)
+
+    def get_active_polls(self) -> List[Dict[str, object]]:
+        with self._lock:
+            now = datetime.now(timezone.utc)
+            active = []
+            for key, poll in self._active_polls.items():
+                active_duration = (now - poll.started_at).total_seconds()
+                if active_duration > 300:
+                    continue
+                active.append({
+                    "identifier": poll.identifier,
+                    "email": poll.email,
+                    "ip": poll.ip,
+                    "endpoint": poll.endpoint,
+                    "started_at": poll.started_at.isoformat(),
+                    "last_poll": poll.last_poll.isoformat(),
+                    "poll_count": poll.poll_count,
+                    "active_seconds": round(active_duration),
+                })
+            return sorted(active, key=lambda x: x["active_seconds"], reverse=True)
+
+    def get_congestion_stats(self) -> Dict[str, object]:
+        with self._lock:
+            now = datetime.now(timezone.utc)
+            polls = list(self._active_polls.values())
+            endpoint_counts: Dict[str, int] = {}
+            for poll in polls:
+                endpoint_counts[poll.endpoint] = endpoint_counts.get(poll.endpoint, 0) + 1
+            unique_users = len(set(p.identifier for p in polls))
+            return {
+                "total_active_connections": len(polls),
+                "unique_users_polling": unique_users,
+                "by_endpoint": endpoint_counts,
+                "timestamp": now.isoformat(),
+            }
+
 
 _tracker = UsageTracker()
 
@@ -184,4 +259,21 @@ def get_usage_snapshot() -> Dict[str, object]:
         "total_requests": _tracker.total_requests(),
         "buckets": _tracker.snapshot(),
         "banlist": _tracker.banlist(),
+        "active_polls": _tracker.get_active_polls(),
     }
+
+
+def start_polling(request: Request, endpoint: str) -> None:
+    _tracker.start_polling(request, endpoint)
+
+
+def stop_polling(request: Request, endpoint: str) -> None:
+    _tracker.stop_polling(request, endpoint)
+
+
+def get_active_polls() -> List[Dict[str, object]]:
+    return _tracker.get_active_polls()
+
+
+def get_congestion_stats() -> Dict[str, object]:
+    return _tracker.get_congestion_stats()

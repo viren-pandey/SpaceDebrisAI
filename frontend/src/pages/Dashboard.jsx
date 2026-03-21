@@ -10,6 +10,7 @@ export default function Dashboard({ data, loading, error }) {
   const tleRecordCount = data?.meta?.tle_records ?? "—";
   const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
   const tleSource = data?.meta?.tle_source ?? data?.mode ?? "—";
+  const pairsChecked = data?.meta?.pairs_checked ?? "—";
   const publicSliceLabel =
     publicObjectCount === "—"
       ? "the current public object slice"
@@ -38,6 +39,14 @@ export default function Dashboard({ data, loading, error }) {
         </p>
       </section>
 
+      {/* Info banner */}
+      <div className="db-info-banner">
+        <span className="db-info-icon">🛰</span>
+        <span className="db-info-text">
+          Conjunction screening now uses a merged debris catalog (LEO + all-orbit debris) sourced from KeepTrack. Only debris objects are screened to reflect real operational risk.
+        </span>
+      </div>
+
       {/* Live ticker */}
       {tickerItems.length > 0 && (
         <div className="db-ticker">
@@ -61,9 +70,11 @@ export default function Dashboard({ data, loading, error }) {
       {data && (
         <div className="db-stats-band">
           <div className="db-stats-inner">
-            <StatCard value={tleRecordCount} label="TLE records" sub={`${tleSource} source`} />
-            <StatCard value={publicObjectCount} label="Public objects" sub="screened live" />
-            <StatCard value={data.meta?.pairs_checked ?? "—"} label="Pairs screened" sub="conjunctions" />
+            <StatCard 
+              value={`Screening debris-merged catalog · ${publicObjectCount.toLocaleString()} objects · ${pairsChecked.toLocaleString()} pairs checked`} 
+              label="Simulation scope" 
+              sub={tleSource ? `${tleSource} source` : "live"} 
+            />
             <StatCard value={`${data.meta?.processing_ms ?? "—"}`} label="Processing time" sub="milliseconds" />
           </div>
         </div>

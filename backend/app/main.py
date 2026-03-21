@@ -3,16 +3,16 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.services.tle_fetcher import fetch_and_cache, start_refresh_thread
+from app.services.tle_fetcher import refresh_all_caches, start_background_refresh
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     try:
-        fetch_and_cache()
+        refresh_all_caches(force=True)
     except Exception as exc:
         print(f"TLE startup refresh failed; continuing with local cache: {exc}")
-    start_refresh_thread()
+    start_background_refresh()
     yield
 
 
