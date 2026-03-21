@@ -86,10 +86,10 @@ export default function About() {
         <div className="feature-grid">
           {[
             ["Hourly cache refresh", "KeepTrack is contacted once per hour by the backend, and every public route reads only from the local TLE cache"],
-            ["Multi-pair screening", "The public simulation screens the current 500-object slice from the cached catalog on a short server-side result cache"],
+            ["Multi-pair screening", "The public simulation screens the current 2000-object slice from the cached catalog on a short server-side result cache"],
             ["Risk classification",  "Altitude-weighted scoring mapped to four actionable risk levels"],
             ["Maneuver planning",    "Per-risk-level delta-v recommendations with post-maneuver distance estimates"],
-            ["Tiered API access",    "Free public access covers a 500-object slice, with a paid 10k+ object tier announced at $10/month and 5-second polling"],
+            ["Tiered API access",    "Free public access covers a 2000-object slice, with a paid 10k+ object tier announced at $10/month and 5-second polling"],
             ["API-first design",     "Full REST API at /simulate, /satellites, and /health with auto-generated Swagger docs"],
           ].map(([title, desc]) => (
             <div className="feature-card" key={title}>

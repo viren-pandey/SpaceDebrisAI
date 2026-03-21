@@ -2,6 +2,7 @@
 import RiskPanel from "../components/RiskPanel";
 import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
+import ProTierBanner from "../components/ProTierBanner";
 
 export default function Dashboard({ data, loading, error }) {
   const tickerItems = data?.closest_pairs ?? [];
@@ -90,6 +91,11 @@ export default function Dashboard({ data, loading, error }) {
 
       {/* Conjunction table */}
       {data && <SatelliteTable data={data} />}
+
+      {/* Paid-tier announcement — visible to all users */}
+      <section className="db-tracker-teaser" style={{ paddingBottom: 0 }}>
+        <ProTierBanner />
+      </section>
 
       {/* Tracker teaser — links to dedicated page */}
       <section className="db-tracker-teaser">
