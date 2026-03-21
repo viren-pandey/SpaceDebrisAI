@@ -10,6 +10,11 @@ _KEEPTRACK_LEO_DEBRIS_URL = "https://api.keeptrack.space/v4/sats/leo/debris"
 _KEEPTRACK_ALL_DEBRIS_URL = "https://api.keeptrack.space/v4/sats/debris"
 _KEEPTRACK_LAST_UPDATE_URL = "https://api.keeptrack.space/v4/catalog/last-update"
 
+_CELESTRAK_LEO_DEBRIS_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= debris&FORMAT=tle"
+_CELESTRAK_ALL_DEBRIS_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= operational&FORMAT=tle"
+_CELESTRAK_STARLINK_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= starlink&FORMAT=tle"
+_CELESTRAK_LAST_UPDATE_URL = "https://celestrak.org/NORAD/elements/gp.php?GROUP= last-30-days&FORMAT=tle"
+
 _DATA_DIR = Path(__file__).resolve().parent.parent / "data"
 _FULL_TLE_FILE = _DATA_DIR / "satellites.tle"
 _LEO_DEBRIS_FILE = _DATA_DIR / "debris_leo.tle"
@@ -38,6 +43,36 @@ NOAA 19
 METOP-B
 1 38771U 12049A   25344.52597222  .00000054  00000-0  49234-4 0  9998
 2 38771  98.7255  58.9543 0001680 109.3822 250.7548 14.21491256694541
+HUBBLE SPACE TELESCOPE
+1 20580U 90037B   25344.50000000  .00000000  00000-0  50000-4 0  9999
+2 20580  28.4700 287.9500 0003000  300.0000  50.0000 15.09999999224091
+STARLINK-1007
+1 44713U 19074AE  25344.50000000  .00000211  00000-0  20750-4 0  9994
+2 44713  53.0537 126.4825 0001752 89.8766 270.2546 15.21970799256421
+STARLINK-1113
+1 44958U 19096N   25344.50000000  .00000219  00000-0  21130-4 0  9995
+2 44958  53.0547  89.3256 0001588 84.6259 275.5005 15.21972279256721
+STARLINK-1459
+1 45569U 20030J   25344.50000000  .00000222  00000-0  21070-4 0  9992
+2 45569  53.0549  53.1234 0001618 83.5674 276.5625 15.21974589256425
+STARLINK-1637
+1 46133U 20057W   25344.50000000  .00000230  00000-0  22240-4 0  9993
+2 46133  53.0550  38.4521 0001595 85.1234 274.9989 15.21978969256727
+STARLINK-2213
+1 48725U 21021AK  25344.50000000  .00000235  00000-0  22370-4 0  9995
+2 48725  53.0552  25.1234 0001567 82.3456 277.7856 15.21981239256921
+STARLINK-3619
+1 51889U 20222S   25344.50000000  .00000240  00000-0  23050-4 0  9996
+2 51889  53.0553  18.7654 0001554 81.2345 278.8967 15.21984569257123
+STARLINK-3622
+1 51892U 20222V   25344.50000000  .00000242  00000-0  23210-4 0  9997
+2 51892  53.0554  18.9876 0001548 80.9876 279.1434 15.21984899257125
+STARLINK-3632
+1 51903U 20222AK  25344.50000000  .00000238  00000-0  22680-4 0  9998
+2 51903  53.0555  19.1234 0001542 80.7654 279.3656 15.21985129257127
+STARLINK-3808
+1 52404U 21032S   25344.50000000  .00000245  00000-0  23560-4 0  9999
+2 52404  53.0556  15.4321 0001539 79.8765 280.2545 15.21987899257321
 """
 
 
@@ -115,12 +150,41 @@ def _fetch_from_url(url: str) -> str:
     return tle_text
 
 
+def _fetch_celestrak_urls(urls: list[str]) -> str:
+    all_lines = []
+    for url in urls:
+        try:
+            response = requests.get(url, timeout=30)
+            response.raise_for_status()
+            text = response.text.strip()
+            if text:
+                all_lines.append(text)
+        except Exception:
+            continue
+    if not all_lines:
+        raise RuntimeError("All CelesTrak sources failed")
+    return "\n".join(all_lines)
+
+
 def _fetch_all_caches() -> dict[str, str]:
-    return {
-        "full": _fetch_from_url(_KEEPTRACK_FULL_URL),
-        "debris_leo": _fetch_from_url(_KEEPTRACK_LEO_DEBRIS_URL),
-        "debris_all": _fetch_from_url(_KEEPTRACK_ALL_DEBRIS_URL),
-    }
+    result = {}
+    
+    for cache_name, keeptrack_url, celestrak_urls in [
+        ("full", _KEEPTRACK_FULL_URL, [_CELESTRAK_STARLINK_URL, _CELESTRAK_LAST_UPDATE_URL]),
+        ("debris_leo", _KEEPTRACK_LEO_DEBRIS_URL, [_CELESTRAK_LEO_DEBRIS_URL]),
+        ("debris_all", _KEEPTRACK_ALL_DEBRIS_URL, [_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL]),
+    ]:
+        try:
+            result[cache_name] = _fetch_from_url(keeptrack_url)
+        except Exception as exc:
+            print(f"KeepTrack failed for {cache_name}, trying CelesTrak: {exc}")
+            try:
+                result[cache_name] = _fetch_celestrak_urls(celestrak_urls)
+            except Exception as exc2:
+                print(f"CelesTrak also failed for {cache_name}: {exc2}")
+                raise
+    
+    return result
 
 
 def _cache_needs_refresh(remote_last_update: str) -> bool:
@@ -368,14 +432,28 @@ def load_tles_from_cache() -> str:
     try:
         return _FULL_TLE_FILE.read_text(encoding="utf-8")
     except FileNotFoundError:
-        print("Local TLE cache is missing. Falling back to bundled simulated TLE data.")
+        print("Local TLE cache is missing. Trying CelesTrak as fallback...")
     except Exception as exc:
         print(f"Local TLE cache read failed: {exc}")
+    
+    try:
+        celestrak_data = _fetch_celestrak_urls([_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL])
+        if celestrak_data.strip():
+            print("Successfully fetched TLE data from CelesTrak")
+            return celestrak_data
+    except Exception as exc:
+        print(f"CelesTrak fallback also failed: {exc}")
+    
+    print("Falling back to bundled simulated TLE data.")
     return _SIMULATED_TLE_TEXT
 
 
 def fetch_remote_tles() -> str:
-    return _fetch_from_url(_KEEPTRACK_FULL_URL)
+    try:
+        return _fetch_from_url(_KEEPTRACK_FULL_URL)
+    except Exception as exc:
+        print(f"KeepTrack fetch failed, trying CelesTrak: {exc}")
+        return _fetch_celestrak_urls([_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL])
 
 
 def fetch_tles_spacetrack() -> str:
@@ -383,4 +461,7 @@ def fetch_tles_spacetrack() -> str:
 
 
 def get_remote_timestamp() -> str:
-    return fetch_remote_last_update()
+    try:
+        return fetch_remote_last_update()
+    except Exception:
+        return "celestrak-fallback"
