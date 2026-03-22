@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import math
+import os
 from collections import Counter, deque
 from dataclasses import dataclass, field
 from datetime import datetime, timezone
@@ -22,6 +23,14 @@ from app.services.api_keys import (
 
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
+
+
+def _csv_env(name: str) -> set[str]:
+    return {
+        value.strip().lower()
+        for value in os.getenv(name, "").split(",")
+        if value.strip()
+    }
 
 
 @dataclass
@@ -120,6 +129,9 @@ class UsageTracker:
         self._banned_identifiers: Dict[str, Dict[str, object]] = {}
         self._banned_ips: Dict[str, Dict[str, object]] = {}
         self._active_polls: Dict[str, ActivePollingRequest] = {}
+        self._exempt_ips = {"127.0.0.1", "::1", "localhost"} | _csv_env("RATE_LIMIT_EXEMPT_IPS")
+        self._exempt_emails = _csv_env("RATE_LIMIT_EXEMPT_EMAILS")
+        self._exempt_api_keys = _csv_env("RATE_LIMIT_EXEMPT_API_KEYS")
 
     def _identify(self, request: Request) -> tuple[str, str | None]:
         user_email = request.headers.get("X-User-Email")
@@ -137,6 +149,23 @@ class UsageTracker:
     def _resolve_endpoint(self, request: Request) -> str:
         path = request.url.path.rstrip("/")
         return path or "/"
+
+    def _is_exempt(self, request: Request, identifier: str, email: str | None, ip: str, api_key: str | None) -> bool:
+        forwarded_for = request.headers.get("X-Forwarded-For", "")
+        forwarded_candidates = [
+            part.strip().lower()
+            for part in forwarded_for.split(",")
+            if part.strip()
+        ]
+        if ip.lower() in self._exempt_ips or any(candidate in self._exempt_ips for candidate in forwarded_candidates):
+            return True
+        if email and email.lower() in self._exempt_emails:
+            return True
+        if api_key and api_key.lower() in self._exempt_api_keys:
+            return True
+        if identifier.lower() in self._exempt_emails or identifier.lower() in self._exempt_api_keys:
+            return True
+        return False
 
     def _raise_if_banned(self, identifier: str, ip: str) -> None:
         if identifier in self._banned_identifiers:
@@ -201,6 +230,15 @@ class UsageTracker:
 
         if api_key:
             validate_api_key(api_key)
+
+        if self._is_exempt(request, identifier, email, ip, api_key):
+            with self._lock:
+                record = self._get_or_create_record(identifier)
+                record.touch_email(email)
+                record.touch_ip(ip)
+                record.register_request(endpoint, timestamp)
+                self._total_requests += 1
+            return
 
         with self._lock:
             self._raise_if_banned(identifier, ip)

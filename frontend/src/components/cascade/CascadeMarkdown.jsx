@@ -12,7 +12,7 @@ function escapeHtml(value) {
 function inlineMarkdown(line) {
   return line
     .replace(/\*\*(.+?)\*\*/g, "<strong>$1</strong>")
-    .replace(/`(.+?)`/g, "<code class=\"rounded bg-white\\/10 px-1 py-0.5 text-sky-200\">$1</code>");
+    .replace(/`(.+?)`/g, "<code>$1</code>");
 }
 
 function renderMarkdown(markdown) {
@@ -23,9 +23,7 @@ function renderMarkdown(markdown) {
   const flushList = () => {
     if (!listBuffer.length) return;
     blocks.push(
-      `<ul class="ml-5 list-disc space-y-1 text-sm leading-7 text-slate-200">${listBuffer
-        .map((item) => `<li>${inlineMarkdown(item)}</li>`)
-        .join("")}</ul>`
+      `<ul>${listBuffer.map((item) => `<li>${inlineMarkdown(item)}</li>`).join("")}</ul>`
     );
     listBuffer = [];
   };
@@ -42,14 +40,14 @@ function renderMarkdown(markdown) {
     }
     flushList();
     if (line.startsWith("### ")) {
-      blocks.push(`<h3 class="mt-4 text-base font-semibold tracking-wide text-white">${inlineMarkdown(line.slice(4))}</h3>`);
+      blocks.push(`<h3>${inlineMarkdown(line.slice(4))}</h3>`);
       continue;
     }
     if (line.startsWith("## ")) {
-      blocks.push(`<h2 class="mt-4 text-lg font-semibold tracking-wide text-white">${inlineMarkdown(line.slice(3))}</h2>`);
+      blocks.push(`<h2>${inlineMarkdown(line.slice(3))}</h2>`);
       continue;
     }
-    blocks.push(`<p class="text-sm leading-7 text-slate-200">${inlineMarkdown(line)}</p>`);
+    blocks.push(`<p>${inlineMarkdown(line)}</p>`);
   }
   flushList();
   return blocks.join("");
@@ -58,7 +56,7 @@ function renderMarkdown(markdown) {
 export default function CascadeMarkdown({ markdown }) {
   return (
     <div
-      className="space-y-3 [&_strong]:font-semibold [&_strong]:text-white"
+      className="ci-markdown"
       dangerouslySetInnerHTML={{ __html: renderMarkdown(markdown) }}
     />
   );

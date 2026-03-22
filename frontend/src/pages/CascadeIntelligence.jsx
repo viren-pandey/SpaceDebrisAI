@@ -44,42 +44,42 @@ function buildDomainCards(snapshot) {
       score: Math.max(averageScore, maxProjected * 0.82),
       projectedScore: maxProjected,
       value: `${satcomProbability.toFixed(1)}% interference probability`,
-      caption: `${items.length} live high-risk objects are contributing to signal-routing volatility across tracked communication shells.`,
+      caption: `${items.length} live high-risk objects are stressing tracked communication shells.`,
       updatedAt,
     },
     internet: {
       score: Math.max(averageScore * 0.96, averageOf(starlinkItems, (item) => item.odri ?? 0)),
       projectedScore: averageOf(starlinkItems, (item) => item.projected_odri ?? item.odri ?? 0),
       value: `${internetRisk.toFixed(1)}% constellation risk`,
-      caption: `Starlink and other LEO broadband assets are exposed to the same dense shells driving the current ODRI leaders.`,
+      caption: "LEO broadband fleets are exposed to the same density spikes driving the ODRI leaders.",
       updatedAt,
     },
     gps: {
       score: averageScore * 0.88,
       projectedScore: maxProjected * 0.84,
       value: `+${gpsDriftMeters.toFixed(1)} m positional drift`,
-      caption: `Higher shell congestion increases shielding maneuvers and tracking uncertainty that can bleed into navigation resilience.`,
+      caption: "Navigation resilience weakens when shell congestion forces more avoidance uncertainty.",
       updatedAt,
     },
     launch: {
       score: Math.max(averageScore, warnings * 0.08),
       projectedScore: Math.max(maxProjected, warnings * 0.09),
       value: `${blockedTrajectories} blocked trajectories`,
-      caption: `Windows tighten as crowded shells require more avoidance screening before ascent corridors are cleared.`,
+      caption: "Crowded shells compress launch timing because ascent corridors need more screening.",
       updatedAt,
     },
     iss: {
       score: issItem?.odri ?? Math.max(averageScore, 0.24),
       projectedScore: issItem?.projected_odri ?? issItem?.odri ?? averageScore,
       value: `${Math.max(1, warnings)} conjunctions within 10 km`,
-      caption: `Crewed-orbit exposure tracks the same warning set that feeds the live conjunction cache and ODRI ranking.`,
+      caption: "Crewed-orbit exposure follows the same warning set that feeds the live conjunction cache.",
       updatedAt,
     },
     solar: {
       score: maxProjected * 0.78,
       projectedScore: maxProjected * 0.84,
       value: `${solarOcclusions} occlusion events / week`,
-      caption: `Solar activity can amplify drag, reshuffle shell density, and raise the projected cascade burden for observation missions.`,
+      caption: "Solar activity can reshuffle drag and density, raising projected cascade stress.",
       updatedAt,
     },
   };
@@ -159,7 +159,6 @@ export default function CascadeIntelligence() {
         },
       });
       setResponse(data);
-      setQuestion(nextQuestion);
     } catch (err) {
       setError(err.message);
     } finally {
@@ -171,61 +170,58 @@ export default function CascadeIntelligence() {
   const summary = snapshot?.summary ?? {};
 
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 pb-16 pt-8 md:px-6 xl:px-8">
-      <section className="overflow-hidden rounded-[2rem] border border-sky-400/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_42%),linear-gradient(135deg,rgba(2,6,23,0.95),rgba(15,23,42,0.88))] p-8 shadow-[0_30px_120px_rgba(2,12,24,0.55)]">
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.35em] text-sky-300/80">Cascade Intelligence</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white md:text-6xl">Ask how orbital debris affects life on Earth</h1>
-          <p className="mt-4 max-w-2xl text-base leading-8 text-slate-300 md:text-lg">
-            Grounded natural-language answers, live ODRI cards, and a forward view of how shell congestion can spill into navigation, connectivity, launches, and crew safety.
-          </p>
-        </div>
+    <div className="ci-page">
+      <section className="page-hero ci-hero">
+        <p className="page-hero-eyebrow">Live ODRI Snapshot | Cascade Analysis | Earth Impact View</p>
+        <h1 className="page-hero-title">
+          Cascade
+          <br />
+          <span style={{ color: "var(--accent)" }}>Intelligence</span>
+        </h1>
+        <p className="page-hero-sub">
+          Ask how orbital debris affects life on Earth, grounded in live ODRI scores, shell density, and conjunction pressure.
+        </p>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Tracked Objects</div>
-            <div className="mt-2 text-3xl font-semibold text-white">{summary.tracked_count ?? "..."}</div>
+        <div className="ci-hero-stats">
+          <div className="ci-stat">
+            <span className="ci-stat-value">{summary.tracked_count ?? "..."}</span>
+            <span className="ci-stat-label">tracked objects</span>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Average ODRI</div>
-            <div className="mt-2 text-3xl font-semibold text-white">{(summary.average_odri ?? 0).toFixed(3)}</div>
+          <div className="ci-stat">
+            <span className="ci-stat-value">{(summary.average_odri ?? 0).toFixed(3)}</span>
+            <span className="ci-stat-label">average ODRI</span>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Active Warnings</div>
-            <div className="mt-2 text-3xl font-semibold text-white">{summary.active_conjunction_warnings ?? 0}</div>
+          <div className="ci-stat">
+            <span className="ci-stat-value">{summary.active_conjunction_warnings ?? 0}</span>
+            <span className="ci-stat-label">active warnings</span>
           </div>
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <article className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_80px_rgba(2,12,24,0.45)] backdrop-blur">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+      <section className="ci-grid">
+        <article className="ci-panel">
+          <div className="ci-panel-head">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">AI Debris Briefing</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Cascade Intelligence Console</h2>
+              <p className="ci-kicker">AI Debris Briefing</p>
+              <h2 className="ci-title">Cascade Intelligence Console</h2>
             </div>
             {response ? (
-              <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-sky-200">
+              <span className="ci-badge">
                 Risk relevance {(response.risk_relevance * 100).toFixed(0)}%
               </span>
             ) : null}
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
+          <div className="ci-chip-row">
             {SUGGESTED_QUESTIONS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => submitQuestion(item)}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 transition hover:border-sky-400/40 hover:bg-sky-400/10"
-              >
+              <button key={item} type="button" onClick={() => submitQuestion(item)} className="ci-chip">
                 {item}
               </button>
             ))}
           </div>
 
           <form
-            className="mt-6 flex flex-col gap-3"
+            className="ci-form"
             onSubmit={(event) => {
               event.preventDefault();
               submitQuestion(question);
@@ -236,79 +232,69 @@ export default function CascadeIntelligence() {
               onChange={(event) => setQuestion(event.target.value)}
               rows={4}
               placeholder="Ask anything about debris cascading..."
-              className="w-full rounded-3xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50"
+              className="ci-textarea"
             />
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Grounded in live ODRI and conjunction snapshot data
-              </div>
-              <button
-                type="submit"
-                disabled={asking}
-                className="rounded-full bg-sky-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+            <div className="ci-form-row">
+              <div className="ci-form-note">Grounded in live ODRI and conjunction snapshot data</div>
+              <button type="submit" disabled={asking} className="ci-submit">
                 {asking ? "Analyzing..." : "Ask AI"}
               </button>
             </div>
           </form>
 
-          <div className="mt-6 min-h-[320px] rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.92))] p-5">
+          <div className="ci-answer">
             {loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-400">Loading live ODRI context...</div>
+              <div className="ci-empty">Loading live ODRI context...</div>
             ) : error ? (
-              <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div>
+              <div className="error-state"><p>{error}</p></div>
             ) : response ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                  <span className="rounded-full border border-white/10 px-2.5 py-1">{response.cascade_threat_level}</span>
+              <div className="ci-answer-wrap">
+                <div className="ci-answer-meta">
+                  <span className="ci-answer-level">{response.cascade_threat_level}</span>
                   {response.affected_systems.map((system) => (
-                    <span key={system} className="rounded-full border border-sky-400/20 bg-sky-400/10 px-2.5 py-1 text-sky-200">
-                      {system}
-                    </span>
+                    <span key={system} className="ci-answer-system">{system}</span>
                   ))}
                 </div>
                 <CascadeMarkdown markdown={typedAnswer || response.answer} />
               </div>
             ) : (
-              <div className="flex h-full flex-col justify-center">
-                <p className="text-lg font-medium text-white">No question submitted yet.</p>
-                <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">
-                  Use the suggested prompts or ask your own question to get a grounded cascade analysis tied to the live orbital risk picture.
-                </p>
+              <div className="ci-empty">
+                <p>No question submitted yet.</p>
+                <span>Use the suggested prompts or ask your own question to get a grounded cascade analysis.</span>
               </div>
             )}
           </div>
         </article>
 
-        <aside className="space-y-6">
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_80px_rgba(2,12,24,0.45)] backdrop-blur">
-            <div className="mb-5 flex items-end justify-between gap-4">
+        <aside className="ci-side">
+          <div className="ci-panel">
+            <div className="ci-panel-head">
               <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Live ODRI</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Cascade Effect Cards</h2>
+                <p className="ci-kicker">Live ODRI</p>
+                <h2 className="ci-title">Cascade Effect Cards</h2>
               </div>
-              <div className="text-right text-xs text-slate-400">
-                <div>Updated</div>
-                <div className="mt-1 text-slate-200">{formatTime(summary.updated_at)}</div>
-              </div>
+              <div className="ci-updated">Updated {formatTime(summary.updated_at)}</div>
             </div>
             <CascadeRiskCards cards={cards} />
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_80px_rgba(2,12,24,0.45)] backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Highest Risk Objects</p>
-            <div className="mt-4 space-y-3">
+          <div className="ci-panel">
+            <div className="ci-panel-head">
+              <div>
+                <p className="ci-kicker">Highest Risk Objects</p>
+                <h2 className="ci-title">Current Leaders</h2>
+              </div>
+            </div>
+            <div className="ci-object-list">
               {topObjects.map((item) => (
-                <div key={item.sat_id} className="rounded-2xl border border-white/8 bg-white/4 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium text-white">{item.object_name}</div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">NORAD {item.norad_id}</div>
-                    </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-sky-300">{item.odri.toFixed(3)}</div>
-                      <div className="text-xs text-slate-400">{item.risk_level}</div>
-                    </div>
+                <div key={item.sat_id} className="ci-object-card">
+                  <div>
+                    <div className="ci-object-name">{item.object_name}</div>
+                    <div className="ci-object-id">NORAD {item.norad_id}</div>
+                  </div>
+                  <div className="ci-object-score">
+                    <strong>{item.odri.toFixed(3)}</strong>
+                    <span>{item.risk_level}</span>
                   </div>
                 </div>
               ))}
