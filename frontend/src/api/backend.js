@@ -18,6 +18,7 @@ function getPreferredApiKey() {
   return (
     localStorage.getItem(CASCADE_API_KEY_STORAGE_KEY)
     || localStorage.getItem(ACTIVE_API_KEY_STORAGE_KEY)
+    || localStorage.getItem(GUEST_API_KEY_STORAGE_KEY)
     || ""
   );
 }
@@ -77,13 +78,21 @@ async function fetchAuthedJson(url, { timeoutMs = 25000 } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const apiKey = getPreferredApiKey();
+  const hasApiKey = Boolean(apiKey);
 
-  try {
-    const res = await fetch(url, {
+  async function run(includeApiKey) {
+    return await fetch(url, {
       cache: "no-store",
-      headers: buildHeaders({ apiKey, includeApiKey: true }),
+      headers: buildHeaders({ apiKey, includeApiKey }),
       signal: controller.signal,
     });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
     if (!res.ok) {
       throw new Error(await parseError(res, `Request failed with status ${res.status}`));
     }
@@ -129,17 +138,25 @@ async function postAuthedJson(url, payload, { timeoutMs = 25000 } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const apiKey = getPreferredApiKey();
+  const hasApiKey = Boolean(apiKey);
 
-  try {
-    const res = await fetch(url, {
+  async function run(includeApiKey) {
+    return await fetch(url, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
-        ...buildHeaders({ apiKey, includeApiKey: true }),
+        ...buildHeaders({ apiKey, includeApiKey }),
       },
       body: JSON.stringify(payload),
       signal: controller.signal,
     });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data.detail ?? `Request failed with status ${res.status}`);
