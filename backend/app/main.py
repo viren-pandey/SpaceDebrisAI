@@ -4,6 +4,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from app.services.tle_fetcher import refresh_all_caches, start_background_refresh
+from app.services.usage_metrics import RateLimitMiddleware
 
 
 @asynccontextmanager
@@ -42,6 +43,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.add_middleware(RateLimitMiddleware)
 
 from app.routes.simulate import router as simulate_router
 from app.routes.health import router as health_router

@@ -3,14 +3,12 @@ from datetime import datetime, timezone
 
 from app.services.tle_fetcher import load_tles_from_cache, parse_tle_text
 from app.services.orbit_real import tle_to_position, teme_to_geodetic
-from app.services.usage_metrics import record_request_usage
 
 router = APIRouter()
 
 
 @router.get("/satellites")
 def get_satellites(request: Request):
-    record_request_usage(request, "satellites")
     """Return real-time positions for all tracked satellites (SGP4 propagation)."""
     raw_tles = load_tles_from_cache()
     tles = parse_tle_text(raw_tles, limit=500)

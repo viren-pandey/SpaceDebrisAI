@@ -140,10 +140,10 @@ class ApiKeyRegistry:
             record = self._records.get(key)
             if not record:
                 raise HTTPException(status_code=401, detail="Unknown API key")
-            if not record.active:
-                raise HTTPException(status_code=403, detail="API key is inactive")
             if record.banned_at:
                 raise HTTPException(status_code=403, detail=f"API key banned: {record.ban_reason or 'fair-use violation'}")
+            if not record.active:
+                raise HTTPException(status_code=403, detail="API key is inactive")
             if record.terms_version != TERMS_VERSION or not record.terms_accepted_at:
                 raise HTTPException(status_code=403, detail="Polling terms have not been accepted for this key")
             record.last_seen_at = _iso_now()
