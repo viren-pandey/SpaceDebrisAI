@@ -4,20 +4,32 @@ export const API_TERMS_STORAGE_KEY = "sdai_api_terms_version";
 export const ACTIVE_API_KEY_STORAGE_KEY = "sdai_active_api_key";
 export const GUEST_API_KEY_STORAGE_KEY = "sdai_guest_api_key";
 export const GUEST_EMAIL_STORAGE_KEY = "sdai_guest_email";
+export const CASCADE_API_KEY_STORAGE_KEY = "sdai_api_key";
 
 function getStoredApiKey() {
   if (!isBrowser) return "";
   return localStorage.getItem(ACTIVE_API_KEY_STORAGE_KEY) || "";
 }
 
-function buildHeaders({ includeApiKey = true } = {}) {
+function getPreferredApiKey() {
+  const envKey = import.meta.env.VITE_SDAI_API_KEY ?? "";
+  if (envKey) return envKey;
+  if (!isBrowser) return "";
+  return (
+    localStorage.getItem(CASCADE_API_KEY_STORAGE_KEY)
+    || localStorage.getItem(ACTIVE_API_KEY_STORAGE_KEY)
+    || ""
+  );
+}
+
+function buildHeaders({ includeApiKey = true, apiKey } = {}) {
   const headers = {};
   if (!isBrowser) return headers;
-  const apiKey = getStoredApiKey();
+  const resolvedApiKey = apiKey ?? getPreferredApiKey();
   const email = localStorage.getItem("sdai_user_email")
     ?? localStorage.getItem(GUEST_EMAIL_STORAGE_KEY);
-  if (includeApiKey && apiKey) {
-    headers["X-API-Key"] = apiKey;
+  if (includeApiKey && resolvedApiKey) {
+    headers["X-API-Key"] = resolvedApiKey;
   }
   if (email) {
     headers["X-User-Email"] = email;
@@ -37,7 +49,7 @@ async function parseError(res, fallbackMessage) {
 async function fetchPublicJson(url, { timeoutMs = 25000 } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const hasApiKey = Boolean(getStoredApiKey());
+  const hasApiKey = Boolean(getPreferredApiKey());
 
   async function run(includeApiKey) {
     return await fetch(url, {
@@ -61,10 +73,30 @@ async function fetchPublicJson(url, { timeoutMs = 25000 } = {}) {
   }
 }
 
+async function fetchAuthedJson(url, { timeoutMs = 25000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const apiKey = getPreferredApiKey();
+
+  try {
+    const res = await fetch(url, {
+      cache: "no-store",
+      headers: buildHeaders({ apiKey, includeApiKey: true }),
+      signal: controller.signal,
+    });
+    if (!res.ok) {
+      throw new Error(await parseError(res, `Request failed with status ${res.status}`));
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 async function postPublicJson(url, payload, { timeoutMs = 25000 } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
-  const hasApiKey = Boolean(getStoredApiKey());
+  const hasApiKey = Boolean(getPreferredApiKey());
 
   async function run(includeApiKey) {
     return await fetch(url, {
@@ -83,6 +115,31 @@ async function postPublicJson(url, payload, { timeoutMs = 25000 } = {}) {
     if ((res.status === 401 || res.status === 403) && hasApiKey) {
       res = await run(false);
     }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail ?? `Request failed with status ${res.status}`);
+    }
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function postAuthedJson(url, payload, { timeoutMs = 25000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const apiKey = getPreferredApiKey();
+
+  try {
+    const res = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildHeaders({ apiKey, includeApiKey: true }),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
       throw new Error(data.detail ?? `Request failed with status ${res.status}`);
@@ -186,11 +243,33 @@ export async function fetchOdriForSatellite(satId, deltaT = 7) {
 
 export async function askCascadeQuestion(payload) {
   try {
-    return await postPublicJson(`${API}/cascade/ask`, payload);
+    return await postAuthedJson(`${API}/cascade/ask`, payload);
   } catch (err) {
     if (err.name === "AbortError") {
       throw new Error("Cascade request timed out. Backend is overloaded or slow.");
     }
     throw new Error("Failed to ask cascade intelligence: " + err.message);
+  }
+}
+
+export async function fetchSatellites() {
+  try {
+    return await fetchAuthedJson(`${API}/satellites`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Satellite request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to fetch satellites: " + err.message);
+  }
+}
+
+export async function fetchSimulationAuthed() {
+  try {
+    return await fetchAuthedJson(`${API}/simulate`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Simulation request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to fetch simulation: " + err.message);
   }
 }

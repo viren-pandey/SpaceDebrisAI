@@ -23,15 +23,45 @@ function getTrend(current, projected) {
   return "flat";
 }
 
-export default function CascadeRiskCards({ cards }) {
+function SkeletonCard({ meta }) {
+  return (
+    <article className="ci-risk-card ci-risk-card--skeleton">
+      <div className="ci-risk-top">
+        <div className="ci-risk-id">{meta.icon}</div>
+        <span className="ci-skeleton-pill" />
+      </div>
+      <div className="ci-skeleton-block ci-skeleton-title" />
+      <div className="ci-skeleton-block ci-skeleton-value" />
+      <div className="ci-skeleton-block ci-skeleton-copy" />
+      <div className="ci-skeleton-block ci-skeleton-copy" />
+    </article>
+  );
+}
+
+SkeletonCard.propTypes = {
+  meta: PropTypes.shape({
+    icon: PropTypes.string.isRequired,
+  }).isRequired,
+};
+
+export default function CascadeRiskCards({ cards, loading }) {
   return (
     <div className="ci-card-grid">
       {DOMAIN_META.map((meta) => {
+        if (loading) {
+          return <SkeletonCard key={meta.key} meta={meta} />;
+        }
+
         const card = cards[meta.key];
         const band = getBand(card.score);
         const trend = getTrend(card.score, card.projectedScore);
+        const pulse = band === "critical" || band === "warning";
+
         return (
-          <article key={meta.key} className={`ci-risk-card ci-risk-card--${band}`}>
+          <article
+            key={meta.key}
+            className={`ci-risk-card ci-risk-card--${band}${pulse ? " ci-risk-card--pulse" : ""}`}
+          >
             <div className="ci-risk-top">
               <div className="ci-risk-id">{meta.icon}</div>
               <span className={`ci-risk-band ci-risk-band--${band}`}>{band.toUpperCase()}</span>
@@ -40,7 +70,9 @@ export default function CascadeRiskCards({ cards }) {
             <div className="ci-risk-value">{card.value}</div>
             <p className="ci-risk-copy">{card.caption}</p>
             <div className="ci-risk-foot">
-              <span className={`ci-risk-trend ci-risk-trend--${trend}`}>{trend === "up" ? "worse" : trend === "down" ? "improving" : "stable"}</span>
+              <span className={`ci-risk-trend ci-risk-trend--${trend}`}>
+                {trend === "up" ? "worse" : trend === "down" ? "improving" : "stable"}
+              </span>
               <span>{card.updatedAt}</span>
             </div>
           </article>
@@ -60,4 +92,9 @@ CascadeRiskCards.propTypes = {
       updatedAt: PropTypes.string.isRequired,
     })
   ).isRequired,
+  loading: PropTypes.bool,
+};
+
+CascadeRiskCards.defaultProps = {
+  loading: false,
 };

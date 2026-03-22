@@ -66,6 +66,7 @@ export default function TrackerPage() {
   const [loading, setLoading] = useState(true);
   const [errors, setErrors] = useState({});
   const [lastUpdate, setLastUpdate] = useState(null);
+  const [requestFailed, setRequestFailed] = useState(false);
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("all");
@@ -90,8 +91,10 @@ export default function TrackerPage() {
       setPositions(nextPositions);
       setErrors(nextErrors);
       setLastUpdate(new Date());
+      setRequestFailed(false);
     } catch (error) {
       setErrors({ request: error.message ?? "Tracker API unavailable" });
+      setRequestFailed(true);
     } finally {
       setLoading(false);
     }
@@ -169,10 +172,15 @@ export default function TrackerPage() {
               Loading cached tracker positions...
             </div>
           )}
-          {!loading && (
+          {!loading && !requestFailed && (
             <div className="trk-pill ok">
               <span className="trk-dot" />
               {positions.length} satellites live | updated {lastUpdate?.toLocaleTimeString()}
+            </div>
+          )}
+          {!loading && requestFailed && (
+            <div className="trk-pill warn">
+              Tracker feed unavailable | last successful update {lastUpdate?.toLocaleTimeString() ?? "never"}
             </div>
           )}
           {!loading && Object.keys(errors).length > 0 && (
