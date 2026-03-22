@@ -51,6 +51,8 @@ from app.routes.tracker import router as tracker_router
 from app.routes.satellites import router as satellites_router
 from app.routes.usage import router as usage_router
 from app.routes.api_keys import router as api_keys_router
+from app.routes.risk import router as risk_router
+from app.routes.cascade import router as cascade_router
 
 app.include_router(simulate_router)
 app.include_router(health_router)
@@ -58,5 +60,7 @@ app.include_router(tracker_router)
 app.include_router(satellites_router)
 app.include_router(usage_router)
 app.include_router(api_keys_router)
+app.include_router(risk_router)
+app.include_router(cascade_router)
 from app.routes.cdm import router as cdm_router
 app.include_router(cdm_router)

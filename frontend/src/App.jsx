@@ -13,6 +13,7 @@ import ApiPage from "./pages/ApiPage";
 import ApiTerms from "./pages/ApiTerms";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
 import Contact from "./pages/Contact";
+import CascadeIntelligence from "./pages/CascadeIntelligence";
 import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
 import LiveCongestion from "./pages/LiveCongestion";
@@ -86,6 +87,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/api" element={<ApiPage />} />
           <Route path="/api/terms" element={<ApiTerms />} />
           <Route path="/docs" element={<Docs />} />
+          <Route path="/cascade-intelligence" element={<CascadeIntelligence />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />

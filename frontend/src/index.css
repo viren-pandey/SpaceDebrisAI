@@ -1,4 +1,8 @@
 ﻿
+@layer theme, base, components, utilities;
+@import "tailwindcss/theme.css" layer(theme);
+@import "tailwindcss/utilities.css" layer(utilities);
+
 :root {
   --bg:         #050812;
   --bg-2:       #070d1a;

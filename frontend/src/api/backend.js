@@ -115,3 +115,41 @@ export async function refreshCDM() {
   if (!res.ok) throw new Error(`CDM refresh error ${res.status}`);
   return await res.json();
 }
+
+export async function fetchOdriSnapshot(limit = 10) {
+  const res = await fetch(`${API}/risk/odri?limit=${limit}`, {
+    cache: "no-store",
+    headers: buildHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? `ODRI API error ${res.status}`);
+  return data;
+}
+
+export async function fetchOdriForSatellite(satId, deltaT = 7) {
+  const params = new URLSearchParams({
+    sat_id: satId,
+    delta_t: String(deltaT),
+  });
+  const res = await fetch(`${API}/risk/odri?${params.toString()}`, {
+    cache: "no-store",
+    headers: buildHeaders(),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? `ODRI API error ${res.status}`);
+  return data;
+}
+
+export async function askCascadeQuestion(payload) {
+  const res = await fetch(`${API}/cascade/ask`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...buildHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? `Cascade API error ${res.status}`);
+  return data;
+}
