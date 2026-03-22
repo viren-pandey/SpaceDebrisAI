@@ -47,7 +47,7 @@ async function parseError(res, fallbackMessage) {
   }
 }
 
-async function fetchPublicJson(url, { timeoutMs = 25000 } = {}) {
+async function fetchPublicJson(url, { timeoutMs = 60000 } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const hasApiKey = Boolean(getPreferredApiKey());
@@ -102,7 +102,7 @@ async function fetchAuthedJson(url, { timeoutMs = 25000 } = {}) {
   }
 }
 
-async function postPublicJson(url, payload, { timeoutMs = 25000 } = {}) {
+async function postPublicJson(url, payload, { timeoutMs = 90000 } = {}) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const hasApiKey = Boolean(getPreferredApiKey());
