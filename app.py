@@ -1,11 +1,23 @@
-import gradio as gr
-import requests
+import os
+import sys
 
-API_BASE = "https://virenn77-spacedebrisai.hf.space"
+os.environ.setdefault("HF_HUB_ENABLE_HF_TRANSFER", "0")
+
+import gradio as gr
+from fastapi import FastAPI
+from fastapi.middleware.cors import CORSMiddleware
+
+sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
+
+API_PORT = int(os.getenv("API_PORT", "8000"))
+API_HOST = os.getenv("API_HOST", "localhost")
+API_BASE = f"http://{API_HOST}:{API_PORT}"
+
+import requests
 
 def fetch_simulate():
     try:
-        resp = requests.get(f"{API_BASE}/simulate", timeout=120)
+        resp = requests.get(f"{API_BASE}/simulate", timeout=120, headers={"X-API-Key": "demo_key_hf_space"})
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -13,7 +25,7 @@ def fetch_simulate():
 
 def fetch_satellites():
     try:
-        resp = requests.get(f"{API_BASE}/satellites", timeout=120)
+        resp = requests.get(f"{API_BASE}/satellites", timeout=120, headers={"X-API-Key": "demo_key_hf_space"})
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -24,7 +36,7 @@ def fetch_odri(sat_id: str = ""):
         url = f"{API_BASE}/risk/odri"
         if sat_id:
             url += f"?sat_id={sat_id}"
-        resp = requests.get(url, timeout=120)
+        resp = requests.get(url, timeout=120, headers={"X-API-Key": "demo_key_hf_space"})
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -35,7 +47,8 @@ def cascade_ask(question: str):
         resp = requests.post(
             f"{API_BASE}/cascade/ask",
             json={"question": question},
-            timeout=120
+            timeout=120,
+            headers={"X-API-Key": "demo_key_hf_space"}
         )
         resp.raise_for_status()
         return resp.json().get("answer", "No answer returned")
@@ -64,6 +77,8 @@ with gr.Blocks(title="SpaceDebrisAI") as demo:
     with gr.Tabs():
         with gr.TabItem("🚀 API Status"):
             gr.Markdown("### API Health Check")
+            gr.Markdown("**Note:** Set `API_PORT` and `API_HOST` environment variables to connect to your FastAPI backend.")
+            gr.Markdown(f"**Current backend:** `{API_BASE}`")
             health_btn = gr.Button("Check API Health")
             health_output = gr.JSON(label="Health Response")
             health_btn.click(fn=fetch_health, outputs=health_output)
