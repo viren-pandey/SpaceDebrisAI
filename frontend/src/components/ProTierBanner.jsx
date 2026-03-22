@@ -1,7 +1,7 @@
 const HIGHLIGHTS = [
-  { value: "10k+", label: "objects" },
-  { value: "$10",  label: "per month" },
-  { value: "5s",   label: "max polling" },
+  { value: "60", label: "req / min" },
+  { value: "10s", label: "min poll" },
+  { value: "3x", label: "ban threshold" },
 ];
 
 export default function ProTierBanner() {
@@ -9,15 +9,15 @@ export default function ProTierBanner() {
     <div className="ap-premium-box">
       <div className="ap-premium-box-head">
         <div>
-          <p className="ap-premium-eyebrow">New announcement</p>
-          <h3 className="ap-premium-title">Paid API tier for larger debris coverage</h3>
+          <p className="ap-premium-eyebrow">Fair use policy</p>
+          <h3 className="ap-premium-title">Polling rules are enforced server-side</h3>
         </div>
-        <span className="ap-premium-pill">Coming soon</span>
+        <span className="ap-premium-pill">Active</span>
       </div>
 
       <p className="ap-premium-copy">
-        The announced paid tier expands access to over 10,000 objects, priced at $10 per
-        month, with a maximum polling cadence of one request every 5 seconds.
+        Keys are issued only after accepting the polling terms. Requests that exceed the
+        public cadence are throttled first and automatically banned after repeated violations.
       </p>
 
       <div className="ap-premium-stats">
@@ -30,8 +30,7 @@ export default function ProTierBanner() {
       </div>
 
       <p className="ap-premium-footnote">
-        The current free API stays on the public 2000-object slice for demos, prototypes,
-        and browser-based exploration.
+        Use the published limits on the terms page before wiring this into automated jobs.
       </p>
     </div>
   );

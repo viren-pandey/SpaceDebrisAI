@@ -95,7 +95,7 @@ export default function TrackerPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [filter]);
 
   useEffect(() => {
     refresh();
@@ -221,8 +221,8 @@ export default function TrackerPage() {
         <div className="trk-map-wrap">
           <div className="trk-map-controls">
             <button className="trk-zoom-btn" onClick={() => setZoom((z) => Math.min(z * 1.5, 4))}>+</button>
-            <button className="trk-zoom-btn" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>−</button>
-            <button className="trk-zoom-btn" onClick={() => { setZoom(1); setCenter([0, 0]); }}>⟲</button>
+            <button className="trk-zoom-btn" onClick={() => setZoom((z) => Math.max(z / 1.5, 1))}>-</button>
+            <button className="trk-zoom-btn" onClick={() => { setZoom(1); setCenter([0, 0]); }}>Reset</button>
           </div>
           <ComposableMap
             projection="geoMercator"

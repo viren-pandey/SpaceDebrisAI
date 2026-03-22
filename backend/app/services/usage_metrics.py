@@ -7,6 +7,14 @@ from datetime import datetime, timezone
 from threading import Lock
 from typing import Dict, Iterable, List
 
+from app.services.api_keys import (
+    AUTO_BAN_AFTER_VIOLATIONS,
+    MAX_REQUESTS_PER_MINUTE,
+    MIN_POLL_INTERVAL_SECONDS,
+    ban_api_key,
+    validate_api_key,
+)
+
 
 @dataclass
 class ActivePollingRequest:
@@ -34,6 +42,9 @@ class UsageRecord:
     total_interval: float = 0.0
     last_interval: float | None = None
     last_endpoint: str | None = None
+    minute_window: List[float] = field(default_factory=list)
+    violation_count: int = 0
+    last_violation_at: datetime | None = None
 
     def update(self, endpoint: str, timestamp: datetime) -> None:
         if self.total_requests == 0:
@@ -47,6 +58,9 @@ class UsageRecord:
         self.total_requests += 1
         self.endpoints[endpoint] += 1
         self.last_endpoint = endpoint
+        now_ts = timestamp.timestamp()
+        self.minute_window = [ts for ts in self.minute_window if now_ts - ts <= 60]
+        self.minute_window.append(now_ts)
 
     def touch_email(self, email: str | None) -> None:
         if email:
@@ -76,7 +90,7 @@ class UsageRecord:
 
 
 class UsageTracker:
-    POLLING_THRESHOLD_SECONDS = 10
+    POLLING_ENDPOINTS = {"satellites", "simulate", "tracker", "cdm"}
 
     def __init__(self) -> None:
         self._lock = Lock()
@@ -111,6 +125,9 @@ class UsageTracker:
         identifier, email = self._identify(request)
         ip = self._current_ip(request)
         timestamp = datetime.now(timezone.utc)
+        api_key = request.headers.get("X-API-Key")
+        if api_key:
+            validate_api_key(api_key)
         with self._lock:
             self._raise_if_banned(identifier, ip)
 
@@ -122,6 +139,58 @@ class UsageTracker:
             record.touch_ip(ip)
             record.update(endpoint, timestamp)
             self._total_requests += 1
+            self._enforce_limits(record, identifier, ip, endpoint, api_key)
+
+    def _enforce_limits(
+        self,
+        record: UsageRecord,
+        identifier: str,
+        ip: str,
+        endpoint: str,
+        api_key: str | None,
+    ) -> None:
+        rpm = len(record.minute_window)
+        if rpm > MAX_REQUESTS_PER_MINUTE:
+            self._register_violation(
+                record,
+                identifier,
+                ip,
+                api_key,
+                f"Exceeded {MAX_REQUESTS_PER_MINUTE} requests per minute",
+            )
+        if endpoint in self.POLLING_ENDPOINTS and record.last_interval is not None and record.last_interval < MIN_POLL_INTERVAL_SECONDS:
+            self._register_violation(
+                record,
+                identifier,
+                ip,
+                api_key,
+                f"Polling faster than {MIN_POLL_INTERVAL_SECONDS} seconds is not allowed",
+            )
+
+    def _register_violation(
+        self,
+        record: UsageRecord,
+        identifier: str,
+        ip: str,
+        api_key: str | None,
+        reason: str,
+    ) -> None:
+        now = datetime.now(timezone.utc)
+        if record.last_violation_at is None or (now - record.last_violation_at).total_seconds() > 900:
+            record.violation_count = 0
+        record.violation_count += 1
+        record.last_violation_at = now
+        if record.violation_count >= AUTO_BAN_AFTER_VIOLATIONS:
+            if api_key:
+                ban_api_key(api_key, reason)
+                self._banned_identifiers[identifier] = {"reason": reason, "at": now.isoformat()}
+                raise HTTPException(status_code=403, detail=f"API key banned: {reason}")
+            self._banned_ips[ip] = {"reason": reason, "at": now.isoformat()}
+            raise HTTPException(status_code=403, detail=f"Client banned: {reason}")
+        raise HTTPException(
+            status_code=429,
+            detail=f"{reason}. Repeated violations trigger an automatic ban.",
+        )
 
     def snapshot(self) -> Iterable[Dict[str, object]]:
         with self._lock:

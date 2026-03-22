@@ -10,6 +10,7 @@ import About from "./pages/About";
 import AdminDashboard from "./pages/AdminDashboard";
 import AllDebris from "./pages/AllDebris";
 import ApiPage from "./pages/ApiPage";
+import ApiTerms from "./pages/ApiTerms";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
 import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
@@ -83,6 +84,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/real-conjunctions" element={<RealConjunctions />} />
           <Route path="/conjunction/:id" element={<ConjunctionDetail />} />
           <Route path="/api" element={<ApiPage />} />
+          <Route path="/api/terms" element={<ApiTerms />} />
           <Route path="/docs" element={<Docs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />

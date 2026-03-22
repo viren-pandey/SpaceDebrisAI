@@ -21,7 +21,6 @@ backend/venv/
 
 # ── Environment variables ─────────────────────────────────────
 .env
-.env.example
 .env.local
 .env.*.local
 *.env
@@ -70,6 +69,7 @@ _css_append.css
 # ── Local docs / scratch ─────────────────────────────────────
 SYSTEM_EXPLAINED.md
 *.scratch.*
+nul
 
 # ── Test / quick scripts ─────────────────────────────────────
 backend/test_sgp4.py
@@ -77,6 +77,7 @@ scripts/quick_test.py
 
 # ── Docker local overrides ────────────────────────────────────
 docker-compose.override.yml
+backend/app/data/api_keys.json
 
 # ── Coverage / profiling ─────────────────────────────────────
 .coverage
