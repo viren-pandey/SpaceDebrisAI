@@ -61,6 +61,38 @@ async function fetchPublicJson(url, { timeoutMs = 25000 } = {}) {
   }
 }
 
+async function postPublicJson(url, payload, { timeoutMs = 25000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const hasApiKey = Boolean(getStoredApiKey());
+
+  async function run(includeApiKey) {
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildHeaders({ includeApiKey }),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail ?? `Request failed with status ${res.status}`);
+    }
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export async function fetchApiKeyPolicy() {
   const res = await fetch(`${API}/api-keys/policy`, { cache: "no-store" });
   if (!res.ok) throw new Error(`Policy API error ${res.status}`);
@@ -153,15 +185,12 @@ export async function fetchOdriForSatellite(satId, deltaT = 7) {
 }
 
 export async function askCascadeQuestion(payload) {
-  const res = await fetch(`${API}/cascade/ask`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...buildHeaders(),
-    },
-    body: JSON.stringify(payload),
-  });
-  const data = await res.json();
-  if (!res.ok) throw new Error(data.detail ?? `Cascade API error ${res.status}`);
-  return data;
+  try {
+    return await postPublicJson(`${API}/cascade/ask`, payload);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Cascade request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to ask cascade intelligence: " + err.message);
+  }
 }
