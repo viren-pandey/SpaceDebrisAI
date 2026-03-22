@@ -4,15 +4,6 @@ import CascadeRiskCards from "../components/cascade/CascadeRiskCards";
 import CascadeTimeline from "../components/cascade/CascadeTimeline";
 import { askCascadeQuestion, fetchOdriSnapshot } from "../api/backend";
 
-const SUGGESTED_QUESTIONS = [
-  "How does debris in LEO affect GPS signals?",
-  "What happens if Kessler syndrome triggers?",
-  "Which satellites are at highest risk right now?",
-  "How does solar activity worsen debris cascading?",
-  "What's the risk to ISS from current debris density?",
-  "Could a cascade event affect internet connectivity?",
-];
-
 function formatTime(value) {
   if (!value) return "Pending";
   return new Date(value).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
@@ -210,14 +201,6 @@ export default function CascadeIntelligence() {
                 Risk relevance {(response.risk_relevance * 100).toFixed(0)}%
               </span>
             ) : null}
-          </div>
-
-          <div className="ci-chip-row">
-            {SUGGESTED_QUESTIONS.map((item) => (
-              <button key={item} type="button" onClick={() => submitQuestion(item)} className="ci-chip">
-                {item}
-              </button>
-            ))}
           </div>
 
           <form
