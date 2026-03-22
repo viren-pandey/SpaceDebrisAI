@@ -1,3 +1,14 @@
+---
+title: SpaceDebrisAI
+emoji: 🛰️
+colorFrom: blue
+colorTo: purple
+sdk: gradio
+sdk_version: "4.0"
+python_version: "3.11"
+app_file: app.py
+pinned: false
+---
 
 <div align="center">
 <img src="https://private-user-images.githubusercontent.com/128834400/559700741-ae450fc3-6eb3-47ee-8003-b7746dadf420.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzQxLWFlNDUwZmMzLTZlYjMtNDdlZS04MDAzLWI3NzQ2ZGFkZjQyMC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT03MDJkZjM0MTU2ODdmOTY3ZjdhOWU4YzBhMTMzZmEwYTc5MjkyMmNiODBjYzg2YzFiMzc4ZmZjZGIxOWYwMjg0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.RsmD4sEzlD3VqhVldx5xiV_wQMlmCbdif72VsErCm-g" width="50%" alt="SpaceDebrisAI — Orbital Collision Monitor"/>
@@ -6,7 +17,7 @@
 
 # 🛰️ SpaceDebrisAI
 
-### Real-time Satellite Conjunction Monitoring & Collision Risk Assessment
+### Real-time Satellite Conjunction Monitoring, ODRI Scoring, and Cascade Intelligence
 
 <br/>
 
@@ -41,7 +52,8 @@ There are **27,000+ tracked objects** orbiting Earth at 28,000 km/h right now �
 | 3 | Screen every satellite pair for proximity (19,900 pairs for 200 sats) |
 | 4 | Classify collision risk: `LOW` → `MEDIUM` → `HIGH` → `CRITICAL` |
 | 5 | Recommend the exact avoidance maneuver needed |
-| 6 | Show everything on a live real-time dashboard |
+| 6 | Score shell risk with ODRI and expose cascade-aware analysis endpoints |
+| 7 | Show everything on a live real-time dashboard and Cascade Intelligence page |
 
 ---
 
@@ -138,9 +150,11 @@ Browser  (React 19 SPA)
     │  GET /simulate   ← one request, full payload on page load
     ▼
 FastAPI Backend  (port 8000)
-    ├── /simulate         main conjunction pipeline
+    ├── /simulate          main conjunction pipeline
     ├── /satellites        all tracked satellite positions
     ├── /tracker/positions world map data
+    ├── /risk/odri         orbital debris risk index
+    ├── /cascade/ask       grounded cascade analysis
     └── /health
     │
     ├── Tier 1: CelesTrak GP live feed   (real TLEs)
@@ -168,6 +182,8 @@ JSON  →  React renders dashboard
 | `GET` | `/simulate` | Full pipeline — positions, risk levels, maneuvers |
 | `GET` | `/satellites` | All tracked satellite positions |
 | `GET` | `/tracker/positions` | World map position data |
+| `GET` | `/risk/odri` | Live ODRI snapshot or single-satellite ODRI breakdown |
+| `POST` | `/cascade/ask` | Natural-language cascade analysis grounded in live ODRI data |
 | `GET` | `/health` | Liveness check |
 | `GET` | `/docs` | Interactive Swagger UI |
 
@@ -226,6 +242,62 @@ JSON  →  React renders dashboard
 
 ---
 
+## ODRI and Cascade Intelligence
+
+SpaceDebrisAI now exposes an **Orbital Debris Risk Index (ODRI)** pipeline for shell-level and object-level risk scoring.
+
+```
+ODRI(t) = sigma_collision * omega_cascade * psi_temporal * phi_maneuver
+```
+
+The backend derives:
+
+| Component | Meaning |
+|---|---|
+| `sigma_collision` | Collision susceptibility from combined cross-section and miss distance |
+| `omega_cascade` | Local shell amplification using object count and shell density |
+| `psi_temporal` | Time-to-closest-approach urgency |
+| `phi_maneuver` | Maneuver resilience based on delta-v budget and required correction |
+
+The public API also includes a **Cascade Intelligence** workflow:
+
+| Endpoint | Purpose |
+|---|---|
+| `GET /risk/odri` | Top-risk ODRI snapshot, 30-day projection timeline, or single-object lookup via `sat_id` |
+| `POST /cascade/ask` | AI answer grounded in live ODRI scores, shell density, and conjunction warnings |
+
+The cascade answer layer uses **Groq** through environment-configured credentials, with a deterministic fallback summary if no model key is available.
+
+---
+
+## Rate Limits and Fair Use
+
+Authenticated traffic is enforced server-side with the following flow:
+
+| Rule | Value |
+|---|---|
+| Requests per minute | `60` per API key |
+| Minimum poll interval | `10s` per endpoint per key |
+| Auto-ban threshold | `3` repeated violations |
+
+Enforcement order:
+
+1. `200` while within limits
+2. `429` with `Retry-After` when a key exceeds fair-use rules
+3. `403` after three ignored `429` violations
+
+Owner traffic can be exempted in deployment env:
+
+| Variable | Purpose |
+|---|---|
+| `RATE_LIMIT_EXEMPT_IPS` | Comma-separated list of trusted IPs |
+| `RATE_LIMIT_EXEMPT_EMAILS` | Trusted emails from `X-User-Email` |
+| `RATE_LIMIT_EXEMPT_API_KEYS` | Trusted API keys |
+
+`127.0.0.1`, `::1`, and `localhost` are exempt by default for local development.
+
+---
+
 ## 🚀 Running Locally
 
 ### Docker (recommended)
@@ -256,6 +328,16 @@ cd frontend
 npm install && npm run dev
 ```
 
+Optional backend env:
+
+```bash
+GROQ_API_KEY=your_groq_key
+GROQ_MODEL=llama-3.3-70b-versatile
+RATE_LIMIT_EXEMPT_IPS=127.0.0.1,::1
+RATE_LIMIT_EXEMPT_EMAILS=you@example.com
+RATE_LIMIT_EXEMPT_API_KEYS=
+```
+
 ---
 
 ## 📁 Project Structure
@@ -265,8 +347,8 @@ SpaceDebrisAI/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py          # FastAPI + CORS
-│   │   ├── routes/          # simulate, satellites, tracker, health
-│   │   └── services/        # SGP4 propagator, TLE fetcher
+│   │   ├── routes/          # simulate, satellites, tracker, risk, cascade, health
+│   │   └── services/        # SGP4 propagator, TLE fetcher, ODRI, cascade AI, rate limits
 │   └── ml_logic/            # risk_engine, classifier, avoidance
 ├── frontend/
 │   └── src/
@@ -287,10 +369,11 @@ SpaceDebrisAI/
 |---|---|
 | Backend API | Python 3.11 · FastAPI · uvicorn |
 | Orbital Physics | `sgp4` Python library (NORAD standard) |
-| TLE Data | CelesTrak GP live feed |
+| TLE Data | KeepTrack cache + CelesTrak fallback |
 | Frontend | React 19 · Vite 7 · React Router v6 |
 | Styling | Pure CSS · CSS custom properties (~3100 lines, no Tailwind) |
 | Live Tracker | KeepTrack API · OOTK (Orbital Object Toolkit) |
+| AI Layer | Groq chat completions with grounded live ODRI context |
 | Frontend Deploy | Vercel |
 | Backend Deploy | HuggingFace Spaces |
 | Containerization | Docker · docker-compose |

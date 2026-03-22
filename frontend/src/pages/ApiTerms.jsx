@@ -39,9 +39,10 @@ export default function ApiTerms() {
 
         <section className="docs-section">
           <h2 className="docs-section-title">Enforcement</h2>
-          <p className="docs-p">The first repeated violations return `429` responses with a fair-use warning.</p>
-          <p className="docs-p">After 3 recent violations, the backend disables the API key automatically.</p>
+          <p className="docs-p">The first repeated violations return `429` responses with a fair-use warning and a `Retry-After` header.</p>
+          <p className="docs-p">After 3 recent violations, the backend disables the API key automatically and future requests return `403`.</p>
           <p className="docs-p">Banned keys must be reissued by the site owner. Rotating requests across tabs or jobs does not bypass enforcement.</p>
+          <p className="docs-p">Deployment owners can exempt their own trusted IPs, emails, or keys with `RATE_LIMIT_EXEMPT_IPS`, `RATE_LIMIT_EXEMPT_EMAILS`, and `RATE_LIMIT_EXEMPT_API_KEYS`.</p>
         </section>
 
         <section className="docs-section">
