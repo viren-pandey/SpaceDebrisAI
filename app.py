@@ -1,17 +1,11 @@
-import os
-import sys
-
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "backend"))
-
 import gradio as gr
 import requests
-import json
 
-API_BASE = os.getenv("API_BASE", "http://localhost:8000")
+API_BASE = "https://virenn77-spacedebrisai.hf.space"
 
 def fetch_simulate():
     try:
-        resp = requests.get(f"{API_BASE}/simulate", timeout=60)
+        resp = requests.get(f"{API_BASE}/simulate", timeout=120)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -19,7 +13,7 @@ def fetch_simulate():
 
 def fetch_satellites():
     try:
-        resp = requests.get(f"{API_BASE}/satellites", timeout=60)
+        resp = requests.get(f"{API_BASE}/satellites", timeout=120)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -30,7 +24,7 @@ def fetch_odri(sat_id: str = ""):
         url = f"{API_BASE}/risk/odri"
         if sat_id:
             url += f"?sat_id={sat_id}"
-        resp = requests.get(url, timeout=60)
+        resp = requests.get(url, timeout=120)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -41,7 +35,7 @@ def cascade_ask(question: str):
         resp = requests.post(
             f"{API_BASE}/cascade/ask",
             json={"question": question},
-            timeout=60
+            timeout=120
         )
         resp.raise_for_status()
         return resp.json().get("answer", "No answer returned")
@@ -50,13 +44,13 @@ def cascade_ask(question: str):
 
 def fetch_health():
     try:
-        resp = requests.get(f"{API_BASE}/health", timeout=10)
+        resp = requests.get(f"{API_BASE}/health", timeout=30)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
         return {"status": "unhealthy", "error": str(e)}
 
-with gr.Blocks(title="SpaceDebrisAI", theme=gr.themes.Soft()) as demo:
+with gr.Blocks(title="SpaceDebrisAI") as demo:
     gr.Markdown(
         """
         # 🛰️ SpaceDebrisAI
@@ -93,9 +87,7 @@ with gr.Blocks(title="SpaceDebrisAI", theme=gr.themes.Soft()) as demo:
         with gr.TabItem("📊 ODRI Score"):
             gr.Markdown("### Orbital Debris Risk Index")
             gr.Markdown(
-                "ODRI = σ_collision × ω_cascade × ψ_temporal × φ_maneuver\n\n"
-                "Shell-level and object-level risk scoring based on collision susceptibility, "
-                "cascade amplification, temporal urgency, and maneuver resilience."
+                "ODRI = σ_collision × ω_cascade × ψ_temporal × φ_maneuver"
             )
             sat_id_input = gr.Textbox(label="Satellite ID (optional)", placeholder="e.g., ISS")
             odri_btn = gr.Button("Get ODRI Score")
@@ -104,10 +96,6 @@ with gr.Blocks(title="SpaceDebrisAI", theme=gr.themes.Soft()) as demo:
         
         with gr.TabItem("🧠 Cascade Intelligence"):
             gr.Markdown("### AI-Powered Cascade Analysis")
-            gr.Markdown(
-                "Ask natural-language questions grounded in live ODRI data, shell density, "
-                "and conjunction warnings. Powered by Groq LLM with deterministic fallback."
-            )
             cascade_input = gr.Textbox(
                 label="Your Question",
                 placeholder="What is the current Kessler cascade risk in LEO?",
@@ -120,8 +108,6 @@ with gr.Blocks(title="SpaceDebrisAI", theme=gr.themes.Soft()) as demo:
     gr.Markdown(
         """
         ---
-        
-        **Architecture:** FastAPI + SGP4 + Gradio Interface
         
         [GitHub Repository](https://github.com/viren-pandey/SpaceDebrisAI) · 
         [Live Demo](https://spacedebrisai.vercel.app)
