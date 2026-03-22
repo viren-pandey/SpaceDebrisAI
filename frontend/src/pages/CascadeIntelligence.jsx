@@ -13,6 +13,7 @@ import {
 const CRITICAL_THRESHOLD = 0.85;
 const REFRESH_INTERVAL_MS = 60_000;
 const STAGGER_MS = 1_100;
+const CASCADE_CACHE_KEY = "sdai_cascade_snapshot";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -208,16 +209,49 @@ function LeaderSkeleton() {
   );
 }
 
+function readCachedCascadeState() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CASCADE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      satellitesPayload: parsed.satellitesPayload ?? null,
+      simulationPayload: parsed.simulationPayload ?? null,
+      snapshot: parsed.snapshot ?? null,
+      cachedAt: parsed.cachedAt ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCascadeState(nextState) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CASCADE_CACHE_KEY, JSON.stringify({
+      satellitesPayload: nextState.satellitesPayload ?? null,
+      simulationPayload: nextState.simulationPayload ?? null,
+      snapshot: nextState.snapshot ?? null,
+      cachedAt: new Date().toISOString(),
+    }));
+  } catch {
+    // Ignore storage quota or serialization failures.
+  }
+}
+
 function CascadeIntelligenceContent() {
-  const [satellitesPayload, setSatellitesPayload] = useState(null);
-  const [simulationPayload, setSimulationPayload] = useState(null);
-  const [snapshot, setSnapshot] = useState(null);
+  const cachedState = useMemo(() => readCachedCascadeState(), []);
+  const [satellitesPayload, setSatellitesPayload] = useState(cachedState?.satellitesPayload ?? null);
+  const [simulationPayload, setSimulationPayload] = useState(cachedState?.simulationPayload ?? null);
+  const [snapshot, setSnapshot] = useState(cachedState?.snapshot ?? null);
   const [question, setQuestion] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedState);
   const [refreshing, setRefreshing] = useState(false);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState(null);
+  const [staleData, setStaleData] = useState(Boolean(cachedState));
   const refreshSeqRef = useRef(0);
 
   const stats = useMemo(
@@ -241,15 +275,19 @@ function CascadeIntelligenceContent() {
   const loadAllData = useCallback(async ({ initial = false } = {}) => {
     const requestId = refreshSeqRef.current + 1;
     refreshSeqRef.current = requestId;
-    if (initial) setLoading(true);
+    if (initial && !snapshot && !simulationPayload && !satellitesPayload) setLoading(true);
     setRefreshing(true);
     setError(null);
 
     let nextError = null;
+    let nextSatellites = satellitesPayload;
+    let nextSimulation = simulationPayload;
+    let nextSnapshot = snapshot;
 
     try {
       const satellites = await fetchSatellites();
       if (refreshSeqRef.current !== requestId) return;
+      nextSatellites = satellites;
       setSatellitesPayload(satellites);
     } catch (err) {
       nextError = err.message;
@@ -261,6 +299,7 @@ function CascadeIntelligenceContent() {
     try {
       const simulation = await fetchSimulationAuthed();
       if (refreshSeqRef.current !== requestId) return;
+      nextSimulation = simulation;
       setSimulationPayload(simulation);
     } catch (err) {
       nextError = nextError ?? err.message;
@@ -270,19 +309,29 @@ function CascadeIntelligenceContent() {
     if (refreshSeqRef.current !== requestId) return;
 
     try {
-      const nextSnapshot = await fetchOdriSnapshot(25);
+      const odriSnapshot = await fetchOdriSnapshot(25);
       if (refreshSeqRef.current !== requestId) return;
-      setSnapshot(nextSnapshot);
+      nextSnapshot = odriSnapshot;
+      setSnapshot(odriSnapshot);
     } catch (err) {
       nextError = nextError ?? err.message;
     }
 
     if (refreshSeqRef.current === requestId) {
-      setError(nextError);
+      const hasAnyLiveData = Boolean(nextSatellites || nextSimulation || nextSnapshot);
+      if (hasAnyLiveData) {
+        writeCachedCascadeState({
+          satellitesPayload: nextSatellites,
+          simulationPayload: nextSimulation,
+          snapshot: nextSnapshot,
+        });
+      }
+      setStaleData(Boolean(nextError && hasAnyLiveData));
+      setError(nextError && !hasAnyLiveData ? nextError : nextError ? `Live services unavailable. Showing last known data. ${nextError}` : null);
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [satellitesPayload, simulationPayload, snapshot]);
 
   useEffect(() => {
     let mounted = true;
@@ -396,6 +445,7 @@ function CascadeIntelligenceContent() {
 
         <div className="ci-hero-foot">
           <span className="ci-updated">Updated {formatTime(updatedAt)}</span>
+          {staleData ? <span className="ci-stale-banner">Showing cached telemetry</span> : null}
           {error ? <span className="ci-fallback-banner">{error}</span> : null}
         </div>
       </section>

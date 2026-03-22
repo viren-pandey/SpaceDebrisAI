@@ -797,6 +797,18 @@ body {
   font-size: 12px;
 }
 
+.ci-stale-banner {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  padding: 8px 12px;
+  border-radius: 999px;
+  border: 1px solid rgba(250, 204, 21, 0.18);
+  background: rgba(250, 204, 21, 0.08);
+  color: #fde68a;
+  font-size: 12px;
+}
+
 .ci-skeleton-card {
   min-height: 94px;
 }
