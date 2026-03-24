@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter
 from pathlib import Path
-from app.services.tle_fetcher import get_local_timestamp
+from app.services.tle_fetcher import get_local_timestamp, refresh_all_caches
 
 router = APIRouter()
 
@@ -46,3 +46,18 @@ def health():
             "last_update": get_local_timestamp(),
         },
     }
+
+
+@router.post("/health/refresh")
+def refresh_cache():
+    """Force refresh all TLE caches from KeepTrack API."""
+    try:
+        refresh_all_caches(force=True)
+        return {"status": "refreshed", "cache": {
+            "satellites": get_cache_info(SATELLITES_FILE),
+            "debris_leo": get_cache_info(DEBRIS_LEO_FILE),
+            "debris_all": get_cache_info(DEBRIS_ALL_FILE),
+            "last_update": get_local_timestamp(),
+        }}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
