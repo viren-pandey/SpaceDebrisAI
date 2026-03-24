@@ -60,3 +60,9 @@ def refresh_cache():
         }}
     except Exception as exc:
         return {"status": "error", "message": str(exc)}
+
+
+def _check_api_key_status() -> bool:
+    """Internal function to check if API key is configured."""
+    import os
+    return bool(os.getenv("KEEPTRACK_API_KEY"))
