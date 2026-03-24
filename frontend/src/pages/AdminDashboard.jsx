@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "admin_secret_key_12345";
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "asdfA1234@99";
 const API_BASE = (import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "pandeyviren68@gmail.com";
@@ -13,12 +13,18 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("users");
-  const [adminKey, setAdminKey] = useState(() => localStorage.getItem("admin_key") || "");
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [adminKey, setAdminKey] = useState(() => {
+    const stored = localStorage.getItem("admin_key");
+    return stored === ADMIN_KEY ? stored : "";
+  });
+  const [isAuthenticated, setIsAuthenticated] = useState(() => {
+    const stored = localStorage.getItem("admin_key");
+    return stored === ADMIN_KEY;
+  });
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [banForm, setBanForm] = useState({ identifier: "", ip: "", email: "", reason: "" });
-  const [unbanForm, setUnbanForm] = useState({ identifier: "", ip: "" });
+  const [, setUnbanForm] = useState({ identifier: "", ip: "" });
   const [actionStatus, setActionStatus] = useState(null);
 
   useEffect(() => {
@@ -30,7 +36,9 @@ export default function AdminDashboard() {
   }, []);
 
   useEffect(() => {
-    localStorage.setItem("admin_key", adminKey);
+    if (adminKey) {
+      localStorage.setItem("admin_key", adminKey);
+    }
   }, [adminKey]);
 
   const handleLogin = async (e) => {
@@ -45,10 +53,14 @@ export default function AdminDashboard() {
     setIsAuthenticated(true);
     setAdminKey(ADMIN_KEY);
     localStorage.setItem("admin_key", ADMIN_KEY);
+    
+    // Fetch immediately after login
+    setTimeout(() => fetchData(ADMIN_KEY), 100);
   };
 
-  const fetchData = async () => {
-    if (!adminKey) {
+  const fetchData = async (keyOverride = null) => {
+    const key = keyOverride || adminKey;
+    if (!key) {
       setError("Admin key required");
       setLoading(false);
       return;
@@ -56,7 +68,7 @@ export default function AdminDashboard() {
     try {
       setLoading(true);
       const res = await fetch(`${API_BASE}/usage`, {
-        headers: { "X-Admin-Key": adminKey },
+        headers: { "X-Admin-Key": key },
       });
       if (!res.ok) {
         const err = await res.json();
@@ -65,19 +77,20 @@ export default function AdminDashboard() {
       const json = await res.json();
       setData(json);
       setError(null);
-    } catch (err) {
-      setError(err.message);
+    } catch (e) {
+      setError(e.message);
     } finally {
       setLoading(false);
     }
   };
 
   useEffect(() => {
-    if (isAuthenticated) {
+    if (isAuthenticated && adminKey) {
       fetchData();
-      const interval = setInterval(fetchData, 10000);
+      const interval = setInterval(() => fetchData(), 10000);
       return () => clearInterval(interval);
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, adminKey]);
 
   const handleBan = async (e) => {
@@ -102,7 +115,7 @@ export default function AdminDashboard() {
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch (err) {
+    } catch {
       setActionStatus("error");
     }
   };
@@ -125,7 +138,7 @@ export default function AdminDashboard() {
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch (err) {
+    } catch {
       setActionStatus("error");
     }
   };
