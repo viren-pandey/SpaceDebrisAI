@@ -11,6 +11,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AllDebris from "./pages/AllDebris";
 import ApiPage from "./pages/ApiPage";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
+import Contact from "./pages/Contact";
 import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
 import LiveCongestion from "./pages/LiveCongestion";
@@ -85,6 +86,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/docs" element={<Docs />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
+          <Route path="/contact" element={<Contact />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/congestion" element={<LiveCongestion />} />
         </Routes>
