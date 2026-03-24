@@ -102,6 +102,7 @@ export default function TrackerPage() {
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
   const [filter, setFilter] = useState("all");
+  const [search, setSearch] = useState("");
   const timerRef = useRef(null);
 
   const refresh = useCallback(async () => {
@@ -149,6 +150,16 @@ export default function TrackerPage() {
       error: errors[pos.noradId],
     };
   });
+
+  const filteredMerged = useMemo(() => {
+    if (!search.trim()) return merged;
+    const query = search.toLowerCase();
+    return merged.filter(
+      (sat) =>
+        sat.name.toLowerCase().includes(query) ||
+        String(sat.noradId).includes(query)
+    );
+  }, [merged, search]);
 
   const activeId = selected ?? hovered;
   const activeSat = merged.find((sat) => sat.noradId === activeId);
@@ -224,8 +235,15 @@ export default function TrackerPage() {
           >
             All Debris
           </button>
+          <input
+            type="text"
+            className="trk-search-input"
+            placeholder="Search by name or NORAD..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+          />
           <span className="trk-filter-count">
-            {positions.length.toLocaleString()} objects
+            {filteredMerged.length.toLocaleString()} / {positions.length.toLocaleString()}
           </span>
         </div>
       </div>
@@ -368,7 +386,7 @@ export default function TrackerPage() {
               />
             ))}
 
-            {merged.map((sat) => {
+            {filteredMerged.map((sat) => {
               if (!sat.pos) {
                 return null;
               }
@@ -476,7 +494,7 @@ export default function TrackerPage() {
           <p className="trk-cards-hint">Click a card or map marker to inspect</p>
         </div>
         <div className="trk-cards-grid">
-          {merged.map((sat) => {
+          {filteredMerged.map((sat) => {
             const isSelected = selected === sat.noradId;
             return (
               <div
