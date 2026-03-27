@@ -11,10 +11,10 @@ const MAIN_LINKS = [
 ];
 
 const MONITOR_DROPDOWN = [
-  { label: "CDM Timeline", to: "/cdm-timeline", icon: "📈", desc: "Track conjunction evolution" },
-  { label: "Shell Risk", to: "/shell-instability", icon: "🌍", desc: "Orbital instability index" },
-  { label: "Space Weather", to: "/spaceweather", icon: "☀️", desc: "Kp index & drag forecast" },
-  { label: "Debris",    to: "/all-debris", icon: " debris", desc: "Full debris catalog" },
+  { label: "CDM Timeline", to: "/cdm-timeline" },
+  { label: "Shell Risk", to: "/shell-instability" },
+  { label: "Space Weather", to: "/spaceweather" },
+  { label: "Debris", to: "/all-debris" },
 ];
 
 const BRAND = [
@@ -90,31 +90,26 @@ export default function Navbar({ live, theme, onToggleTheme }) {
           {/* Monitor dropdown */}
           <div className="nav-dropdown" ref={dropdownRef}>
             <button
-              className={`nav-dropdown-trigger ${isMonitorActive ? "nav-link-active" : ""}`}
+              className={`nav-link nav-dropdown-trigger ${isMonitorActive ? "nav-link-active" : ""}`}
               onClick={() => setMonitorOpen(!monitorOpen)}
             >
               Monitor
-              <svg className="dropdown-arrow" width="10" height="10" viewBox="0 0 10 10" fill="none">
-                <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
-              </svg>
+              <span className="dropdown-arrow">▾</span>
             </button>
             
             {monitorOpen && (
               <div className="nav-dropdown-menu">
-                {MONITOR_DROPDOWN.map(({ label, to, icon, desc }) => (
+                {MONITOR_DROPDOWN.map(({ label, to }) => (
                   <NavLink
                     key={label}
                     to={to}
+                    end
                     className={({ isActive }) => 
                       `nav-dropdown-item ${isActive ? "dropdown-item-active" : ""}`
                     }
                     onClick={() => setMonitorOpen(false)}
                   >
-                    <span className="dropdown-icon">{icon}</span>
-                    <div className="dropdown-text">
-                      <span className="dropdown-label">{label}</span>
-                      <span className="dropdown-desc">{desc}</span>
-                    </div>
+                    {label}
                   </NavLink>
                 ))}
               </div>
