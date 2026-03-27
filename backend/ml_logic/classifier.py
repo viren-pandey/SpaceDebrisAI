@@ -1,6 +1,13 @@
 from ml_logic.risk_engine import calculate_risk
 import math
 
+# Import space weather service (optional - graceful degradation if unavailable)
+try:
+    from app.services.space_weather import get_drag_conditions
+    _HAS_SPACE_WEATHER = True
+except ImportError:
+    _HAS_SPACE_WEATHER = False
+
 _LEO_MAX  = 500   # km
 _MEO_MAX  = 2000  # km
 
@@ -11,10 +18,37 @@ def _compute_relative_velocity(v1: tuple, v2: tuple) -> float:
     return math.sqrt(dv[0]**2 + dv[1]**2 + dv[2]**2)
 
 
+def _get_drag_factor(altitude_km: float) -> float:
+    """
+    Get drag multiplier based on current space weather.
+    
+    During geomagnetic storms, increased atmospheric density at LEO altitudes
+    can cause unexpected orbital decay and geometry changes.
+    
+    Returns 1.0 if space weather unavailable.
+    """
+    if not _HAS_SPACE_WEATHER or altitude_km > 1000:
+        return 1.0
+    
+    try:
+        drag = get_drag_conditions(altitude_km)
+        density_mult = drag.get("density_multiplier", 1.0)
+        
+        # Map density multiplier to risk factor (conservative)
+        # 2x density -> 1.1x risk, 5x density -> 1.25x risk
+        drag_factor = 1.0 + 0.05 * math.log2(max(density_mult, 1.0))
+        return min(drag_factor, 1.5)
+    except Exception:
+        return 1.0
+
+
 def classify_conjunction(distance_km: float, altitude_km: float = 400.0, 
                          v1: tuple = None, v2: tuple = None) -> dict:
     """
-    Classify risk for a satellite pair, adjusted by orbital altitude and relative velocity.
+    Classify risk for a satellite pair, adjusted by:
+    - Orbital altitude (LEO is more congested)
+    - Relative velocity (higher = more energy at impact)
+    - Atmospheric drag conditions (storms increase unpredictability)
     
     Args:
         distance_km: Current separation distance
@@ -40,8 +74,11 @@ def classify_conjunction(distance_km: float, altitude_km: float = 400.0,
         # Scale factor: 7 km/s is typical max for LEO, scale from 1.0 to 1.3
         vel_factor = 1.0 + min(rel_vel_km_s / 10.0, 0.3)
 
+    # Drag factor: space weather increases orbital uncertainty
+    drag_factor = _get_drag_factor(altitude_km)
+
     # Combined factor
-    combined_factor = alt_factor * vel_factor
+    combined_factor = alt_factor * vel_factor * drag_factor
     adjusted_score = min(int(base["score"] * combined_factor), 100)
 
     if adjusted_score >= 85:
@@ -67,5 +104,8 @@ def classify_conjunction(distance_km: float, altitude_km: float = 400.0,
     if v1 is not None and v2 is not None:
         result["relative_velocity_km_s"] = round(rel_vel_km_s, 3)
         result["velocity_factor"] = round(vel_factor, 3)
+    
+    if _HAS_SPACE_WEATHER:
+        result["drag_factor"] = round(drag_factor, 3)
     
     return result
