@@ -392,9 +392,17 @@ git push origin feature/your-feature
 ```
 
 ---
+---
+title: SpaceDebrisAI
+emoji: 🛰️
+colorFrom: black
+colorTo: cyan
+sdk: docker
+app_file: app.py
+pinned: false
+---
 
 <div align="center">
-
 **[spacedebrisai.vercel.app](https://spacedebrisai.vercel.app/)** &nbsp;·&nbsp; Built by [Viren Pandey](https://github.com/viren-pandey)
 
 *"The sky is not falling. But parts of it are."* 🛰️
