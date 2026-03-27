@@ -1,11 +1,11 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "asdfA1234@99";
-const API_BASE = (import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
+const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY;
+const API_BASE = (import.meta.env.VITE_API_URL || "").replace(/\/+$/, "");
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "pandeyviren68@gmail.com";
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "asdf1234@99";
+const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
+const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
 
 export default function AdminDashboard() {
   const navigate = useNavigate();
