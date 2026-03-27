@@ -1,8 +1,8 @@
 ---
 title: SpaceDebrisAI
 emoji: 🛰️
-colorFrom: black
-colorTo: cyan
+colorFrom: blue
+colorTo: purple
 sdk: docker
 app_file: app.py
 pinned: false
@@ -403,8 +403,8 @@ git push origin feature/your-feature
 ---
 title: SpaceDebrisAI
 emoji: 🛰️
-colorFrom: black
-colorTo: cyan
+colorFrom: blue
+colorTo: purple
 sdk: docker
 app_file: app.py
 pinned: false
