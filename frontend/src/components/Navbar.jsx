@@ -1,19 +1,20 @@
-﻿import { useState } from "react";
-import { NavLink, useNavigate } from "react-router-dom";
+﻿import { useState, useRef, useEffect } from "react";
+import { NavLink, useNavigate, useLocation } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
 
-const NAV_LINKS = [
+const MAIN_LINKS = [
   { label: "Dashboard", to: "/" },
   { label: "Satellites", to: "/satellites" },
   { label: "Tracker",   to: "/tracker" },
-  { label: "Debris",    to: "/all-debris" },
   { label: "Real CDM",  to: "/real-conjunctions" },
   { label: "Cascade",   to: "/cascade-intelligence" },
-  { label: "CDM Timeline", to: "/cdm-timeline" },
-  { label: "Shell Risk", to: "/shell-instability" },
-  { label: "Space Weather", to: "/spaceweather" },
-  { label: "Docs",      to: "/docs" },
-  { label: "About",     to: "/about" },
+];
+
+const MONITOR_DROPDOWN = [
+  { label: "CDM Timeline", to: "/cdm-timeline", icon: "📈", desc: "Track conjunction evolution" },
+  { label: "Shell Risk", to: "/shell-instability", icon: "🌍", desc: "Orbital instability index" },
+  { label: "Space Weather", to: "/spaceweather", icon: "☀️", desc: "Kp index & drag forecast" },
+  { label: "Debris",    to: "/all-debris", icon: " debris", desc: "Full debris catalog" },
 ];
 
 const BRAND = [
@@ -24,14 +25,36 @@ const BRAND = [
 
 export default function Navbar({ live, theme, onToggleTheme }) {
   const [menuOpen, setMenuOpen] = useState(false);
+  const [monitorOpen, setMonitorOpen] = useState(false);
+  const dropdownRef = useRef(null);
   const isDark = theme === "dark";
   const { user, signOut } = useAuth();
   const navigate = useNavigate();
+  const location = useLocation();
+
+  // Check if any monitor page is active
+  const isMonitorActive = MONITOR_DROPDOWN.some(item => location.pathname === item.to);
+
+  // Close dropdown when clicking outside
+  useEffect(() => {
+    function handleClickOutside(e) {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setMonitorOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
+  }, []);
+
+  // Close dropdown on route change
+  useEffect(() => {
+    setMonitorOpen(false);
+  }, [location.pathname]);
 
   return (
     <nav className="navbar">
       <div className="navbar-inner">
-        {/* Brand — every letter falls in individually */}
+        {/* Brand */}
         <NavLink to="/" className="navbar-brand" onClick={() => setMenuOpen(false)}>
           <span className="nb-brand-text">
             {BRAND.map(({ chars, base, accent }) =>
@@ -53,7 +76,7 @@ export default function Navbar({ live, theme, onToggleTheme }) {
 
         {/* Desktop nav links */}
         <div className="navbar-navs">
-          {NAV_LINKS.map(({ label, to }) => (
+          {MAIN_LINKS.map(({ label, to }) => (
             <NavLink
               key={label}
               to={to}
@@ -63,6 +86,40 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               {label}
             </NavLink>
           ))}
+
+          {/* Monitor dropdown */}
+          <div className="nav-dropdown" ref={dropdownRef}>
+            <button
+              className={`nav-dropdown-trigger ${isMonitorActive ? "nav-link-active" : ""}`}
+              onClick={() => setMonitorOpen(!monitorOpen)}
+            >
+              Monitor
+              <svg className="dropdown-arrow" width="10" height="10" viewBox="0 0 10 10" fill="none">
+                <path d="M2 4L5 7L8 4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"/>
+              </svg>
+            </button>
+            
+            {monitorOpen && (
+              <div className="nav-dropdown-menu">
+                {MONITOR_DROPDOWN.map(({ label, to, icon, desc }) => (
+                  <NavLink
+                    key={label}
+                    to={to}
+                    className={({ isActive }) => 
+                      `nav-dropdown-item ${isActive ? "dropdown-item-active" : ""}`
+                    }
+                    onClick={() => setMonitorOpen(false)}
+                  >
+                    <span className="dropdown-icon">{icon}</span>
+                    <div className="dropdown-text">
+                      <span className="dropdown-label">{label}</span>
+                      <span className="dropdown-desc">{desc}</span>
+                    </div>
+                  </NavLink>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
 
         {/* Right side controls */}
@@ -129,7 +186,7 @@ export default function Navbar({ live, theme, onToggleTheme }) {
       {/* Mobile drawer */}
       {menuOpen && (
         <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
-          {NAV_LINKS.map(({ label, to }) => (
+          {MAIN_LINKS.map(({ label, to }) => (
             <NavLink
               key={label}
               to={to}
@@ -140,8 +197,24 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               {label}
             </NavLink>
           ))}
+          
+          <div className="mobile-divider">Monitor</div>
+          
+          {MONITOR_DROPDOWN.map(({ label, to }) => (
+            <NavLink
+              key={label}
+              to={to}
+              className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"}
+              onClick={() => setMenuOpen(false)}
+            >
+              {label}
+            </NavLink>
+          ))}
+          
           <NavLink to="/api" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>API</NavLink>
           <NavLink to="/docs" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>Docs</NavLink>
+          <NavLink to="/about" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>About</NavLink>
+          
           {user ? (
             <button className="mobile-link mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>Sign out</button>
           ) : (
