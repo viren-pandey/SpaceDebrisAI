@@ -249,14 +249,78 @@ def _extract_norad_id(line1: str) -> int | None:
         return None
 
 
+# Known active constellation name patterns (case-insensitive)
+ACTIVE_CONSTELLATION_PATTERNS = [
+    "STARLINK", "ONEWEB", "IRIDIUM", "GPS", "GALILEO", "GLONASS", "BEIDOU",
+    "SES-", "EUTELSAT", "INTELSAT", "VIASTAR", "ARABSAT", "TURKSAT",
+    "NOAA", "METOP", "SENTINEL", "LANDSAT", "TERRA", "AQUA", "SUOMI",
+    "ISS", "TIANGONG", "HST", "HUBBLE", "JWST", "GOES", "HIMAWARI",
+    "ELECTRO-L", "FY-", "ZY-", "HY-", "GEO-KOMPSAT",
+    "COSMOS", "FENGYUN", "YAOGAN",  # Recent operational
+]
+
+# NORAD ID ranges for active operational satellites (approximate)
+ACTIVE_NORAD_RANGES = [
+    (20000, 99999),  # Modern operational satellites
+]
+
+
+def _is_active_satellite(name: str, norad_id: int | None) -> bool:
+    """Check if a satellite is likely an active operational satellite."""
+    name_upper = name.upper()
+    
+    # Check by name pattern
+    for pattern in ACTIVE_CONSTELLATION_PATTERNS:
+        if pattern in name_upper:
+            return True
+    
+    # Check by NORAD ID range (newer IDs are more likely active)
+    if norad_id is not None:
+        for low, high in ACTIVE_NORAD_RANGES:
+            if low <= norad_id <= high:
+                # But exclude if name indicates debris
+                if "DEB" in name_upper or "R/B" in name_upper or "FRAG" in name_upper:
+                    continue
+                return True
+    
+    return False
+
+
 def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
+    """
+    Select TLEs for public demo, prioritizing active constellation satellites.
+    Ensures the demo includes real operators, not just Cold War debris.
+    """
     if len(all_tles) <= MAX_SATELLITES:
         return list(all_tles)
 
-    # Shuffle before slicing for public selection
-    tle_blocks = list(all_tles)
-    random.shuffle(tle_blocks)
-    selected = tle_blocks[:MAX_SATELLITES]
+    # Separate active satellites from debris
+    active_sats = []
+    debris_and_old = []
+    
+    for tle in all_tles:
+        name, l1, l2 = tle[0], tle[1], tle[2]
+        norad_id = tle[3] if len(tle) > 3 else None
+        
+        if _is_active_satellite(name, norad_id):
+            active_sats.append(tle)
+        else:
+            debris_and_old.append(tle)
+    
+    # Shuffle both groups
+    random.shuffle(active_sats)
+    random.shuffle(debris_and_old)
+    
+    # Fill with active satellites first (up to 60% of max), then debris
+    active_limit = int(MAX_SATELLITES * 0.6)
+    selected_active = active_sats[:active_limit]
+    remaining_slots = MAX_SATELLITES - len(selected_active)
+    selected_debris = debris_and_old[:remaining_slots]
+    
+    # Combine and shuffle final selection for variety
+    selected = selected_active + selected_debris
+    random.shuffle(selected)
+    
     return selected
 
 
