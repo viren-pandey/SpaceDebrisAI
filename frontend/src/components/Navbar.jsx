@@ -124,6 +124,22 @@ export default function Navbar({ live, theme, onToggleTheme }) {
 
         {/* Right side controls */}
         <div className="navbar-right">
+          {/* Secondary links */}
+          {SECONDARY_LINKS.map(({ label, to }) => (
+            <NavLink
+              key={label}
+              to={to}
+              className={({ isActive }) => isActive ? "nav-link nav-link-active" : "nav-link"}
+            >
+              {label}
+            </NavLink>
+          ))}
+
+          {/* API link */}
+          <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
+            API
+          </NavLink>
+
           {/* Theme toggle */}
           <button
             className="theme-toggle"
@@ -145,22 +161,6 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               </svg>
             )}
           </button>
-
-          {/* Secondary links */}
-          {SECONDARY_LINKS.map(({ label, to }) => (
-            <NavLink
-              key={label}
-              to={to}
-              className={({ isActive }) => isActive ? "nav-link nav-link-active" : "nav-link"}
-            >
-              {label}
-            </NavLink>
-          ))}
-
-          {/* API link */}
-          <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
-            API
-          </NavLink>
 
           {/* Auth button */}
           {user ? (
