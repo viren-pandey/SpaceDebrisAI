@@ -290,3 +290,57 @@ export async function fetchSimulationAuthed() {
     throw new Error("Failed to fetch simulation: " + err.message);
   }
 }
+
+// Space Weather API
+export async function fetchSpaceWeather() {
+  try {
+    return await fetchPublicJson(`${API}/spaceweather`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Space weather request timed out.");
+    }
+    throw new Error("Failed to fetch space weather: " + err.message);
+  }
+}
+
+export async function fetchDragEstimate(altitudeKm = 400) {
+  try {
+    return await fetchPublicJson(`${API}/spaceweather/drag?altitude_km=${altitudeKm}`);
+  } catch (err) {
+    throw new Error("Failed to fetch drag estimate: " + err.message);
+  }
+}
+
+// Shell Instability API
+export async function fetchShellInstability(altitudeKm = null, limit = 20) {
+  try {
+    const params = altitudeKm ? `?altitude_km=${altitudeKm}&limit=${limit}` : `?limit=${limit}`;
+    return await fetchPublicJson(`${API}/shell/instability${params}`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Shell instability request timed out.");
+    }
+    throw new Error("Failed to fetch shell instability: " + err.message);
+  }
+}
+
+// CDM Timeline API
+export async function fetchCDMTimeline(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    return await fetchPublicJson(`${API}/cdm/timeline${query ? `?${query}` : ""}`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("CDM timeline request timed out.");
+    }
+    throw new Error("Failed to fetch CDM timeline: " + err.message);
+  }
+}
+
+export async function fetchHighRiskCDMs(thresholdPc = 1e-4, limit = 10) {
+  try {
+    return await fetchPublicJson(`${API}/cdm/highrisk?threshold_pc=${thresholdPc}&limit=${limit}`);
+  } catch (err) {
+    throw new Error("Failed to fetch high-risk CDMs: " + err.message);
+  }
+}

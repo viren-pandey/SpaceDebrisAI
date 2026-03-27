@@ -9,6 +9,9 @@ const NAV_LINKS = [
   { label: "Debris",    to: "/all-debris" },
   { label: "Real CDM",  to: "/real-conjunctions" },
   { label: "Cascade",   to: "/cascade-intelligence" },
+  { label: "CDM Timeline", to: "/cdm-timeline" },
+  { label: "Shell Risk", to: "/shell-instability" },
+  { label: "Space Weather", to: "/spaceweather" },
   { label: "Docs",      to: "/docs" },
   { label: "About",     to: "/about" },
 ];
