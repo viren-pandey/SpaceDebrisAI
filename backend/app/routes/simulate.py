@@ -9,7 +9,7 @@ import threading
 
 from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
-from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text
+from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text, refresh_all_caches
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
 
 router = APIRouter()
@@ -17,7 +17,8 @@ router = APIRouter()
 EARTH_RADIUS_KM = 6371.0
 MAX_SATELLITES = 2000
 LOCAL_TLE_COUNT_LIMIT = 1000000
-SIMULATION_CACHE_TTL_SECONDS = 600
+SIMULATION_CACHE_TTL_SECONDS = 900  # 15 minutes
+TLE_BACKGROUND_REFRESH_SECONDS = 900  # 15 minutes
 CLOSEST_PAIR_COUNT = 20
 _SIMULATION_CACHE_LOCK = threading.Lock()
 _SIMULATION_CACHE = {
@@ -25,6 +26,33 @@ _SIMULATION_CACHE = {
     "catalog_stamp": None,
     "expires_at": 0.0,
 }
+_TLE_REFRESH_THREAD: threading.Thread | None = None
+_TLE_REFRESH_LOCK = threading.Lock()
+
+
+def _start_tle_background_refresh():
+    """Start background thread to refresh TLE caches periodically."""
+    global _TLE_REFRESH_THREAD
+
+    def _refresh_loop():
+        while True:
+            try:
+                time.sleep(TLE_BACKGROUND_REFRESH_SECONDS)
+                print("[SIMULATE] Triggering background TLE cache refresh...")
+                refresh_all_caches(force=False)
+                print("[SIMULATE] Background TLE cache refresh completed")
+            except Exception as exc:
+                print(f"[SIMULATE] Background TLE refresh failed: {exc}")
+
+    with _TLE_REFRESH_LOCK:
+        if _TLE_REFRESH_THREAD is None or not _TLE_REFRESH_THREAD.is_alive():
+            _TLE_REFRESH_THREAD = threading.Thread(
+                target=_refresh_loop,
+                name="simulate-tle-refresh",
+                daemon=True,
+            )
+            _TLE_REFRESH_THREAD.start()
+            print("[SIMULATE] Background TLE refresh thread started")
 
 # Fallback satellite positions using circular orbit approximation
 def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
@@ -38,26 +66,27 @@ def _orb(a: float, inc_deg: float, raan_deg: float, anom_deg: float):
     return (x, y, z)
 
 SIMULATED_SATS = [
-    ("ISS (ZARYA)",        _orb(6779, 51.6,  45.0, 123.000)),
-    ("PROGRESS MS-24",     _orb(6779, 51.6,  45.0, 123.025)),  # ~3 km  CRITICAL
-    ("STARLINK-3456",      _orb(6921, 53.0, 120.0, 210.000)),
-    ("STARLINK-3457",      _orb(6921, 53.0, 120.0, 210.115)),  # ~14 km MEDIUM
-    ("TERRA",              _orb(7076, 98.2, 310.0,  87.000)),
-    ("AQUA",               _orb(7076, 98.2, 310.0,  87.400)),  # ~49 km LOW
-    ("NOAA 18",            _orb(7222, 99.0, 210.0,  45.0)),
-    ("SENTINEL-1A",        _orb(7064, 98.2,  55.0, 160.0)),
-    ("LANDSAT 8",          _orb(7076, 98.2, 130.0, 290.0)),
-    ("COSMOS 2533",        _orb(6771, 65.0, 180.0, 310.0)),
-    ("NOAA 20",            _orb(7195, 98.74, 190.0,  75.0)),
-    ("SUOMI-NPP",          _orb(7195, 98.74, 200.0,  75.5)),   # closer pair
-    ("SENTINEL-2A",        _orb(7157, 98.57,  80.0, 200.0)),
-    ("SENTINEL-2B",        _orb(7157, 98.57,  80.5, 200.0)),
-    ("GRACE-FO A",         _orb(6861, 89.0,  10.0,  30.0)),
-    ("GRACE-FO B",         _orb(6861, 89.0,  10.0,  31.8)),    # 220 km behind
-    ("IRIDIUM 91",         _orb(7152, 86.4,  35.0, 100.0)),
-    ("IRIDIUM NEXT-101",   _orb(7152, 86.4,  95.0, 100.0)),
-    ("METOP-B",            _orb(7188, 98.7, 270.0, 150.0)),
-    ("METOP-C",            _orb(7188, 98.7, 270.0, 152.0)),
+    # (name, position, norad_id)
+    ("ISS (ZARYA)",        _orb(6779, 51.6,  45.0, 123.000), 25544),
+    ("PROGRESS MS-24",     _orb(6779, 51.6,  45.0, 123.025), 58400),  # ~3 km  CRITICAL
+    ("STARLINK-3456",      _orb(6921, 53.0, 120.0, 210.000), 44713),
+    ("STARLINK-3457",      _orb(6921, 53.0, 120.0, 210.115), 44714),  # ~14 km MEDIUM
+    ("TERRA",              _orb(7076, 98.2, 310.0,  87.000), 25994),
+    ("AQUA",               _orb(7076, 98.2, 310.0,  87.400), 27424),  # ~49 km LOW
+    ("NOAA 18",            _orb(7222, 99.0, 210.0,  45.0), 28654),
+    ("SENTINEL-1A",        _orb(7064, 98.2,  55.0, 160.0), 39384),
+    ("LANDSAT 8",          _orb(7076, 98.2, 130.0, 290.0), 39084),
+    ("COSMOS 2533",        _orb(6771, 65.0, 180.0, 310.0), 44594),
+    ("NOAA 20",            _orb(7195, 98.74, 190.0,  75.0), 43206),
+    ("SUOMI-NPP",          _orb(7195, 98.74, 200.0,  75.5), 37849),  # closer pair
+    ("SENTINEL-2A",        _orb(7157, 98.57,  80.0, 200.0), 40697),
+    ("SENTINEL-2B",        _orb(7157, 98.57,  80.5, 200.0), 42063),
+    ("GRACE-FO A",         _orb(6861, 89.0,  10.0,  30.0), 43476),
+    ("GRACE-FO B",         _orb(6861, 89.0,  10.0,  31.8), 43477),  # 220 km behind
+    ("IRIDIUM 91",         _orb(7152, 86.4,  35.0, 100.0), 24793),
+    ("IRIDIUM NEXT-101",   _orb(7152, 86.4,  95.0, 100.0), 42960),
+    ("METOP-B",            _orb(7188, 98.7, 270.0, 150.0), 38771),
+    ("METOP-C",            _orb(7188, 98.7, 270.0, 152.0), 43641),
 ]
 
 
@@ -143,16 +172,25 @@ def _estimate_velocity(pos: tuple, alt_km: float) -> tuple:
 
 
 def _build_pairs(sats: list, mode: str) -> dict:
+    """
+    Build conjunction pairs from satellite list.
+    sats: list of (name, pos, norad_id) tuples
+    """
     t0 = time.time()
 
     closest_heap = []
     pairs_checked = 0
-    for (n1, p1), (n2, p2) in itertools.combinations(sats, 2):
+    
+    for (n1, p1, id1), (n2, p2, id2) in itertools.combinations(sats, 2):
+        # Skip self-conjunction (same NORAD ID)
+        if id1 is not None and id2 is not None and id1 == id2:
+            continue
+        
         d = dist3d(p1, p2)
         if d < 0.5:  # skip co-located objects
             continue
         pairs_checked += 1
-        entry = (-d, n1, p1, n2, p2)
+        entry = (-d, n1, p1, n2, p2, id1, id2)
         if len(closest_heap) < CLOSEST_PAIR_COUNT:
             heapq.heappush(closest_heap, entry)
             continue
@@ -160,7 +198,8 @@ def _build_pairs(sats: list, mode: str) -> dict:
             heapq.heapreplace(closest_heap, entry)
 
     closest = []
-    for neg_dist, n1, p1, n2, p2 in sorted(closest_heap, key=lambda item: -item[0]):
+    for item in sorted(closest_heap, key=lambda item: -item[0]):
+        neg_dist, n1, p1, n2, p2, id1, id2 = item
         d = -neg_dist
         alt1 = _altitude(p1)
         alt2 = _altitude(p2)
@@ -171,11 +210,12 @@ def _build_pairs(sats: list, mode: str) -> dict:
         
         tca_time, tca_miss, pc, pc_scientific, confidence = calculate_tca_and_pc(p1, p2, v1, v2)
         
-        risk_before = classify_conjunction(d, alt)
+        risk_before = classify_conjunction(d, alt, v1, v2)
         maneuver = recommend_maneuver(d, risk_before)
-        risk_after = classify_conjunction(maneuver["new_distance_km"], alt)
+        risk_after = classify_conjunction(maneuver["new_distance_km"], alt, v1, v2)
         closest.append({
             "satellites": [n1, n2],
+            "norad_ids": [id1, id2],
             "tca_time": tca_time.isoformat() if tca_time else None,
             "miss_distance_km": round(tca_miss, 2),
             "probability_of_collision": pc,
@@ -201,31 +241,57 @@ def _build_pairs(sats: list, mode: str) -> dict:
     }
 
 
+def _extract_norad_id(line1: str) -> int | None:
+    """Extract NORAD catalog number from TLE line 1."""
+    try:
+        return int(line1[2:7].strip())
+    except (ValueError, IndexError):
+        return None
+
+
 def _select_public_tles(all_tles: list, catalog_stamp: str | None) -> list:
     if len(all_tles) <= MAX_SATELLITES:
         return list(all_tles)
 
     # Shuffle before slicing for public selection
     tle_blocks = list(all_tles)
-    import random
     random.shuffle(tle_blocks)
     selected = tle_blocks[:MAX_SATELLITES]
     return selected
+
+
+def _dedup_by_norad(tles: list) -> list:
+    """Deduplicate TLEs by NORAD ID, keeping first occurrence."""
+    seen_ids = set()
+    result = []
+    for name, l1, l2 in tles:
+        norad_id = _extract_norad_id(l2)  # NORAD ID is in line 2
+        if norad_id is None:
+            result.append((name, l1, l2, None))
+            continue
+        if norad_id not in seen_ids:
+            seen_ids.add(norad_id)
+            result.append((name, l1, l2, norad_id))
+    return result
 
 
 def _build_simulation_snapshot() -> dict:
     raw_tle_lines = get_tle_lines(cache="debris_merged")
     raw_tles = "\n".join(raw_tle_lines)
     all_tles = parse_tle_text(raw_tles, limit=LOCAL_TLE_COUNT_LIMIT)
-    total_catalog = len(all_tles)
+    
+    # Deduplicate by NORAD ID before selection
+    deduped_tles = _dedup_by_norad(all_tles)
+    total_catalog = len(deduped_tles)
+    
     catalog_stamp = get_local_timestamp()
-    selected_tles = _select_public_tles(all_tles, catalog_stamp)
+    selected_tles = _select_public_tles(deduped_tles, catalog_stamp)
 
     valid_sats = []
-    for name, l1, l2 in selected_tles:
+    for name, l1, l2, norad_id in selected_tles:
         pos = tle_to_position(l1, l2)
         if pos is not None:
-            valid_sats.append((name, pos))
+            valid_sats.append((name, pos, norad_id))
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
     mode_label = "local" if len(valid_sats) >= 3 else "simulation"
@@ -235,19 +301,28 @@ def _build_simulation_snapshot() -> dict:
 
     now_utc = datetime.now(timezone.utc)
     sat_positions = []
-    for name, pos in sats_for_pairs:
+    for sat_data in sats_for_pairs:
+        name = sat_data[0]
+        pos = sat_data[1]
+        norad_id = sat_data[2] if len(sat_data) > 2 else None
         try:
             lat, lon, alt = teme_to_geodetic(pos, utc_dt=now_utc)
-            sat_positions.append({"name": name, "lat": lat, "lon": lon, "alt_km": alt})
+            sat_positions.append({
+                "name": name, 
+                "lat": lat, 
+                "lon": lon, 
+                "alt_km": alt,
+                "norad_id": norad_id,
+            })
         except Exception:
             pass
 
     result["meta"] = {
         "satellites": len(sat_positions),
         "public_objects": len(selected_tles),
-        "tle_records": total_catalog,
+        "total_tle_records": total_catalog,
+        "deduplicated_records": total_catalog,  # Same after dedup
         "tle_source": tle_source,
-        "total_catalog": total_catalog,
         "satellites_screened": len(sats_for_pairs),
         "pairs_checked": result["meta"]["pairs_checked"],
         "processing_ms": result["meta"]["processing_ms"],
@@ -285,5 +360,11 @@ def _get_cached_simulation() -> dict:
 async def simulate(request: Request):
     force = request.query_params.get("refresh", "").lower() in ("1", "true", "yes")
     if force:
+        print("[SIMULATE] Force refresh requested, triggering TLE cache refresh...")
+        refresh_all_caches(force=True)
         _SIMULATION_CACHE["expires_at"] = 0
     return _get_cached_simulation()
+
+
+# Start background refresh thread on module load
+_start_tle_background_refresh()
