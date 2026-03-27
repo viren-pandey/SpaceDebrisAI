@@ -17,6 +17,11 @@ const MONITOR_DROPDOWN = [
   { label: "Debris", to: "/all-debris" },
 ];
 
+const SECONDARY_LINKS = [
+  { label: "Docs", to: "/docs" },
+  { label: "About", to: "/about" },
+];
+
 const BRAND = [
   { chars: "Space",  base: 0 },
   { chars: "Debris", base: 5 },
@@ -140,6 +145,17 @@ export default function Navbar({ live, theme, onToggleTheme }) {
               </svg>
             )}
           </button>
+
+          {/* Secondary links */}
+          {SECONDARY_LINKS.map(({ label, to }) => (
+            <NavLink
+              key={label}
+              to={to}
+              className={({ isActive }) => isActive ? "nav-link nav-link-active" : "nav-link"}
+            >
+              {label}
+            </NavLink>
+          ))}
 
           {/* API link */}
           <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
