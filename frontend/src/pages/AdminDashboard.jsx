@@ -13,14 +13,8 @@ export default function AdminDashboard() {
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
   const [activeTab, setActiveTab] = useState("users");
-  const [adminKey, setAdminKey] = useState(() => {
-    const stored = localStorage.getItem("admin_key");
-    return stored === ADMIN_KEY ? stored : "";
-  });
-  const [isAuthenticated, setIsAuthenticated] = useState(() => {
-    const stored = localStorage.getItem("admin_key");
-    return stored === ADMIN_KEY;
-  });
+  const [adminKey, setAdminKey] = useState("");
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [loginForm, setLoginForm] = useState({ email: "", password: "" });
   const [loginError, setLoginError] = useState("");
   const [banForm, setBanForm] = useState({ identifier: "", ip: "", email: "", reason: "" });
@@ -29,9 +23,9 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     const storedKey = localStorage.getItem("admin_key");
-    if (storedKey === ADMIN_KEY) {
-      setIsAuthenticated(true);
+    if (storedKey) {
       setAdminKey(storedKey);
+      setIsAuthenticated(true);
     }
   }, []);
 
