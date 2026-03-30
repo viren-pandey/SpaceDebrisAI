@@ -39,7 +39,6 @@ const TECH = [
 export default function About() {
   return (
     <>
-      {/* Page hero */}
       <div className="page-hero about-hero">
         <div className="page-hero-eyebrow">About the project</div>
         <h1 className="page-hero-title">How SpaceDebrisAI works</h1>
@@ -49,7 +48,6 @@ export default function About() {
         </p>
       </div>
 
-      {/* How it works */}
       <section className="about-section">
         <h2 className="about-section-title">How it works</h2>
         <div className="steps-grid">
@@ -66,7 +64,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* Tech stack */}
       <section className="about-section">
         <h2 className="about-section-title">Technology stack</h2>
         <div className="tech-grid">
@@ -80,7 +77,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* Key features */}
       <section className="about-section">
         <h2 className="about-section-title">Key capabilities</h2>
         <div className="feature-grid">
@@ -89,7 +85,7 @@ export default function About() {
             ["Multi-pair screening", "The public simulation screens the current 2000-object slice from the cached catalog on a short server-side result cache"],
             ["Risk classification",  "Altitude-weighted scoring mapped to four actionable risk levels"],
             ["Maneuver planning",    "Per-risk-level delta-v recommendations with post-maneuver distance estimates"],
-            ["Tiered API access",    "Free public access covers a 2000-object slice, with a paid 10k+ object tier announced at $10/month and 5-second polling"],
+            ["Fair-use API access",  "Public access is monitored server-side, with explicit polling terms, automatic throttling, and automatic bans for repeated abuse"],
             ["API-first design",     "Full REST API at /simulate, /satellites, and /health with auto-generated Swagger docs"],
           ].map(([title, desc]) => (
             <div className="feature-card" key={title}>
@@ -103,7 +99,6 @@ export default function About() {
         </div>
       </section>
 
-      {/* Credit */}
       <section className="about-credit">
         <p>Built by <strong style={{ color: "var(--text-1)" }}>Viren Pandey</strong> — 2026 — SpaceDebrisAI</p>
         <p style={{ marginTop: 6 }}>

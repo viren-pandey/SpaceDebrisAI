@@ -65,11 +65,11 @@ export default function Login() {
       <div className="login-shell">
         <section className="login-showcase">
           <p className="login-eyebrow">Developer access</p>
-          <h1 className="login-display-title">Access the debris monitoring API with free and paid tiers.</h1>
+          <h1 className="login-display-title">Access the debris monitoring API with enforced public fair use.</h1>
           <p className="login-copy">
             Create a free account to keep your API key attached to your profile and access the public
-            2000-object tier. The backend now keeps a 33k+ local debris TLE catalog refreshed from KeepTrack,
-            and the announced paid tier expands access to 10k+ objects with 5-second polling.
+            2000-object tier. The backend keeps a 33k+ local debris TLE catalog refreshed from KeepTrack,
+            and issued keys now require polling-term acceptance before they can be used safely.
           </p>
 
           <div className="login-stat-row">
@@ -82,8 +82,8 @@ export default function Login() {
               <span>Cached TLE records</span>
             </div>
             <div className="login-stat-card">
-              <strong>$10</strong>
-              <span>Paid tier</span>
+              <strong>10s</strong>
+              <span>Min poll interval</span>
             </div>
           </div>
 
@@ -105,8 +105,8 @@ export default function Login() {
             <div className="login-feature-item">
               <span className="login-feature-mark">03</span>
               <div>
-                <h2>Paid scale</h2>
-                <p>The announced paid tier targets 10k+ objects for $10 per month with a 5-second polling cadence.</p>
+                <h2>Polling enforcement</h2>
+                <p>Accepted keys are monitored for abuse, and repeated over-polling results in automatic bans.</p>
               </div>
             </div>
           </div>

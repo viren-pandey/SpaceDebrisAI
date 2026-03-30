@@ -4,9 +4,7 @@ import { Link } from "react-router-dom";
 const BASE = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const PUBLIC_OBJECT_LIMIT = 500;
 const CACHED_TLE_RECORDS = "33k+";
-const PAID_OBJECT_COUNT = "10k+";
-const PAID_PRICE = "$10";
-const PAID_POLLING = "5 sec";
+const MIN_POLLING = "10 sec";
 
 const SECTIONS = [
   {
@@ -201,7 +199,7 @@ export default function Docs() {
             <Pill text={`${PUBLIC_OBJECT_LIMIT} public objects`} color="#4ade80" />
             <Pill text={`${CACHED_TLE_RECORDS} TLE records`} color="#f59e0b" />
             <Pill text="SGP4" color="#818cf8" />
-            <Pill text={`${PAID_PRICE} paid tier announced`} color="#22c55e" />
+            <Pill text={`${MIN_POLLING} min polling`} color="#22c55e" />
           </div>
         </div>
 
@@ -228,15 +226,15 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
 
         <Section id="authentication" title="Authentication">
           <p className="docs-p">
-            All endpoints except <code className="ap-inline-code">/health</code> and{" "}
-            <code className="ap-inline-code">/docs</code> require an API key.
+            Programmatic access should send an API key on every request except{" "}
+            <code className="ap-inline-code">/health</code> and <code className="ap-inline-code">/docs</code>.
             Pass it as a request header:
           </p>
           <Code lang="http">{`X-API-Key: sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live`}</Code>
           <p className="docs-p">
-            Generate a saved account key or a browser-only guest key on the{" "}
+            Generate a backend-issued account key or a browser-only guest key on the{" "}
             <Link to="/api" className="docs-link">API keys page</Link>.
-            Account keys are stored with your profile; guest keys stay in the current browser only.
+            You must accept the polling terms before a key is issued.
           </p>
 
           <h3 className="docs-h3">Authentication errors</h3>
@@ -244,7 +242,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             <thead><tr><th>Status</th><th>Meaning</th></tr></thead>
             <tbody>
               <tr><td><code className="ap-inline-code">401</code></td><td>Missing or invalid <code className="ap-inline-code">X-API-Key</code> header</td></tr>
-              <tr><td><code className="ap-inline-code">429</code></td><td>Rate limit exceeded (60 req/min)</td></tr>
+              <tr><td><code className="ap-inline-code">429</code></td><td>Fair-use limit exceeded or polling too quickly</td></tr>
             </tbody>
           </table>
         </Section>
@@ -410,15 +408,15 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
               <div className="docs-limit-label">cached TLE records</div>
             </div>
             <div className="docs-limit-card">
-              <div className="docs-limit-val">{PAID_POLLING}</div>
-              <div className="docs-limit-label">announced paid polling</div>
+              <div className="docs-limit-val">{MIN_POLLING}</div>
+              <div className="docs-limit-label">minimum polling interval</div>
             </div>
           </div>
           <p className="docs-p" style={{ marginTop: "1.5rem" }}>
             This is still a research and demonstration API. Public access currently exposes
-            the 2000-object slice, while the announced paid tier targets {PAID_OBJECT_COUNT} objects for
-            {` ${PAID_PRICE} `}per month with faster polling. Debris data is sourced through an hourly
-            KeepTrack refresh job and served from the local cache on every public request.
+            the 2000-object slice. Authenticated traffic is monitored against the published polling terms,
+            and repeated violations are throttled and then banned automatically. Debris data is sourced
+            through an hourly KeepTrack refresh job and served from the local cache on every public request.
           </p>
         </Section>
       </main>
