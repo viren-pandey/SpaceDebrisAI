@@ -17,7 +17,7 @@ router = APIRouter()
 EARTH_RADIUS_KM = 6371.0
 MAX_SATELLITES = 2000
 LOCAL_TLE_COUNT_LIMIT = 1000000
-SIMULATION_CACHE_TTL_SECONDS = 300
+SIMULATION_CACHE_TTL_SECONDS = 600
 CLOSEST_PAIR_COUNT = 20
 _SIMULATION_CACHE_LOCK = threading.Lock()
 _SIMULATION_CACHE = {
@@ -283,4 +283,7 @@ def _get_cached_simulation() -> dict:
 
 @router.get("/simulate")
 async def simulate(request: Request):
+    force = request.query_params.get("refresh", "").lower() in ("1", "true", "yes")
+    if force:
+        _SIMULATION_CACHE["expires_at"] = 0
     return _get_cached_simulation()

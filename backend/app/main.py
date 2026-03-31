@@ -1,4 +1,5 @@
 import os
+import threading
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
@@ -8,11 +9,24 @@ from app.services.tle_fetcher import start_background_refresh
 from app.services.usage_metrics import RateLimitMiddleware
 
 
+def _warm_simulation_cache():
+    """Pre-warm the simulation cache on startup."""
+    try:
+        from app.routes.simulate import _get_cached_simulation
+        _get_cached_simulation()
+        print("Simulation cache warmed successfully")
+    except Exception as exc:
+        print(f"Warning: Could not warm simulation cache: {exc}")
+
+
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
     # Do not block app startup on remote TLE refresh. HF Spaces can return 503
     # if lifespan work stalls or remote catalog fetches are degraded.
     start_background_refresh()
+    
+    # Warm simulation cache in background (don't block startup)
+    threading.Thread(target=_warm_simulation_cache, daemon=True).start()
     yield
 
 

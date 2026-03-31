@@ -1,9 +1,16 @@
 import json
+import os
 import threading
 import time
 from pathlib import Path
 
 import requests
+from dotenv import load_dotenv
+
+load_dotenv()
+
+_KEEPTRACK_API_KEY = os.getenv("KEEPTRACK_API_KEY", "")
+_KEEPTRACK_HEADERS = {"X-API-Key": _KEEPTRACK_API_KEY} if _KEEPTRACK_API_KEY else {}
 
 _KEEPTRACK_FULL_URL = "https://api.keeptrack.space/v4/sats"
 _KEEPTRACK_LEO_DEBRIS_URL = "https://api.keeptrack.space/v4/sats/leo/debris"
@@ -127,7 +134,7 @@ def _write_last_update(value: str) -> None:
 
 
 def fetch_remote_last_update() -> str:
-    response = requests.get(_KEEPTRACK_LAST_UPDATE_URL, timeout=10)
+    response = requests.get(_KEEPTRACK_LAST_UPDATE_URL, headers=_KEEPTRACK_HEADERS, timeout=10)
     response.raise_for_status()
     try:
         payload = response.json()
@@ -137,7 +144,7 @@ def fetch_remote_last_update() -> str:
 
 
 def _fetch_from_url(url: str) -> str:
-    response = requests.get(url, timeout=30)
+    response = requests.get(url, headers=_KEEPTRACK_HEADERS, timeout=30)
     response.raise_for_status()
     tle_text = ""
     try:
@@ -243,7 +250,28 @@ def _trigger_force_refresh() -> None:
     fetch_and_cache(force=True)
 
 
+def _caches_are_empty() -> bool:
+    try:
+        full_content = _FULL_TLE_FILE.read_text(encoding="utf-8").strip()
+        leo_content = _LEO_DEBRIS_FILE.read_text(encoding="utf-8").strip()
+        all_content = _ALL_DEBRIS_FILE.read_text(encoding="utf-8").strip()
+        return not (full_content or leo_content or all_content)
+    except FileNotFoundError:
+        return True
+
+
+def _ensure_initial_cache() -> None:
+    if _caches_are_empty():
+        print("Cache files empty or missing, forcing initial TLE refresh...")
+        try:
+            refresh_all_caches(force=True)
+            print("Initial TLE cache refresh completed")
+        except Exception as exc:
+            print(f"Initial TLE cache refresh failed: {exc}")
+
+
 def start_background_refresh() -> None:
+    _ensure_initial_cache()
     start_refresh_thread()
 
 
