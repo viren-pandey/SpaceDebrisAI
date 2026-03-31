@@ -271,7 +271,7 @@ export async function askCascadeQuestion(payload) {
 
 export async function fetchSatellites() {
   try {
-    return await fetchAuthedJson(`${API}/satellites`);
+    return await fetchPublicJson(`${API}/satellites`);
   } catch (err) {
     if (err.name === "AbortError") {
       throw new Error("Satellite request timed out. Backend is overloaded or slow.");
@@ -282,7 +282,7 @@ export async function fetchSatellites() {
 
 export async function fetchSimulationAuthed() {
   try {
-    return await fetchAuthedJson(`${API}/simulate`);
+    return await fetchPublicJson(`${API}/simulate`);
   } catch (err) {
     if (err.name === "AbortError") {
       throw new Error("Simulation request timed out. Backend is overloaded or slow.");

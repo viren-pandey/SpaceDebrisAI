@@ -85,15 +85,15 @@ def _fallback_answer(question: str, snapshot: Dict[str, Any], affected_systems: 
     warning_count = len(snapshot.get("warnings", []))
 
     return (
-        f"### Cascade Assessment\n"
-        f"Your question points to **{systems}**. In the current live snapshot, the highest tracked object risk is **{highest_label}**, "
-        f"while the catalog-wide average ODRI is **{summary.get('average_odri', 0.0):.3f}**.\n\n"
-        f"### What That Means\n"
-        f"Orbital debris cascading raises mission risk when dense shells accumulate unresolved conjunctions and operators lose maneuver margin. "
-        f"Right now there are **{warning_count} active conjunction warnings** represented in the live ODRI context, which means downstream effects can propagate into service continuity, launch planning, and crewed operations if density continues to climb.\n\n"
-        f"### Practical Interpretation\n"
-        f"For this scenario, watch the highest-risk shell, monitor how quickly projected ODRI moves toward the warning band, and prioritize assets with low maneuver resilience. "
-        f"That is the fastest way to translate the live debris picture into Earth-impact consequences."
+        f"### Live Assessment\n"
+        f"I am grounding this answer in the current ODRI snapshot. The systems most exposed here are **{systems}**. "
+        f"At this moment, the leading tracked object is **{highest_label}**, and the catalog-wide average ODRI is **{summary.get('average_odri', 0.0):.3f}**.\n\n"
+        f"### Analyst Read\n"
+        f"Debris cascading becomes operationally dangerous when dense shells keep generating unresolved encounters faster than operators can maneuver around them. "
+        f"The current snapshot shows **{warning_count} active conjunction warnings**, so the network is not in a collision spike right now, but congestion can still amplify service and launch risk if shell density keeps rising.\n\n"
+        f"### What I Would Watch Next\n"
+        f"Monitor the highest-risk shell, track whether projected ODRI is drifting toward the warning band, and focus on assets with weak maneuver resilience. "
+        f"That is the shortest path from the live orbital picture to real Earth-impact consequences."
     )
 
 
@@ -109,13 +109,19 @@ async def _groq_answer(question: str, context: str) -> str | None:
             {
                 "role": "system",
                 "content": (
-                    "You explain orbital debris cascading in plain language. "
-                    "Ground every answer in the supplied live ODRI data, do not invent measurements, and use concise markdown."
+                    "You are Cascade Intelligence, an orbital-risk analyst embedded in SpaceDebrisAI. "
+                    "Answer like a real analyst working the live debris picture right now. "
+                    "Ground every answer in the supplied ODRI and conjunction context, do not invent measurements, "
+                    "be direct, useful, and confident, and use concise markdown with short section headings when helpful."
                 ),
             },
             {
                 "role": "user",
-                "content": f"{context}\nAnswer the user's question: {question}",
+                "content": (
+                    f"{context}\n"
+                    f"Answer the user's question: {question}\n"
+                    "Requirements: explain what the live data says first, then interpret impact, then give the next thing to watch."
+                ),
             },
         ],
         "temperature": 0.35,

@@ -3,16 +3,15 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.services.tle_fetcher import refresh_all_caches, start_background_refresh
+
+from app.services.tle_fetcher import start_background_refresh
 from app.services.usage_metrics import RateLimitMiddleware
 
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
-    try:
-        refresh_all_caches(force=True)
-    except Exception as exc:
-        print(f"TLE startup refresh failed; continuing with local cache: {exc}")
+    # Do not block app startup on remote TLE refresh. HF Spaces can return 503
+    # if lifespan work stalls or remote catalog fetches are degraded.
     start_background_refresh()
     yield
 

@@ -13,6 +13,7 @@ import {
 const CRITICAL_THRESHOLD = 0.85;
 const REFRESH_INTERVAL_MS = 60_000;
 const STAGGER_MS = 1_100;
+const CASCADE_CACHE_KEY = "sdai_cascade_snapshot";
 
 function sleep(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -208,16 +209,49 @@ function LeaderSkeleton() {
   );
 }
 
+function readCachedCascadeState() {
+  if (typeof window === "undefined") return null;
+  try {
+    const raw = localStorage.getItem(CASCADE_CACHE_KEY);
+    if (!raw) return null;
+    const parsed = JSON.parse(raw);
+    return {
+      satellitesPayload: parsed.satellitesPayload ?? null,
+      simulationPayload: parsed.simulationPayload ?? null,
+      snapshot: parsed.snapshot ?? null,
+      cachedAt: parsed.cachedAt ?? null,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function writeCachedCascadeState(nextState) {
+  if (typeof window === "undefined") return;
+  try {
+    localStorage.setItem(CASCADE_CACHE_KEY, JSON.stringify({
+      satellitesPayload: nextState.satellitesPayload ?? null,
+      simulationPayload: nextState.simulationPayload ?? null,
+      snapshot: nextState.snapshot ?? null,
+      cachedAt: new Date().toISOString(),
+    }));
+  } catch {
+    // Ignore storage quota or serialization failures.
+  }
+}
+
 function CascadeIntelligenceContent() {
-  const [satellitesPayload, setSatellitesPayload] = useState(null);
-  const [simulationPayload, setSimulationPayload] = useState(null);
-  const [snapshot, setSnapshot] = useState(null);
+  const cachedState = useMemo(() => readCachedCascadeState(), []);
+  const [satellitesPayload, setSatellitesPayload] = useState(cachedState?.satellitesPayload ?? null);
+  const [simulationPayload, setSimulationPayload] = useState(cachedState?.simulationPayload ?? null);
+  const [snapshot, setSnapshot] = useState(cachedState?.snapshot ?? null);
   const [question, setQuestion] = useState("");
   const [chatHistory, setChatHistory] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!cachedState);
   const [refreshing, setRefreshing] = useState(false);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState(null);
+  const [staleData, setStaleData] = useState(Boolean(cachedState));
   const refreshSeqRef = useRef(0);
 
   const stats = useMemo(
@@ -241,15 +275,19 @@ function CascadeIntelligenceContent() {
   const loadAllData = useCallback(async ({ initial = false } = {}) => {
     const requestId = refreshSeqRef.current + 1;
     refreshSeqRef.current = requestId;
-    if (initial) setLoading(true);
+    if (initial && !snapshot && !simulationPayload && !satellitesPayload) setLoading(true);
     setRefreshing(true);
     setError(null);
 
     let nextError = null;
+    let nextSatellites = satellitesPayload;
+    let nextSimulation = simulationPayload;
+    let nextSnapshot = snapshot;
 
     try {
       const satellites = await fetchSatellites();
       if (refreshSeqRef.current !== requestId) return;
+      nextSatellites = satellites;
       setSatellitesPayload(satellites);
     } catch (err) {
       nextError = err.message;
@@ -261,6 +299,7 @@ function CascadeIntelligenceContent() {
     try {
       const simulation = await fetchSimulationAuthed();
       if (refreshSeqRef.current !== requestId) return;
+      nextSimulation = simulation;
       setSimulationPayload(simulation);
     } catch (err) {
       nextError = nextError ?? err.message;
@@ -270,19 +309,29 @@ function CascadeIntelligenceContent() {
     if (refreshSeqRef.current !== requestId) return;
 
     try {
-      const nextSnapshot = await fetchOdriSnapshot(25);
+      const odriSnapshot = await fetchOdriSnapshot(25);
       if (refreshSeqRef.current !== requestId) return;
-      setSnapshot(nextSnapshot);
+      nextSnapshot = odriSnapshot;
+      setSnapshot(odriSnapshot);
     } catch (err) {
       nextError = nextError ?? err.message;
     }
 
     if (refreshSeqRef.current === requestId) {
-      setError(nextError);
+      const hasAnyLiveData = Boolean(nextSatellites || nextSimulation || nextSnapshot);
+      if (hasAnyLiveData) {
+        writeCachedCascadeState({
+          satellitesPayload: nextSatellites,
+          simulationPayload: nextSimulation,
+          snapshot: nextSnapshot,
+        });
+      }
+      setStaleData(Boolean(nextError && hasAnyLiveData));
+      setError(nextError && !hasAnyLiveData ? nextError : nextError ? `Live services unavailable. Showing last known data. ${nextError}` : null);
       setLoading(false);
       setRefreshing(false);
     }
-  }, []);
+  }, [satellitesPayload, simulationPayload, snapshot]);
 
   useEffect(() => {
     let mounted = true;
@@ -396,16 +445,71 @@ function CascadeIntelligenceContent() {
 
         <div className="ci-hero-foot">
           <span className="ci-updated">Updated {formatTime(updatedAt)}</span>
+          {staleData ? <span className="ci-stale-banner">Showing cached telemetry</span> : null}
           {error ? <span className="ci-fallback-banner">{error}</span> : null}
         </div>
       </section>
 
-      <section className="ci-grid">
-        <article className="ci-panel">
+      <section className="ci-shell">
+        <aside className="ci-side ci-side--left">
+          <div className="ci-panel">
+            <div className="ci-panel-head">
+              <div>
+                <p className="ci-kicker">Highest Risk Objects</p>
+                <h2 className="ci-title">Current Leaders</h2>
+              </div>
+            </div>
+            <div className="ci-object-list">
+              {loading && !leaders.length
+                ? Array.from({ length: 5 }, (_, index) => <LeaderSkeleton key={index} />)
+                : leaders.map((item) => (
+                    <div key={item.satId} className="ci-object-card">
+                      <div>
+                        <div className="ci-object-name">{item.objectName}</div>
+                        <div className="ci-object-meta">
+                          <span className="ci-object-id">NORAD {item.noradId}</span>
+                          <span className="ci-object-alt">{item.altitudeKm ? `${Math.round(item.altitudeKm)} km` : "Altitude pending"}</span>
+                        </div>
+                      </div>
+                      <div className="ci-object-score">
+                        <strong>{item.odri.toFixed(3)}</strong>
+                        <span>{item.riskLevel}</span>
+                        <i className={`ci-object-trend ci-object-trend--${item.trend}`}>{item.trend}</i>
+                      </div>
+                    </div>
+                  ))}
+            </div>
+          </div>
+
+          <div className="ci-panel ci-brief">
+            <div className="ci-panel-head">
+              <div>
+                <p className="ci-kicker">Analyst Feed</p>
+                <h2 className="ci-title">Mission Brief</h2>
+              </div>
+            </div>
+            <div className="ci-brief-list">
+              <div className="ci-brief-item">
+                <span className="ci-brief-label">Top threat</span>
+                <strong>{leaders[0]?.objectName ?? "Pending live data"}</strong>
+              </div>
+              <div className="ci-brief-item">
+                <span className="ci-brief-label">Network state</span>
+                <strong>{getRiskLevel(stats.averageOdri)}</strong>
+              </div>
+              <div className="ci-brief-item">
+                <span className="ci-brief-label">Conjunction pressure</span>
+                <strong>{simulationPayload?.closest_pairs?.length ?? 0} screened pairs in focus</strong>
+              </div>
+            </div>
+          </div>
+        </aside>
+
+        <article className="ci-panel ci-panel--chat">
           <div className="ci-panel-head">
             <div>
               <p className="ci-kicker">AI Debris Briefing</p>
-              <h2 className="ci-title">Cascade Intelligence Console</h2>
+              <h2 className="ci-title">Cascade Intelligence Agent</h2>
             </div>
             {chatHistory.length ? (
               <span className="ci-badge">
@@ -429,7 +533,7 @@ function CascadeIntelligenceContent() {
               className="ci-textarea"
             />
             <div className="ci-form-row">
-              <div className="ci-form-note">Requests include your configured X-API-Key and live ODRI context</div>
+              <div className="ci-form-note">Live orbital analyst grounded in current ODRI, shell density, and conjunction data</div>
               <button type="submit" disabled={asking || !question.trim()} className="ci-submit">
                 {asking ? "Analyzing..." : "Ask AI"}
               </button>
@@ -476,7 +580,7 @@ function CascadeIntelligenceContent() {
           </div>
         </article>
 
-        <aside className="ci-side">
+        <aside className="ci-side ci-side--right">
           <div className="ci-panel">
             <div className="ci-panel-head">
               <div>
@@ -486,35 +590,6 @@ function CascadeIntelligenceContent() {
               <div className="ci-updated">Updated {formatTime(updatedAt)}</div>
             </div>
             <CascadeRiskCards cards={cards} loading={loading && !snapshot && !simulationPayload} />
-          </div>
-
-          <div className="ci-panel">
-            <div className="ci-panel-head">
-              <div>
-                <p className="ci-kicker">Highest Risk Objects</p>
-                <h2 className="ci-title">Current Leaders</h2>
-              </div>
-            </div>
-            <div className="ci-object-list">
-              {loading && !leaders.length
-                ? Array.from({ length: 5 }, (_, index) => <LeaderSkeleton key={index} />)
-                : leaders.map((item) => (
-                    <div key={item.satId} className="ci-object-card">
-                      <div>
-                        <div className="ci-object-name">{item.objectName}</div>
-                        <div className="ci-object-meta">
-                          <span className="ci-object-id">NORAD {item.noradId}</span>
-                          <span className="ci-object-alt">{item.altitudeKm ? `${Math.round(item.altitudeKm)} km` : "Altitude pending"}</span>
-                        </div>
-                      </div>
-                      <div className="ci-object-score">
-                        <strong>{item.odri.toFixed(3)}</strong>
-                        <span>{item.riskLevel}</span>
-                        <i className={`ci-object-trend ci-object-trend--${item.trend}`}>{item.trend}</i>
-                      </div>
-                    </div>
-                  ))}
-            </div>
           </div>
         </aside>
       </section>

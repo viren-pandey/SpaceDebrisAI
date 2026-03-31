@@ -25,6 +25,8 @@ const SECTIONS = [
       { id: "ep-sats", label: "GET /satellites" },
       { id: "ep-simulate", label: "GET /simulate" },
       { id: "ep-tracker", label: "GET /tracker/positions" },
+      { id: "ep-odri", label: "GET /risk/odri" },
+      { id: "ep-cascade", label: "POST /cascade/ask" },
     ],
   },
   {
@@ -191,7 +193,8 @@ export default function Docs() {
           <h1 className="docs-h1">SpaceDebrisAI API</h1>
           <p className="docs-h1-sub">
             REST API for real-time orbital tracking, proximity risk classification,
-            and AI-powered avoidance maneuver recommendations.
+            AI-powered avoidance maneuver recommendations, live ODRI scoring,
+            and cascade intelligence answers grounded in the current risk snapshot.
             Built on SGP4 propagation over a public {PUBLIC_OBJECT_LIMIT}-object slice backed by a 33k+ hourly-refreshed KeepTrack cache.
           </p>
           <div className="docs-header-pills">
@@ -228,6 +231,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
           <p className="docs-p">
             Programmatic access should send an API key on every request except{" "}
             <code className="ap-inline-code">/health</code> and <code className="ap-inline-code">/docs</code>.
+            Public read endpoints now retry anonymously in the web client if the browser is holding a stale key.
             Pass it as a request header:
           </p>
           <Code lang="http">{`X-API-Key: sdai_xxxxxxxxxxxxxxxxxxxxxxxx_live`}</Code>
@@ -243,6 +247,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             <tbody>
               <tr><td><code className="ap-inline-code">401</code></td><td>Missing or invalid <code className="ap-inline-code">X-API-Key</code> header</td></tr>
               <tr><td><code className="ap-inline-code">429</code></td><td>Fair-use limit exceeded or polling too quickly</td></tr>
+              <tr><td><code className="ap-inline-code">403</code></td><td>API key banned, inactive, or blocked by fair-use enforcement</td></tr>
             </tbody>
           </table>
         </Section>
@@ -334,6 +339,69 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             }}
             example={`curl -H "X-API-Key: YOUR_KEY" ${BASE}/tracker/positions | jq '.satellites[0]'`}
           />
+
+          <Endpoint
+            id="ep-odri"
+            method="GET"
+            path="/risk/odri"
+            auth
+            desc="Returns the live Orbital Debris Risk Index snapshot. Without query parameters it returns the top-risk objects plus a 30-day projection timeline. With sat_id it returns a single-object breakdown including sigma, omega, psi, phi, and projected ODRI."
+            params={[
+              { name: "sat_id", type: "string", required: false, desc: "NORAD id or object name to resolve a single ODRI record" },
+              { name: "delta_t", type: "number", required: false, desc: "Projection horizon in days for single-object lookups (default 7)" },
+              { name: "limit", type: "integer", required: false, desc: "Number of top-risk objects to return when sat_id is omitted (default 10)" },
+            ]}
+            response={{
+              items: [
+                {
+                  sat_id: "01575",
+                  object_name: "SL-8 R/B",
+                  odri: 0.0016,
+                  projected_odri: 0.0021,
+                  risk_level: "NOMINAL",
+                  components: {
+                    sigma_collision: 0.6718,
+                    omega_cascade: 0.0048,
+                    psi_temporal: 0.5062,
+                    phi_maneuver: 1.0,
+                  },
+                },
+              ],
+              summary: {
+                tracked_count: 320,
+                average_odri: 0.0004,
+                average_shell_density: 1.3e-9,
+                active_conjunction_warnings: 4,
+              },
+              timeline: [
+                { date: "2026-03-23", projected_odri: 0.0005, critical_threshold: 0.85, risk_level: "NOMINAL" },
+              ],
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/risk/odri?limit=5" | jq '.items[0]'`}
+          />
+
+          <Endpoint
+            id="ep-cascade"
+            method="POST"
+            path="/cascade/ask"
+            auth
+            desc="Returns a natural-language cascade assessment grounded in the live ODRI snapshot, shell density, and active conjunction warnings. The backend uses Groq when configured and falls back to a deterministic summary when no model key is present."
+            params={[]}
+            response={{
+              answer: "### Cascade Assessment\nThe current snapshot shows...",
+              risk_relevance: 0.72,
+              affected_systems: ["GPS", "ISS"],
+              cascade_threat_level: "NOMINAL",
+              odri_snapshot: {
+                summary: { average_odri: 0.0004, active_conjunction_warnings: 4 },
+                top_objects: [{ sat_id: "01575", object_name: "SL-8 R/B", odri: 0.0016 }],
+              },
+            }}
+            example={`curl -X POST "${BASE}/cascade/ask" \\
+  -H "Content-Type: application/json" \\
+  -H "X-API-Key: YOUR_KEY" \\
+  -d '{"question":"How does solar activity worsen debris cascading?","context":{"include_live_odri":true,"sat_ids":[]}}'`}
+          />
         </Section>
 
         <Section id="errors" title="Error handling">
@@ -348,8 +416,9 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             <tbody>
               <tr><td><code className="ap-inline-code">200</code></td><td>Success</td></tr>
               <tr><td><code className="ap-inline-code">401</code></td><td>Unauthorized - check your <code className="ap-inline-code">X-API-Key</code></td></tr>
+              <tr><td><code className="ap-inline-code">403</code></td><td>Forbidden - banned key, blocked client, or inactive key</td></tr>
               <tr><td><code className="ap-inline-code">422</code></td><td>Validation error - invalid query parameters</td></tr>
-              <tr><td><code className="ap-inline-code">429</code></td><td>Too many requests - rate limit exceeded</td></tr>
+              <tr><td><code className="ap-inline-code">429</code></td><td>Too many requests - rate limit exceeded, includes a <code className="ap-inline-code">Retry-After</code> header</td></tr>
               <tr><td><code className="ap-inline-code">500</code></td><td>Server error - TLE propagation failed or backend unavailable</td></tr>
             </tbody>
           </table>
@@ -382,6 +451,21 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             </tbody>
           </table>
 
+          <h3 className="docs-h3">ODRI object</h3>
+          <table className="docs-table">
+            <thead><tr><th>Field</th><th>Type</th><th>Description</th></tr></thead>
+            <tbody>
+              <tr><td><code className="ap-inline-code">sat_id</code></td><td>string</td><td>NORAD id or derived object id</td></tr>
+              <tr><td><code className="ap-inline-code">odri</code></td><td>number</td><td>Current orbital debris risk index score</td></tr>
+              <tr><td><code className="ap-inline-code">projected_odri</code></td><td>number</td><td>Forward projected ODRI score</td></tr>
+              <tr><td><code className="ap-inline-code">components.sigma_collision</code></td><td>number</td><td>Collision susceptibility term</td></tr>
+              <tr><td><code className="ap-inline-code">components.omega_cascade</code></td><td>number</td><td>Shell cascade amplification term</td></tr>
+              <tr><td><code className="ap-inline-code">components.psi_temporal</code></td><td>number</td><td>Time-to-approach urgency term</td></tr>
+              <tr><td><code className="ap-inline-code">components.phi_maneuver</code></td><td>number</td><td>Maneuver resilience term</td></tr>
+              <tr><td><code className="ap-inline-code">risk_level</code></td><td>string</td><td>NOMINAL, ELEVATED, ADVISORY, WARNING, or CRITICAL</td></tr>
+            </tbody>
+          </table>
+
           <h3 className="docs-h3">Risk levels</h3>
           <table className="docs-table">
             <thead><tr><th>Level</th><th>Distance</th><th>Action</th></tr></thead>
@@ -411,12 +495,18 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
               <div className="docs-limit-val">{MIN_POLLING}</div>
               <div className="docs-limit-label">minimum polling interval</div>
             </div>
+            <div className="docs-limit-card">
+              <div className="docs-limit-val">3</div>
+              <div className="docs-limit-label">violations before ban</div>
+            </div>
           </div>
           <p className="docs-p" style={{ marginTop: "1.5rem" }}>
             This is still a research and demonstration API. Public access currently exposes
             the 2000-object slice. Authenticated traffic is monitored against the published polling terms,
-            and repeated violations are throttled and then banned automatically. Debris data is sourced
-            through an hourly KeepTrack refresh job and served from the local cache on every public request.
+            repeated violations return <code className="ap-inline-code">429</code> first with <code className="ap-inline-code">Retry-After</code>,
+            and recent repeat offenders are then banned with <code className="ap-inline-code">403</code>.
+            Deployment owners can exempt trusted IPs, emails, or API keys with the backend
+            <code className="ap-inline-code"> RATE_LIMIT_EXEMPT_*</code> environment variables.
           </p>
         </Section>
       </main>
