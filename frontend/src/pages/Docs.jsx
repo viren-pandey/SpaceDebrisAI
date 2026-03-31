@@ -25,6 +25,7 @@ const SECTIONS = [
       { id: "ep-sats", label: "GET /satellites" },
       { id: "ep-simulate", label: "GET /simulate" },
       { id: "ep-tracker", label: "GET /tracker/positions" },
+      { id: "ep-cdm", label: "GET /cdm" },
       { id: "ep-odri", label: "GET /risk/odri" },
       { id: "ep-cascade", label: "POST /cascade/ask" },
     ],
@@ -338,6 +339,36 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
               ],
             }}
             example={`curl -H "X-API-Key: YOUR_KEY" ${BASE}/tracker/positions | jq '.satellites[0]'`}
+          />
+
+          <Endpoint
+            id="ep-cdm"
+            method="GET"
+            path="/cdm"
+            auth
+            desc="Returns Conjunction Data Messages (CDMs) from Space-Track.org. Each CDM contains detailed proximity data including time of closest approach, miss distance, probability of collision, and relative velocity between objects."
+            params={[
+              { name: "refresh", type: "boolean", required: false, desc: "Force a fresh fetch from Space-Track (may be rate-limited)" },
+            ]}
+            response={{
+              count: 5,
+              refreshed_at: "2026-03-11T10:05:35Z",
+              source: "space-track",
+              cdms: [
+                {
+                  cdm_id: "2026-001A-018",
+                  satellites: ["COSMOS-2251 DEB", "SL-8 DEB"],
+                  tca_time: "2026-03-11T14:23:45Z",
+                  miss_distance_km: 0.582,
+                  relative_speed_km_s: 11.45,
+                  probability_of_collision: 2.34e-7,
+                  pc_scientific: "2.34e-07",
+                  confidence: "LOW",
+                  collision_risk: "LOW",
+                },
+              ],
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" ${BASE}/cdm | jq '.cdms[0]'`}
           />
 
           <Endpoint

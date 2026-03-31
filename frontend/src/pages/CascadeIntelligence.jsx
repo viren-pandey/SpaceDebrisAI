@@ -462,6 +462,8 @@ function CascadeIntelligenceContent() {
             <div className="ci-object-list">
               {loading && !leaders.length
                 ? Array.from({ length: 5 }, (_, index) => <LeaderSkeleton key={index} />)
+                : !leaders.length && !loading
+                ? <div className="ci-empty">No data available. Check API connection.</div>
                 : leaders.map((item) => (
                     <div key={item.satId} className="ci-object-card">
                       <div>

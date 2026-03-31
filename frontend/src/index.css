@@ -38,6 +38,13 @@
 
   /* theme-aware bright text (white in dark, near-black in light) */
   --text-bright: #ffffff;
+  
+  /* chat bubble variables */
+  --bubble-assistant-bg: rgba(255, 255, 255, 0.03);
+  --bubble-user-bg: linear-gradient(180deg, rgba(56, 189, 248, 0.16), rgba(14, 116, 144, 0.16));
+  --bubble-user-border: rgba(56, 189, 248, 0.18);
+  --surface-elevated: rgba(7, 13, 26, 0.94);
+  --border-subtle: rgba(255, 255, 255, 0.06);
 }
 
 /* -- Light theme -------------------------------------------- */
@@ -57,6 +64,13 @@
   --text-3:     #7290a8;
   --text-bright: #0d1b2a;
   --card-bg:    rgba(248, 250, 252, 0.88);
+  
+  /* chat bubble variables for light mode */
+  --bubble-assistant-bg: rgba(0, 0, 0, 0.03);
+  --bubble-user-bg: rgba(56, 189, 248, 0.12);
+  --bubble-user-border: rgba(56, 189, 248, 0.3);
+  --surface-elevated: rgba(255, 255, 255, 0.97);
+  --border-subtle: rgba(0, 0, 0, 0.08);
 }
 
 
@@ -359,11 +373,16 @@ body {
 
 .ci-answer {
   margin-top: 22px;
-  min-height: 320px;
+  max-height: 400px;
+  overflow-y: auto;
   border-radius: 20px;
-  border: 1px solid rgba(56, 189, 248, 0.08);
-  background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.92));
+  border: 1px solid var(--border-subtle);
+  background: var(--surface-elevated);
   padding: 20px;
+}
+
+[data-theme="dark"] .ci-answer {
+  background: linear-gradient(180deg, rgba(15, 23, 42, 0.88), rgba(2, 6, 23, 0.92));
 }
 
 .ci-empty {
@@ -407,13 +426,18 @@ body {
   width: min(100%, 820px);
   border-radius: 18px;
   padding: 16px 18px;
-  border: 1px solid rgba(255, 255, 255, 0.06);
+  border: 1px solid var(--border-subtle);
 }
 
 .ci-chat-bubble--user {
+  background: var(--bubble-user-bg);
+  border-color: var(--bubble-user-border);
+  color: var(--text-bright);
+}
+
+[data-theme="dark"] .ci-chat-bubble--user {
   background: linear-gradient(180deg, rgba(56, 189, 248, 0.16), rgba(14, 116, 144, 0.16));
   border-color: rgba(56, 189, 248, 0.18);
-  color: var(--text-bright);
 }
 
 .ci-chat-bubble--user p {
@@ -422,6 +446,10 @@ body {
 }
 
 .ci-chat-bubble--assistant {
+  background: var(--bubble-assistant-bg);
+}
+
+[data-theme="dark"] .ci-chat-bubble--assistant {
   background: rgba(255, 255, 255, 0.03);
 }
 
