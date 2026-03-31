@@ -202,7 +202,7 @@ def _resolve_affected_shell_density(objects: List[ODRIObject]) -> Dict[int, Dict
 
 
 def _build_objects(now: datetime) -> List[ODRIObject]:
-    tle_text = "\n".join(get_tle_lines("full"))
+    tle_text = "\n".join(get_tle_lines("debris_merged"))
     raw_tles = parse_tle_text(tle_text, limit=ODRI_OBJECT_LIMIT)
     objects: List[ODRIObject] = []
     for name, line1, line2 in raw_tles:

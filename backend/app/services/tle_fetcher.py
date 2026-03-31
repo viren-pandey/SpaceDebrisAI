@@ -260,38 +260,51 @@ def get_tle_lines(cache: str = "full") -> list[str]:
         except FileNotFoundError:
             return []
 
+    def _read_non_empty(path: Path) -> list[str]:
+        lines = _safe_read(path)
+        return lines if any(line.strip() for line in lines) else []
+
     if cache == "full":
-        if not _FULL_TLE_FILE.exists():
+        full_lines = _read_non_empty(_FULL_TLE_FILE)
+        if not full_lines:
             try:
                 _trigger_force_refresh()
             except Exception as exc:
                 print(f"TLE refresh failed: {exc}")
-        return _safe_read(_FULL_TLE_FILE) if _FULL_TLE_FILE.exists() else []
+            full_lines = _read_non_empty(_FULL_TLE_FILE)
+        if full_lines:
+            return full_lines
+        print("Full TLE cache is empty, falling back to merged debris cache")
+        return get_tle_lines("debris_merged")
     elif cache == "debris_leo":
-        if not _LEO_DEBRIS_FILE.exists():
+        leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+        if not leo_lines:
             try:
                 _trigger_force_refresh()
             except Exception as exc:
                 print(f"TLE refresh failed: {exc}")
-        return _safe_read(_LEO_DEBRIS_FILE) if _LEO_DEBRIS_FILE.exists() else []
+            leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+        return leo_lines
     elif cache == "debris_all":
-        if not _ALL_DEBRIS_FILE.exists():
+        all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
+        if not all_lines:
             try:
                 _trigger_force_refresh()
             except Exception as exc:
                 print(f"TLE refresh failed: {exc}")
-        return _safe_read(_ALL_DEBRIS_FILE) if _ALL_DEBRIS_FILE.exists() else []
+            all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
+        return all_lines
     elif cache == "debris_merged":
-        leo_lines = _safe_read(_LEO_DEBRIS_FILE) if _LEO_DEBRIS_FILE.exists() else []
-        all_lines = _safe_read(_ALL_DEBRIS_FILE) if _ALL_DEBRIS_FILE.exists() else []
+        leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+        all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
 
         if not leo_lines and not all_lines:
             try:
                 _trigger_force_refresh()
             except Exception as exc:
                 print(f"TLE refresh failed: {exc}")
-            leo_lines = _safe_read(_LEO_DEBRIS_FILE) if _LEO_DEBRIS_FILE.exists() else []
-            all_lines = _safe_read(_ALL_DEBRIS_FILE) if _ALL_DEBRIS_FILE.exists() else []
+            leo_lines = _read_non_empty(_LEO_DEBRIS_FILE)
+            all_lines = _read_non_empty(_ALL_DEBRIS_FILE)
 
         if not leo_lines and not all_lines:
             print("No TLE data available, returning empty list")
@@ -430,11 +443,19 @@ def should_refresh(remote_last_update: str | None = None) -> bool:
 
 def load_tles_from_cache() -> str:
     try:
-        return _FULL_TLE_FILE.read_text(encoding="utf-8")
+        full_text = _FULL_TLE_FILE.read_text(encoding="utf-8")
+        if full_text.strip():
+            return full_text
+        print("Full TLE cache is empty. Trying merged debris cache...")
     except FileNotFoundError:
         print("Local TLE cache is missing. Trying CelesTrak as fallback...")
     except Exception as exc:
         print(f"Local TLE cache read failed: {exc}")
+
+    merged_lines = get_tle_lines("debris_merged")
+    if merged_lines:
+        print("Using merged debris cache as fallback for TLE data")
+        return "\n".join(merged_lines)
     
     try:
         celestrak_data = _fetch_celestrak_urls([_CELESTRAK_LEO_DEBRIS_URL, _CELESTRAK_STARLINK_URL])

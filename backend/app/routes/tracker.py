@@ -24,7 +24,7 @@ async def tracker_positions(request: Request, filter: str = "all"):
     elif filter == "all_debris":
         cache = "debris_all"
     else:
-        cache = "full"
+        cache = "debris_merged"
     
     raw_tle_lines = get_tle_lines(cache=cache)
     raw_tles = "\n".join(raw_tle_lines)
