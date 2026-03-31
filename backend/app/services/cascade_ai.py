@@ -97,15 +97,15 @@ def _fallback_answer(question: str, snapshot: Dict[str, Any], affected_systems: 
     )
 
 
-async def _openai_answer(question: str, context: str) -> str | None:
-    api_key = os.getenv("OPENAI_API_KEY")
+async def _groq_answer(question: str, context: str) -> str | None:
+    api_key = os.getenv("GROQ_API_KEY")
     if not api_key:
         return None
 
-    model = os.getenv("OPENAI_MODEL", "gpt-4.1-mini")
+    model = os.getenv("GROQ_MODEL", "llama-3.3-70b-versatile")
     payload = {
         "model": model,
-        "input": [
+        "messages": [
             {
                 "role": "system",
                 "content": (
@@ -118,11 +118,12 @@ async def _openai_answer(question: str, context: str) -> str | None:
                 "content": f"{context}\nAnswer the user's question: {question}",
             },
         ],
+        "temperature": 0.35,
     }
     try:
         async with httpx.AsyncClient(timeout=25.0) as client:
             response = await client.post(
-                "https://api.openai.com/v1/responses",
+                "https://api.groq.com/openai/v1/chat/completions",
                 headers={
                     "Authorization": f"Bearer {api_key}",
                     "Content-Type": "application/json",
@@ -134,15 +135,13 @@ async def _openai_answer(question: str, context: str) -> str | None:
     except Exception:
         return None
 
-    output_text = data.get("output_text")
-    if isinstance(output_text, str) and output_text.strip():
-        return output_text.strip()
-
-    for item in data.get("output", []):
-        for content in item.get("content", []):
-            text = content.get("text")
-            if isinstance(text, str) and text.strip():
-                return text.strip()
+    choices = data.get("choices", [])
+    if not choices:
+        return None
+    message = choices[0].get("message", {})
+    content = message.get("content")
+    if isinstance(content, str) and content.strip():
+        return content.strip()
     return None
 
 
@@ -151,7 +150,7 @@ async def generate_cascade_response(question: str, snapshot: Dict[str, Any], inc
     affected_systems = _detect_affected_systems(question, snapshot)
     risk_relevance = compute_risk_relevance(question, snapshot, include_live_odri)
     context = build_context_string(question, snapshot)
-    answer = await _openai_answer(question, context)
+    answer = await _groq_answer(question, context)
     if not answer:
         answer = _fallback_answer(question, snapshot, affected_systems)
 

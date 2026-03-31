@@ -1,17 +1,22 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import CascadeMarkdown from "../components/cascade/CascadeMarkdown";
 import CascadeRiskCards from "../components/cascade/CascadeRiskCards";
 import CascadeTimeline from "../components/cascade/CascadeTimeline";
-import { askCascadeQuestion, fetchOdriSnapshot } from "../api/backend";
+import CascadeErrorBoundary from "../components/cascade/CascadeErrorBoundary";
+import {
+  askCascadeQuestion,
+  fetchOdriSnapshot,
+  fetchSatellites,
+  fetchSimulationAuthed,
+} from "../api/backend";
 
-const SUGGESTED_QUESTIONS = [
-  "How does debris in LEO affect GPS signals?",
-  "What happens if Kessler syndrome triggers?",
-  "Which satellites are at highest risk right now?",
-  "How does solar activity worsen debris cascading?",
-  "What's the risk to ISS from current debris density?",
-  "Could a cascade event affect internet connectivity?",
-];
+const CRITICAL_THRESHOLD = 0.85;
+const REFRESH_INTERVAL_MS = 60_000;
+const STAGGER_MS = 1_100;
+
+function sleep(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
 
 function formatTime(value) {
   if (!value) return "Pending";
@@ -23,212 +28,397 @@ function averageOf(items, selector) {
   return items.reduce((sum, item) => sum + selector(item), 0) / items.length;
 }
 
-function buildDomainCards(snapshot) {
+function clamp(value, min, max) {
+  return Math.min(max, Math.max(min, value));
+}
+
+function parseNoradFromTle(line1) {
+  if (!line1 || line1.length < 7) return "";
+  return line1.slice(2, 7).trim();
+}
+
+function normalizeName(value) {
+  return String(value ?? "").trim().toLowerCase();
+}
+
+function getRiskLevel(score) {
+  if (score >= 0.85) return "CRITICAL";
+  if (score >= 0.65) return "WARNING";
+  if (score >= 0.45) return "ADVISORY";
+  if (score >= 0.25) return "ELEVATED";
+  return "NOMINAL";
+}
+
+function simulationRiskToOdri(simulation) {
+  const pairs = simulation?.closest_pairs ?? [];
+  if (!pairs.length) return 0;
+  return averageOf(pairs.slice(0, 10), (pair) => ((pair.before?.risk?.score ?? 0) / 100) * 0.9);
+}
+
+function buildStats(satellitesPayload, simulationPayload, snapshot) {
+  const satellites = satellitesPayload?.satellites ?? [];
+  const items = snapshot?.items ?? [];
+  const snapshotAverage = snapshot?.summary?.average_odri;
+  const averageOdri = snapshotAverage ?? (
+    items.length
+      ? averageOf(items, (item) => item.odri ?? 0)
+      : simulationRiskToOdri(simulationPayload)
+  );
+  const warningCount = items.length
+    ? items.filter((item) => (item.odri ?? 0) > 0.7).length
+    : (simulationPayload?.closest_pairs ?? []).filter((pair) => (pair.before?.risk?.score ?? 0) >= 70).length;
+
+  return {
+    trackedObjects: satellites.length,
+    averageOdri: Number.isFinite(averageOdri) ? averageOdri : 0,
+    activeWarnings: warningCount,
+  };
+}
+
+function buildLeaders(satellitesPayload, snapshot) {
+  const satellites = satellitesPayload?.satellites ?? [];
+  const satByName = new Map(satellites.map((sat) => [normalizeName(sat.name), sat]));
+  const satByNorad = new Map(satellites.map((sat) => [parseNoradFromTle(sat.tle_line1), sat]));
+
+  return (snapshot?.items ?? [])
+    .slice()
+    .sort((left, right) => (right.odri ?? 0) - (left.odri ?? 0))
+    .slice(0, 5)
+    .map((item) => {
+      const liveSat = satByNorad.get(String(item.norad_id ?? item.sat_id ?? ""))
+        ?? satByName.get(normalizeName(item.object_name));
+      return {
+        satId: item.sat_id,
+        objectName: item.object_name,
+        noradId: item.norad_id ?? item.sat_id,
+        altitudeKm: liveSat?.alt_km ?? item.inputs?.altitude_km ?? null,
+        odri: item.odri ?? 0,
+        projectedOdri: item.projected_odri ?? item.odri ?? 0,
+        riskLevel: item.projected_risk_level ?? item.risk_level ?? getRiskLevel(item.odri ?? 0),
+        trend: item.trend ?? "stable",
+      };
+    });
+}
+
+function buildTimeline(snapshot, baseAverage) {
+  const timeline = snapshot?.timeline ?? [];
+  if (timeline.length) {
+    return timeline.map((point) => ({
+      date: point.date,
+      projected_odri: point.projected_odri,
+      critical_threshold: point.critical_threshold ?? CRITICAL_THRESHOLD,
+      risk_level: point.risk_level ?? getRiskLevel(point.projected_odri),
+    }));
+  }
+
+  const today = new Date();
+  return Array.from({ length: 31 }, (_, index) => {
+    const next = new Date(today);
+    next.setDate(today.getDate() + index);
+    const projected = baseAverage * Math.exp(0.003 * index);
+    return {
+      date: next.toISOString().slice(0, 10),
+      projected_odri: projected,
+      critical_threshold: CRITICAL_THRESHOLD,
+      risk_level: getRiskLevel(projected),
+    };
+  });
+}
+
+function buildDomainCards(satellitesPayload, simulationPayload, snapshot, stats) {
+  const satellites = satellitesPayload?.satellites ?? [];
   const items = snapshot?.items ?? [];
   const summary = snapshot?.summary ?? {};
-  const updatedAt = formatTime(summary.updated_at);
-  const averageScore = summary.average_odri ?? averageOf(items, (item) => item.odri ?? 0);
-  const maxProjected = Math.max(...items.map((item) => item.projected_odri ?? item.odri ?? 0), averageScore);
-  const maxScore = Math.max(...items.map((item) => item.odri ?? 0), averageScore);
-  const warnings = summary.active_conjunction_warnings ?? 0;
-  const issItem = items.find((item) => item.object_name?.toLowerCase().includes("iss"));
-  const starlinkItems = items.filter((item) => item.object_name?.toLowerCase().includes("starlink"));
-  const satcomProbability = Math.min(97, maxProjected * 18000);
-  const internetRisk = Math.min(96, averageOf(starlinkItems, (item) => item.odri ?? maxScore) * 22000);
-  const gpsDriftMeters = Math.max(1.5, maxScore * 9000);
-  const blockedTrajectories = Math.max(1, Math.round(warnings * 1.4 + maxProjected * 220));
-  const solarOcclusions = Math.max(1, Math.round((summary.average_shell_density ?? 0) * 4e9 + maxProjected * 190));
+  const updatedAt = formatTime(summary.updated_at ?? satellitesPayload?.timestamp ?? simulationPayload?.timestamp_utc);
+  const trackedObjects = Math.max(stats.trackedObjects, 1);
+  const averageScore = stats.averageOdri;
+  const projectedAverage = averageOf(items, (item) => item.projected_odri ?? item.odri ?? 0);
+  const warnings = stats.activeWarnings;
+  const shellDensity = summary.average_shell_density ?? 0;
+
+  const commBand = satellites.filter((sat) => (sat.alt_km ?? 0) >= 550 && (sat.alt_km ?? 0) <= 1200);
+  const leoConstellations = items.filter((item) => {
+    const name = normalizeName(item.object_name);
+    return (name.includes("starlink") || name.includes("oneweb")) && (item.odri ?? 0) > 0.5;
+  });
+  const gpsDrift = Math.max(0.4, averageScore * 1200 + shellDensity * 4e9);
+  const blockedTrajectories = (simulationPayload?.closest_pairs ?? []).filter((pair) => {
+    const riskScore = pair.before?.risk?.score ?? 0;
+    return riskScore >= 70 || (pair.before?.distance_km ?? Infinity) < 50;
+  }).length;
+  const issConjunctions = satellites.filter((sat) => Math.abs((sat.alt_km ?? 0) - 408) <= 10).length;
+  const solarOcclusions = Math.max(1, Math.round(shellDensity * 1.5e10 + trackedObjects * 0.012));
 
   return {
     satcom: {
-      score: Math.max(averageScore, maxProjected * 0.82),
-      projectedScore: maxProjected,
-      value: `${satcomProbability.toFixed(1)}% interference probability`,
-      caption: `${items.length} live high-risk objects are contributing to signal-routing volatility across tracked communication shells.`,
+      score: clamp(commBand.length / trackedObjects + averageScore * 0.6, 0, 1),
+      projectedScore: clamp(projectedAverage * 0.9 + commBand.length / trackedObjects, 0, 1),
+      value: `${commBand.length} objects in 550-1200 km`,
+      caption: "Communications shells are derived from live altitude bands in the cached satellite catalog.",
       updatedAt,
     },
     internet: {
-      score: Math.max(averageScore * 0.96, averageOf(starlinkItems, (item) => item.odri ?? 0)),
-      projectedScore: averageOf(starlinkItems, (item) => item.projected_odri ?? item.odri ?? 0),
-      value: `${internetRisk.toFixed(1)}% constellation risk`,
-      caption: `Starlink and other LEO broadband assets are exposed to the same dense shells driving the current ODRI leaders.`,
+      score: clamp(leoConstellations.length / Math.max(items.length, 1) + averageScore * 0.7, 0, 1),
+      projectedScore: clamp(averageOf(leoConstellations, (item) => item.projected_odri ?? item.odri ?? 0) || averageScore, 0, 1),
+      value: `${leoConstellations.length} constellation objects above 0.5 ODRI`,
+      caption: "Starlink and OneWeb exposure is grounded in current high-risk ODRI objects rather than placeholder percentages.",
       updatedAt,
     },
     gps: {
-      score: averageScore * 0.88,
-      projectedScore: maxProjected * 0.84,
-      value: `+${gpsDriftMeters.toFixed(1)} m positional drift`,
-      caption: `Higher shell congestion increases shielding maneuvers and tracking uncertainty that can bleed into navigation resilience.`,
+      score: clamp(averageScore * 0.9 + shellDensity * 3e7, 0, 1),
+      projectedScore: clamp(projectedAverage * 0.85 + shellDensity * 3.4e7, 0, 1),
+      value: `+${gpsDrift.toFixed(2)} m drift estimate`,
+      caption: "The drift estimate increases with shell congestion and current average ODRI pressure.",
       updatedAt,
     },
     launch: {
-      score: Math.max(averageScore, warnings * 0.08),
-      projectedScore: Math.max(maxProjected, warnings * 0.09),
+      score: clamp(blockedTrajectories / 12 + averageScore * 0.65, 0, 1),
+      projectedScore: clamp((blockedTrajectories + warnings) / 12 + projectedAverage * 0.55, 0, 1),
       value: `${blockedTrajectories} blocked trajectories`,
-      caption: `Windows tighten as crowded shells require more avoidance screening before ascent corridors are cleared.`,
+      caption: "Launch window pressure uses conjunction screening results from the live simulation feed.",
       updatedAt,
     },
     iss: {
-      score: issItem?.odri ?? Math.max(averageScore, 0.24),
-      projectedScore: issItem?.projected_odri ?? issItem?.odri ?? averageScore,
-      value: `${Math.max(1, warnings)} conjunctions within 10 km`,
-      caption: `Crewed-orbit exposure tracks the same warning set that feeds the live conjunction cache and ODRI ranking.`,
+      score: clamp(issConjunctions / 20 + averageScore * 0.7, 0, 1),
+      projectedScore: clamp(issConjunctions / 20 + projectedAverage * 0.65, 0, 1),
+      value: `${Math.max(issConjunctions - 1, 0)} objects within 10 km of ISS altitude`,
+      caption: "ISS proximity is computed from live altitude clustering around the station shell at 408 km.",
       updatedAt,
     },
     solar: {
-      score: maxProjected * 0.78,
-      projectedScore: maxProjected * 0.84,
+      score: clamp(shellDensity * 4e7 + averageScore * 0.8, 0, 1),
+      projectedScore: clamp(shellDensity * 4.6e7 + projectedAverage * 0.82, 0, 1),
       value: `${solarOcclusions} occlusion events / week`,
-      caption: `Solar activity can amplify drag, reshuffle shell density, and raise the projected cascade burden for observation missions.`,
+      caption: "Solar observation disruption is inferred from current debris density and projected cascade growth.",
       updatedAt,
     },
   };
 }
 
-export default function CascadeIntelligence() {
+function buildFocusSatIds(leaders) {
+  return leaders.slice(0, 3).map((leader) => leader.satId).filter(Boolean);
+}
+
+function LeaderSkeleton() {
+  return (
+    <div className="ci-object-card ci-skeleton-card">
+      <div className="ci-skeleton-block ci-skeleton-title" />
+      <div className="ci-skeleton-block ci-skeleton-metric" />
+    </div>
+  );
+}
+
+function CascadeIntelligenceContent() {
+  const [satellitesPayload, setSatellitesPayload] = useState(null);
+  const [simulationPayload, setSimulationPayload] = useState(null);
   const [snapshot, setSnapshot] = useState(null);
   const [question, setQuestion] = useState("");
-  const [response, setResponse] = useState(null);
-  const [typedAnswer, setTypedAnswer] = useState("");
+  const [chatHistory, setChatHistory] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [refreshing, setRefreshing] = useState(false);
   const [asking, setAsking] = useState(false);
   const [error, setError] = useState(null);
-  const answerTimerRef = useRef(null);
+  const refreshSeqRef = useRef(0);
 
-  useEffect(() => {
-    let active = true;
-    async function loadSnapshot() {
-      try {
-        const data = await fetchOdriSnapshot(10);
-        if (!active) return;
-        setSnapshot(data);
-        setError(null);
-      } catch (err) {
-        if (!active) return;
-        setError(err.message);
-      } finally {
-        if (active) setLoading(false);
-      }
+  const stats = useMemo(
+    () => buildStats(satellitesPayload, simulationPayload, snapshot),
+    [satellitesPayload, simulationPayload, snapshot]
+  );
+  const leaders = useMemo(
+    () => buildLeaders(satellitesPayload, snapshot),
+    [satellitesPayload, snapshot]
+  );
+  const cards = useMemo(
+    () => buildDomainCards(satellitesPayload, simulationPayload, snapshot, stats),
+    [satellitesPayload, simulationPayload, snapshot, stats]
+  );
+  const timeline = useMemo(
+    () => buildTimeline(snapshot, stats.averageOdri),
+    [snapshot, stats.averageOdri]
+  );
+  const updatedAt = snapshot?.summary?.updated_at ?? satellitesPayload?.timestamp ?? simulationPayload?.timestamp_utc;
+
+  const loadAllData = useCallback(async ({ initial = false } = {}) => {
+    const requestId = refreshSeqRef.current + 1;
+    refreshSeqRef.current = requestId;
+    if (initial) setLoading(true);
+    setRefreshing(true);
+    setError(null);
+
+    let nextError = null;
+
+    try {
+      const satellites = await fetchSatellites();
+      if (refreshSeqRef.current !== requestId) return;
+      setSatellitesPayload(satellites);
+    } catch (err) {
+      nextError = err.message;
     }
 
-    loadSnapshot();
-    const interval = setInterval(loadSnapshot, 60000);
-    return () => {
-      active = false;
-      clearInterval(interval);
-      if (answerTimerRef.current) {
-        clearInterval(answerTimerRef.current);
-      }
-    };
+    await sleep(STAGGER_MS);
+    if (refreshSeqRef.current !== requestId) return;
+
+    try {
+      const simulation = await fetchSimulationAuthed();
+      if (refreshSeqRef.current !== requestId) return;
+      setSimulationPayload(simulation);
+    } catch (err) {
+      nextError = nextError ?? err.message;
+    }
+
+    await sleep(STAGGER_MS);
+    if (refreshSeqRef.current !== requestId) return;
+
+    try {
+      const nextSnapshot = await fetchOdriSnapshot(25);
+      if (refreshSeqRef.current !== requestId) return;
+      setSnapshot(nextSnapshot);
+    } catch (err) {
+      nextError = nextError ?? err.message;
+    }
+
+    if (refreshSeqRef.current === requestId) {
+      setError(nextError);
+      setLoading(false);
+      setRefreshing(false);
+    }
   }, []);
 
   useEffect(() => {
-    if (!response?.answer) return;
-    if (answerTimerRef.current) {
-      clearInterval(answerTimerRef.current);
+    let mounted = true;
+    if (mounted) {
+      loadAllData({ initial: true });
     }
-    setTypedAnswer("");
-    let index = 0;
-    answerTimerRef.current = setInterval(() => {
-      index += 8;
-      setTypedAnswer(response.answer.slice(0, index));
-      if (index >= response.answer.length) {
-        clearInterval(answerTimerRef.current);
-      }
-    }, 24);
+    const interval = setInterval(() => {
+      if (!mounted) return;
+      loadAllData();
+    }, REFRESH_INTERVAL_MS);
+
     return () => {
-      if (answerTimerRef.current) {
-        clearInterval(answerTimerRef.current);
-      }
+      mounted = false;
+      clearInterval(interval);
+      refreshSeqRef.current += 1;
     };
-  }, [response]);
+  }, [loadAllData]);
 
-  const cards = useMemo(() => buildDomainCards(snapshot), [snapshot]);
+  const submitQuestion = useCallback(async () => {
+    const trimmed = question.trim();
+    if (!trimmed) return;
 
-  async function submitQuestion(nextQuestion) {
-    if (!nextQuestion.trim()) return;
-    setQuestion(nextQuestion);
+    const messageId = Date.now();
+    setQuestion("");
     setAsking(true);
     setError(null);
+    setChatHistory((history) => [
+      ...history,
+      { id: `u-${messageId}`, role: "user", content: trimmed },
+      { id: `a-${messageId}`, role: "assistant", content: "", loading: true, systems: [], threatLevel: "ANALYZING" },
+    ]);
+
     try {
       const data = await askCascadeQuestion({
-        question: nextQuestion,
+        question: trimmed,
         context: {
           include_live_odri: true,
-          sat_ids: (snapshot?.items ?? []).slice(0, 3).map((item) => item.sat_id),
+          sat_ids: buildFocusSatIds(leaders),
         },
       });
-      setResponse(data);
-      setQuestion(nextQuestion);
+      setChatHistory((history) =>
+        history.map((entry) =>
+          entry.id === `a-${messageId}`
+            ? {
+                ...entry,
+                loading: false,
+                content: data.answer,
+                systems: data.affected_systems ?? [],
+                threatLevel: data.cascade_threat_level ?? "NOMINAL",
+                riskRelevance: data.risk_relevance ?? 0,
+              }
+            : entry
+        )
+      );
     } catch (err) {
       setError(err.message);
+      setChatHistory((history) =>
+        history.map((entry) =>
+          entry.id === `a-${messageId}`
+            ? {
+                ...entry,
+                loading: false,
+                content: "The cascade analysis service is unavailable right now. Refresh the page and try again.",
+                systems: [],
+                threatLevel: "UNAVAILABLE",
+                riskRelevance: 0,
+              }
+            : entry
+        )
+      );
     } finally {
       setAsking(false);
     }
-  }
-
-  const topObjects = snapshot?.items ?? [];
-  const summary = snapshot?.summary ?? {};
+  }, [leaders, question]);
 
   return (
-    <div className="mx-auto flex w-full max-w-[1440px] flex-col gap-8 px-4 pb-16 pt-8 md:px-6 xl:px-8">
-      <section className="overflow-hidden rounded-[2rem] border border-sky-400/10 bg-[radial-gradient(circle_at_top_left,_rgba(56,189,248,0.18),_transparent_42%),linear-gradient(135deg,rgba(2,6,23,0.95),rgba(15,23,42,0.88))] p-8 shadow-[0_30px_120px_rgba(2,12,24,0.55)]">
-        <div className="max-w-3xl">
-          <p className="text-xs uppercase tracking-[0.35em] text-sky-300/80">Cascade Intelligence</p>
-          <h1 className="mt-4 text-4xl font-semibold tracking-tight text-white md:text-6xl">Ask how orbital debris affects life on Earth</h1>
-          <p className="mt-4 max-w-2xl text-base leading-8 text-slate-300 md:text-lg">
-            Grounded natural-language answers, live ODRI cards, and a forward view of how shell congestion can spill into navigation, connectivity, launches, and crew safety.
-          </p>
+    <div className="ci-page ci-page--enter">
+      <section className="page-hero ci-hero">
+        <div className="ci-hero-top">
+          <div>
+            <p className="page-hero-eyebrow">Live ODRI Snapshot | Cascade Analysis | Earth Impact View</p>
+            <h1 className="page-hero-title">
+              Cascade
+              <br />
+              <span style={{ color: "var(--accent)" }}>Intelligence</span>
+            </h1>
+            <p className="page-hero-sub">
+              Ask how orbital debris affects life on Earth, grounded in live ODRI scores, shell density, and conjunction pressure.
+            </p>
+          </div>
+
+          <button type="button" className="ci-refresh" onClick={() => loadAllData()} disabled={refreshing}>
+            {refreshing ? "Refreshing..." : "Refresh"}
+          </button>
         </div>
 
-        <div className="mt-8 grid gap-4 md:grid-cols-3">
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Tracked Objects</div>
-            <div className="mt-2 text-3xl font-semibold text-white">{summary.tracked_count ?? "..."}</div>
+        <div className="ci-hero-stats">
+          <div className={`ci-stat${loading ? " ci-stat--loading" : ""}`}>
+            <span className="ci-stat-value">{loading && !satellitesPayload ? "..." : stats.trackedObjects.toLocaleString()}</span>
+            <span className="ci-stat-label">tracked objects</span>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Average ODRI</div>
-            <div className="mt-2 text-3xl font-semibold text-white">{(summary.average_odri ?? 0).toFixed(3)}</div>
+          <div className={`ci-stat${loading ? " ci-stat--loading" : ""}`}>
+            <span className="ci-stat-value">{loading && !snapshot ? "..." : stats.averageOdri.toFixed(3)}</span>
+            <span className="ci-stat-label">average ODRI</span>
           </div>
-          <div className="rounded-3xl border border-white/10 bg-white/5 px-5 py-4">
-            <div className="text-xs uppercase tracking-[0.2em] text-slate-400">Active Warnings</div>
-            <div className="mt-2 text-3xl font-semibold text-white">{summary.active_conjunction_warnings ?? 0}</div>
+          <div className={`ci-stat${loading ? " ci-stat--loading" : ""}`}>
+            <span className="ci-stat-value">{loading && !snapshot ? "..." : stats.activeWarnings}</span>
+            <span className="ci-stat-label">active warnings</span>
           </div>
+        </div>
+
+        <div className="ci-hero-foot">
+          <span className="ci-updated">Updated {formatTime(updatedAt)}</span>
+          {error ? <span className="ci-fallback-banner">{error}</span> : null}
         </div>
       </section>
 
-      <section className="grid gap-6 xl:grid-cols-[1.2fr_0.8fr]">
-        <article className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_80px_rgba(2,12,24,0.45)] backdrop-blur">
-          <div className="flex flex-wrap items-end justify-between gap-4">
+      <section className="ci-grid">
+        <article className="ci-panel">
+          <div className="ci-panel-head">
             <div>
-              <p className="text-xs uppercase tracking-[0.25em] text-slate-400">AI Debris Briefing</p>
-              <h2 className="mt-2 text-2xl font-semibold text-white">Cascade Intelligence Console</h2>
+              <p className="ci-kicker">AI Debris Briefing</p>
+              <h2 className="ci-title">Cascade Intelligence Console</h2>
             </div>
-            {response ? (
-              <span className="rounded-full border border-sky-400/30 bg-sky-400/10 px-3 py-1 text-xs font-semibold tracking-[0.18em] text-sky-200">
-                Risk relevance {(response.risk_relevance * 100).toFixed(0)}%
+            {chatHistory.length ? (
+              <span className="ci-badge">
+                Risk relevance {(((chatHistory.at(-1)?.riskRelevance ?? 0) * 100)).toFixed(0)}%
               </span>
             ) : null}
           </div>
 
-          <div className="mt-5 flex flex-wrap gap-2">
-            {SUGGESTED_QUESTIONS.map((item) => (
-              <button
-                key={item}
-                type="button"
-                onClick={() => submitQuestion(item)}
-                className="rounded-full border border-white/10 bg-white/5 px-3 py-2 text-left text-sm text-slate-200 transition hover:border-sky-400/40 hover:bg-sky-400/10"
-              >
-                {item}
-              </button>
-            ))}
-          </div>
-
           <form
-            className="mt-6 flex flex-col gap-3"
+            className="ci-form"
             onSubmit={(event) => {
               event.preventDefault();
-              submitQuestion(question);
+              submitQuestion();
             }}
           >
             <textarea
@@ -236,88 +426,108 @@ export default function CascadeIntelligence() {
               onChange={(event) => setQuestion(event.target.value)}
               rows={4}
               placeholder="Ask anything about debris cascading..."
-              className="w-full rounded-3xl border border-white/10 bg-slate-900/70 px-4 py-4 text-sm text-white outline-none placeholder:text-slate-500 focus:border-sky-400/50"
+              className="ci-textarea"
             />
-            <div className="flex items-center justify-between gap-3">
-              <div className="text-xs uppercase tracking-[0.2em] text-slate-500">
-                Grounded in live ODRI and conjunction snapshot data
-              </div>
-              <button
-                type="submit"
-                disabled={asking}
-                className="rounded-full bg-sky-400 px-5 py-2.5 text-sm font-semibold text-slate-950 transition hover:bg-sky-300 disabled:cursor-not-allowed disabled:opacity-60"
-              >
+            <div className="ci-form-row">
+              <div className="ci-form-note">Requests include your configured X-API-Key and live ODRI context</div>
+              <button type="submit" disabled={asking || !question.trim()} className="ci-submit">
                 {asking ? "Analyzing..." : "Ask AI"}
               </button>
             </div>
           </form>
 
-          <div className="mt-6 min-h-[320px] rounded-[1.5rem] border border-white/10 bg-[linear-gradient(180deg,rgba(15,23,42,0.88),rgba(2,6,23,0.92))] p-5">
-            {loading ? (
-              <div className="flex h-full items-center justify-center text-sm text-slate-400">Loading live ODRI context...</div>
-            ) : error ? (
-              <div className="rounded-2xl border border-rose-400/20 bg-rose-500/10 px-4 py-3 text-sm text-rose-200">{error}</div>
-            ) : response ? (
-              <div className="space-y-4">
-                <div className="flex flex-wrap items-center gap-2 text-xs text-slate-400">
-                  <span className="rounded-full border border-white/10 px-2.5 py-1">{response.cascade_threat_level}</span>
-                  {response.affected_systems.map((system) => (
-                    <span key={system} className="rounded-full border border-sky-400/20 bg-sky-400/10 px-2.5 py-1 text-sky-200">
-                      {system}
-                    </span>
-                  ))}
-                </div>
-                <CascadeMarkdown markdown={typedAnswer || response.answer} />
+          <div className="ci-answer">
+            {!chatHistory.length && !asking ? (
+              <div className="ci-empty">
+                <p>No questions yet.</p>
+                <span>The console keeps a running chat history and grounds each answer in current orbital risk data.</span>
               </div>
             ) : (
-              <div className="flex h-full flex-col justify-center">
-                <p className="text-lg font-medium text-white">No question submitted yet.</p>
-                <p className="mt-2 max-w-2xl text-sm leading-7 text-slate-400">
-                  Use the suggested prompts or ask your own question to get a grounded cascade analysis tied to the live orbital risk picture.
-                </p>
+              <div className="ci-chat-history">
+                {chatHistory.map((entry) => (
+                  <div key={entry.id} className={`ci-chat-row ci-chat-row--${entry.role}`}>
+                    <div className={`ci-chat-bubble ci-chat-bubble--${entry.role}`}>
+                      {entry.role === "assistant" ? (
+                        <>
+                          <div className="ci-answer-meta">
+                            <span className="ci-answer-level">{entry.threatLevel}</span>
+                            {(entry.systems ?? []).map((system) => (
+                              <span key={system} className="ci-answer-system">{system}</span>
+                            ))}
+                          </div>
+                          {entry.loading ? (
+                            <div className="ci-typing" aria-label="AI is typing">
+                              <span />
+                              <span />
+                              <span />
+                            </div>
+                          ) : (
+                            <CascadeMarkdown markdown={entry.content} />
+                          )}
+                        </>
+                      ) : (
+                        <p>{entry.content}</p>
+                      )}
+                    </div>
+                  </div>
+                ))}
               </div>
             )}
           </div>
         </article>
 
-        <aside className="space-y-6">
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_80px_rgba(2,12,24,0.45)] backdrop-blur">
-            <div className="mb-5 flex items-end justify-between gap-4">
+        <aside className="ci-side">
+          <div className="ci-panel">
+            <div className="ci-panel-head">
               <div>
-                <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Live ODRI</p>
-                <h2 className="mt-2 text-2xl font-semibold text-white">Cascade Effect Cards</h2>
+                <p className="ci-kicker">Live ODRI</p>
+                <h2 className="ci-title">Cascade Effect Cards</h2>
               </div>
-              <div className="text-right text-xs text-slate-400">
-                <div>Updated</div>
-                <div className="mt-1 text-slate-200">{formatTime(summary.updated_at)}</div>
-              </div>
+              <div className="ci-updated">Updated {formatTime(updatedAt)}</div>
             </div>
-            <CascadeRiskCards cards={cards} />
+            <CascadeRiskCards cards={cards} loading={loading && !snapshot && !simulationPayload} />
           </div>
 
-          <div className="rounded-[2rem] border border-white/10 bg-slate-950/60 p-6 shadow-[0_20px_80px_rgba(2,12,24,0.45)] backdrop-blur">
-            <p className="text-xs uppercase tracking-[0.25em] text-slate-400">Highest Risk Objects</p>
-            <div className="mt-4 space-y-3">
-              {topObjects.map((item) => (
-                <div key={item.sat_id} className="rounded-2xl border border-white/8 bg-white/4 px-4 py-3">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <div className="text-sm font-medium text-white">{item.object_name}</div>
-                      <div className="text-xs uppercase tracking-[0.18em] text-slate-500">NORAD {item.norad_id}</div>
+          <div className="ci-panel">
+            <div className="ci-panel-head">
+              <div>
+                <p className="ci-kicker">Highest Risk Objects</p>
+                <h2 className="ci-title">Current Leaders</h2>
+              </div>
+            </div>
+            <div className="ci-object-list">
+              {loading && !leaders.length
+                ? Array.from({ length: 5 }, (_, index) => <LeaderSkeleton key={index} />)
+                : leaders.map((item) => (
+                    <div key={item.satId} className="ci-object-card">
+                      <div>
+                        <div className="ci-object-name">{item.objectName}</div>
+                        <div className="ci-object-meta">
+                          <span className="ci-object-id">NORAD {item.noradId}</span>
+                          <span className="ci-object-alt">{item.altitudeKm ? `${Math.round(item.altitudeKm)} km` : "Altitude pending"}</span>
+                        </div>
+                      </div>
+                      <div className="ci-object-score">
+                        <strong>{item.odri.toFixed(3)}</strong>
+                        <span>{item.riskLevel}</span>
+                        <i className={`ci-object-trend ci-object-trend--${item.trend}`}>{item.trend}</i>
+                      </div>
                     </div>
-                    <div className="text-right">
-                      <div className="text-lg font-semibold text-sky-300">{item.odri.toFixed(3)}</div>
-                      <div className="text-xs text-slate-400">{item.risk_level}</div>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                  ))}
             </div>
           </div>
         </aside>
       </section>
 
-      <CascadeTimeline timeline={snapshot?.timeline ?? []} />
+      <CascadeTimeline timeline={timeline} loading={loading && !snapshot} />
     </div>
+  );
+}
+
+export default function CascadeIntelligence() {
+  return (
+    <CascadeErrorBoundary>
+      <CascadeIntelligenceContent />
+    </CascadeErrorBoundary>
   );
 }
