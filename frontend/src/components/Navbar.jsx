@@ -6,7 +6,7 @@ const MAIN_LINKS = [
   { label: "Dashboard", to: "/" },
   { label: "Satellites", to: "/satellites" },
   { label: "Tracker",   to: "/tracker" },
-  { label: "Real CDM",  to: "/real-conjunctions" },
+  { label: "CDM",  to: "/real-conjunctions" },
   { label: "Cascade",   to: "/cascade-intelligence" },
 ];
 
@@ -37,10 +37,10 @@ export default function Navbar({ live, theme, onToggleTheme }) {
   const navigate = useNavigate();
   const location = useLocation();
 
-  // Check if any monitor page is active
+ 
   const isMonitorActive = MONITOR_DROPDOWN.some(item => location.pathname === item.to);
 
-  // Close dropdown when clicking outside
+
   useEffect(() => {
     function handleClickOutside(e) {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
@@ -51,7 +51,7 @@ export default function Navbar({ live, theme, onToggleTheme }) {
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  // Close dropdown on route change
+
   useEffect(() => {
     setMonitorOpen(false);
   }, [location.pathname]);
