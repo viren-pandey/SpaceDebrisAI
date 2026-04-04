@@ -946,6 +946,7 @@ body {
   position: fixed;
   top: 0; left: 0; right: 0;
   z-index: 100;
+  overflow: visible;
   background: rgba(5, 8, 18, 0.88);
   backdrop-filter: blur(24px);
   -webkit-backdrop-filter: blur(24px);
@@ -3939,6 +3940,11 @@ body {
 
 /* mobile drawer */
 .mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 99;
   display: flex; flex-direction: column;
   padding: 8px 16px 16px;
   border-top: 1px solid rgba(255,255,255,.04);
@@ -4222,6 +4228,11 @@ body {
 .hamburger.open span:nth-child(2) { opacity: 0; }
 .hamburger.open span:nth-child(3) { transform: translateY(-7px) rotate(-45deg); }
 .mobile-menu {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 99;
   display: flex; flex-direction: column;
   padding: 6px 16px 16px;
   border-top: 1px solid rgba(255,255,255,.05);
