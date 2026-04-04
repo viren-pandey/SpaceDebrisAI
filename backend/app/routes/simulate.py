@@ -1,3 +1,4 @@
+import os
 from fastapi import APIRouter, Request
 from datetime import datetime, timezone
 import heapq
@@ -15,16 +16,18 @@ from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = 2000
+MAX_SATELLITES = max(150, int(os.getenv("SIMULATION_PUBLIC_OBJECT_LIMIT", "600")))
 LOCAL_TLE_COUNT_LIMIT = 1000000
-SIMULATION_CACHE_TTL_SECONDS = 900  # 15 minutes
+SIMULATION_CACHE_TTL_SECONDS = max(300, int(os.getenv("SIMULATION_CACHE_TTL_SECONDS", "3600")))
 TLE_BACKGROUND_REFRESH_SECONDS = 900  # 15 minutes
 CLOSEST_PAIR_COUNT = 20
 _SIMULATION_CACHE_LOCK = threading.Lock()
+_SIMULATION_CACHE_CONDITION = threading.Condition(_SIMULATION_CACHE_LOCK)
 _SIMULATION_CACHE = {
     "payload": None,
     "catalog_stamp": None,
     "expires_at": 0.0,
+    "building": False,
 }
 _TLE_REFRESH_THREAD: threading.Thread | None = None
 _TLE_REFRESH_LOCK = threading.Lock()
@@ -401,21 +404,34 @@ def _get_cached_simulation() -> dict:
     catalog_stamp = get_local_timestamp() or "cache-missing"
     now = time.time()
 
-    with _SIMULATION_CACHE_LOCK:
-        cached_payload = _SIMULATION_CACHE["payload"]
-        if (
-            cached_payload is not None
-            and _SIMULATION_CACHE["catalog_stamp"] == catalog_stamp
-            and now < _SIMULATION_CACHE["expires_at"]
-        ):
-            return cached_payload
+    with _SIMULATION_CACHE_CONDITION:
+        while True:
+            cached_payload = _SIMULATION_CACHE["payload"]
+            if (
+                cached_payload is not None
+                and _SIMULATION_CACHE["catalog_stamp"] == catalog_stamp
+                and now < _SIMULATION_CACHE["expires_at"]
+            ):
+                return cached_payload
 
-    result = _build_simulation_snapshot()
+            if not _SIMULATION_CACHE["building"]:
+                _SIMULATION_CACHE["building"] = True
+                break
 
-    with _SIMULATION_CACHE_LOCK:
-        _SIMULATION_CACHE["payload"] = result
-        _SIMULATION_CACHE["catalog_stamp"] = catalog_stamp
-        _SIMULATION_CACHE["expires_at"] = now + SIMULATION_CACHE_TTL_SECONDS
+            _SIMULATION_CACHE_CONDITION.wait(timeout=5)
+            now = time.time()
+
+    try:
+        result = _build_simulation_snapshot()
+    finally:
+        completed_at = time.time()
+        with _SIMULATION_CACHE_CONDITION:
+            _SIMULATION_CACHE["building"] = False
+            if "result" in locals():
+                _SIMULATION_CACHE["payload"] = result
+                _SIMULATION_CACHE["catalog_stamp"] = catalog_stamp
+                _SIMULATION_CACHE["expires_at"] = completed_at + SIMULATION_CACHE_TTL_SECONDS
+            _SIMULATION_CACHE_CONDITION.notify_all()
 
     return result
 
@@ -426,7 +442,8 @@ async def simulate(request: Request):
     if force:
         print("[SIMULATE] Force refresh requested, triggering TLE cache refresh...")
         refresh_all_caches(force=True)
-        _SIMULATION_CACHE["expires_at"] = 0
+        with _SIMULATION_CACHE_CONDITION:
+            _SIMULATION_CACHE["expires_at"] = 0
     return _get_cached_simulation()
 
 

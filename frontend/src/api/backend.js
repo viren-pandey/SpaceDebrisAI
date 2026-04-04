@@ -6,6 +6,12 @@ export const GUEST_API_KEY_STORAGE_KEY = "sdai_guest_api_key";
 export const GUEST_EMAIL_STORAGE_KEY = "sdai_guest_email";
 export const CASCADE_API_KEY_STORAGE_KEY = "sdai_api_key";
 
+function createApiError(message, extras = {}) {
+  const error = new Error(message);
+  Object.assign(error, extras);
+  return error;
+}
+
 function getStoredApiKey() {
   if (!isBrowser) return "";
   return localStorage.getItem(ACTIVE_API_KEY_STORAGE_KEY) || "";
@@ -66,7 +72,10 @@ async function fetchPublicJson(url, { timeoutMs = 180000 } = {}) {
       res = await run(false);
     }
     if (!res.ok) {
-      throw new Error(await parseError(res, `Request failed with status ${res.status}`));
+      throw createApiError(
+        await parseError(res, `Request failed with status ${res.status}`),
+        { status: res.status, url }
+      );
     }
     return await res.json();
   } finally {
@@ -94,7 +103,10 @@ async function fetchAuthedJson(url, { timeoutMs = 25000 } = {}) {
       res = await run(false);
     }
     if (!res.ok) {
-      throw new Error(await parseError(res, `Request failed with status ${res.status}`));
+      throw createApiError(
+        await parseError(res, `Request failed with status ${res.status}`),
+        { status: res.status, url }
+      );
     }
     return await res.json();
   } finally {
@@ -173,6 +185,10 @@ export async function fetchApiKeyPolicy() {
   return await res.json();
 }
 
+export async function fetchBackendHealth() {
+  return await fetchPublicJson(`${API}/health`, { timeoutMs: 10000 });
+}
+
 export async function issueApiKey(payload) {
   const res = await fetch(`${API}/api-keys/issue`, {
     method: "POST",
@@ -200,9 +216,12 @@ export async function fetchSimulation() {
     return await fetchPublicJson(`${API}/simulate`);
   } catch (err) {
     if (err.name === "AbortError") {
-      throw new Error("Simulation request timed out. Backend is overloaded or slow.");
+      throw createApiError("Simulation request timed out. Backend is overloaded or slow.", { code: "SIM_TIMEOUT" });
     }
-    throw new Error("Failed to fetch simulation: " + err.message);
+    throw createApiError("Failed to fetch simulation: " + err.message, {
+      status: err.status,
+      code: err.status === 404 ? "SIM_404" : "SIM_FETCH",
+    });
   }
 }
 
@@ -285,9 +304,12 @@ export async function fetchSimulationAuthed() {
     return await fetchPublicJson(`${API}/simulate`);
   } catch (err) {
     if (err.name === "AbortError") {
-      throw new Error("Simulation request timed out. Backend is overloaded or slow.");
+      throw createApiError("Simulation request timed out. Backend is overloaded or slow.", { code: "SIM_TIMEOUT" });
     }
-    throw new Error("Failed to fetch simulation: " + err.message);
+    throw createApiError("Failed to fetch simulation: " + err.message, {
+      status: err.status,
+      code: err.status === 404 ? "SIM_404" : "SIM_FETCH",
+    });
   }
 }
 
