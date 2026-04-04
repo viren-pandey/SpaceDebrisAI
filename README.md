@@ -8,7 +8,7 @@ sdk: docker
 app_port: 7860
 fullWidth: true
 header: default
-short_description: Real-time satellite conjunction monitoring and debris risk intelligence.
+short_description: Real-time satellite collision monitoring API.
 ---
 
 <div align="center">
