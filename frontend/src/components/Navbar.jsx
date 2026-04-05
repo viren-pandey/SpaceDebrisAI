@@ -199,7 +199,15 @@ export default function Navbar({ live, theme, onToggleTheme }) {
 
       {/* Mobile drawer */}
       {menuOpen && (
-        <div className="mobile-menu" onClick={() => setMenuOpen(false)}>
+        <div className="mobile-menu">
+          <div className="mobile-menu-header">
+            <span className="mobile-menu-title">Menu</span>
+            <button className="mobile-menu-close" onClick={() => setMenuOpen(false)}>
+              ✕
+            </button>
+          </div>
+          
+          <div className="mobile-section-title">Main</div>
           {MAIN_LINKS.map(({ label, to }) => (
             <NavLink
               key={label}
@@ -212,8 +220,7 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             </NavLink>
           ))}
           
-          <div className="mobile-divider">Monitor</div>
-          
+          <div className="mobile-section-title">Monitor</div>
           {MONITOR_DROPDOWN.map(({ label, to }) => (
             <NavLink
               key={label}
@@ -225,15 +232,21 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             </NavLink>
           ))}
           
+          <div className="mobile-section-title">Other</div>
           <NavLink to="/api" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>API</NavLink>
           <NavLink to="/docs" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>Docs</NavLink>
           <NavLink to="/about" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>About</NavLink>
           
           {user ? (
-            <button className="mobile-link mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>Sign out</button>
+            <button className="mobile-auth-btn mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>
+              Sign out
+            </button>
           ) : (
-            <button className="mobile-link mobile-signin" onClick={() => { navigate("/login"); setMenuOpen(false); }}>Sign in</button>
+            <button className="mobile-auth-btn mobile-signin" onClick={() => { navigate("/login"); setMenuOpen(false); }}>
+              Sign in
+            </button>
           )}
+          
           <div className={`mobile-status${live ? "" : " offline"}`}>
             <span className={`live-dot${live ? "" : " offline"}`} />
             {live ? "Live" : "Offline"}
