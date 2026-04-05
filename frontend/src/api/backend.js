@@ -1,5 +1,22 @@
 const API = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const isBrowser = typeof window !== "undefined";
+
+const fetchCache = new Map();
+const CACHE_TTL_MS = 30000;
+
+function getCached(key) {
+  const entry = fetchCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    fetchCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCached(key, data) {
+  fetchCache.set(key, { data, timestamp: Date.now() });
+}
 export const API_TERMS_STORAGE_KEY = "sdai_api_terms_version";
 export const ACTIVE_API_KEY_STORAGE_KEY = "sdai_active_api_key";
 export const GUEST_API_KEY_STORAGE_KEY = "sdai_guest_api_key";
@@ -53,7 +70,12 @@ async function parseError(res, fallbackMessage) {
   }
 }
 
-async function fetchPublicJson(url, { timeoutMs = 180000 } = {}) {
+async function fetchPublicJson(url, { timeoutMs = 180000, useCache = true } = {}) {
+  if (useCache) {
+    const cached = getCached(url);
+    if (cached) return cached;
+  }
+  
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), timeoutMs);
   const hasApiKey = Boolean(getPreferredApiKey());
@@ -77,7 +99,9 @@ async function fetchPublicJson(url, { timeoutMs = 180000 } = {}) {
         { status: res.status, url }
       );
     }
-    return await res.json();
+    const data = await res.json();
+    if (useCache) setCached(url, data);
+    return data;
   } finally {
     clearTimeout(timeout);
   }

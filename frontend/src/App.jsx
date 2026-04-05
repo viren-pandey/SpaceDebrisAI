@@ -36,6 +36,8 @@ function AppShell({ theme, toggleTheme }) {
   const [backendStatus, setBackendStatus] = useState(null);
   const [loading, setLoading] = useState(shouldLoadSimulation);
   const hasLoadedSimulationRef = useRef(false);
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     if (!shouldLoadSimulation) {
@@ -46,6 +48,14 @@ function AppShell({ theme, toggleTheme }) {
 
     let active = true;
     async function loadSimulation() {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
       const isInitialLoad = !hasLoadedSimulationRef.current;
       if (isInitialLoad) {
         setLoading(true);
@@ -59,7 +69,7 @@ function AppShell({ theme, toggleTheme }) {
         setBackendStatus(null);
         hasLoadedSimulationRef.current = true;
       } catch (err) {
-        if (!active) return;
+        if (!active || err.name === "AbortError") return;
         try {
           const health = await fetchBackendHealth();
           if (!active) return;
@@ -73,6 +83,7 @@ function AppShell({ theme, toggleTheme }) {
         if (active && isInitialLoad) {
           setLoading(false);
         }
+        isFetchingRef.current = false;
       }
     }
 
@@ -82,6 +93,9 @@ function AppShell({ theme, toggleTheme }) {
     return () => {
       active = false;
       clearInterval(timer);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [shouldLoadSimulation]);
 

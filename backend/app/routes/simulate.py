@@ -16,7 +16,7 @@ from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = max(120, int(os.getenv("SIMULATION_PUBLIC_OBJECT_LIMIT", "2000")))
+MAX_SATELLITES = max(120, int(os.getenv("SIMULATION_PUBLIC_OBJECT_LIMIT", "500")))  # Reduced from 2000 to 500 for faster response
 LOCAL_TLE_COUNT_LIMIT = 1000000
 SIMULATION_CACHE_TTL_SECONDS = max(300, int(os.getenv("SIMULATION_CACHE_TTL_SECONDS", "3600")))
 TLE_BACKGROUND_REFRESH_SECONDS = 900  # 15 minutes
@@ -183,22 +183,36 @@ def _build_pairs(sats: list, mode: str) -> dict:
 
     closest_heap = []
     pairs_checked = 0
+    max_distance_threshold = 5000  # Skip pairs further than 5000 km (orbits don't intersect)
     
-    for (n1, p1, id1), (n2, p2, id2) in itertools.combinations(sats, 2):
-        # Skip self-conjunction (same NORAD ID)
-        if id1 is not None and id2 is not None and id1 == id2:
-            continue
-        
-        d = dist3d(p1, p2)
-        if d < 0.5:  # skip co-located objects
-            continue
-        pairs_checked += 1
-        entry = (-d, n1, p1, n2, p2, id1, id2)
-        if len(closest_heap) < CLOSEST_PAIR_COUNT:
-            heapq.heappush(closest_heap, entry)
-            continue
-        if d < -closest_heap[0][0]:
-            heapq.heapreplace(closest_heap, entry)
+    # Pre-compute altitudes for early altitude-based filtering
+    sat_alts = [(_altitude(p), s) for s, p in [(s, s[1]) for s in sats]]
+    
+    for i, (n1, p1, id1) in enumerate(sats):
+        alt1 = sat_alts[i][0]
+        for j, (n2, p2, id2) in enumerate(sats[i+1:], i+1):
+            # Skip self-conjunction (same NORAD ID)
+            if id1 is not None and id2 is not None and id1 == id2:
+                continue
+            
+            alt2 = sat_alts[j][0]
+            alt_diff = abs(alt1 - alt2)
+            if alt_diff > max_distance_threshold:
+                continue
+            
+            d = dist3d(p1, p2)
+            if d < 0.5:
+                continue
+            if d > max_distance_threshold:
+                continue
+                
+            pairs_checked += 1
+            entry = (-d, n1, p1, n2, p2, id1, id2)
+            if len(closest_heap) < CLOSEST_PAIR_COUNT:
+                heapq.heappush(closest_heap, entry)
+                continue
+            if d < -closest_heap[0][0]:
+                heapq.heapreplace(closest_heap, entry)
 
     closest = []
     for item in sorted(closest_heap, key=lambda item: -item[0]):
