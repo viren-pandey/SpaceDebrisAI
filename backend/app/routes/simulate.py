@@ -28,6 +28,13 @@ _SIMULATION_CACHE = {
     "catalog_stamp": None,
     "expires_at": 0.0,
     "building": False,
+    "norad_ids": set(),  # Track satellite IDs for change detection
+}
+_SATELLITE_CHANGE_LOG = {
+    "last_update": None,
+    "added": [],
+    "removed": [],
+    "total_changes": 0,
 }
 _TLE_REFRESH_THREAD: threading.Thread | None = None
 _TLE_REFRESH_LOCK = threading.Lock()
@@ -225,6 +232,9 @@ def _build_pairs(sats: list, mode: str) -> dict:
         v1 = _estimate_velocity(p1, alt1)
         v2 = _estimate_velocity(p2, alt2)
         
+        dv = (v1[0] - v2[0], v1[1] - v2[1], v1[2] - v2[2])
+        rel_vel_km_s = math.sqrt(dv[0]**2 + dv[1]**2 + dv[2]**2)
+        
         tca_time, tca_miss, pc, pc_scientific, confidence = calculate_tca_and_pc(p1, p2, v1, v2)
         
         risk_before = classify_conjunction(d, alt, v1, v2)
@@ -238,6 +248,7 @@ def _build_pairs(sats: list, mode: str) -> dict:
             "probability_of_collision": pc,
             "pc_scientific": pc_scientific,
             "confidence": confidence,
+            "relative_velocity_km_s": round(rel_vel_km_s, 3),
             "before": {"distance_km": round(d, 2), "risk": risk_before},
             "after": {
                 "distance_km": maneuver["new_distance_km"],
@@ -369,10 +380,13 @@ def _build_simulation_snapshot() -> dict:
     selected_tles = _select_public_tles(deduped_tles, catalog_stamp)
 
     valid_sats = []
+    current_norad_ids = set()
     for name, l1, l2, norad_id in selected_tles:
         pos = tle_to_position(l1, l2)
         if pos is not None:
             valid_sats.append((name, pos, norad_id))
+            if norad_id is not None:
+                current_norad_ids.add(norad_id)
 
     sats_for_pairs = valid_sats if len(valid_sats) >= 3 else SIMULATED_SATS
     mode_label = "local" if len(valid_sats) >= 3 else "simulation"
@@ -398,16 +412,45 @@ def _build_simulation_snapshot() -> dict:
         except Exception:
             pass
 
+    # Track changes from previous catalog
+    prev_norad_ids = _SIMULATION_CACHE.get("norad_ids", set())
+    added_ids = current_norad_ids - prev_norad_ids
+    removed_ids = prev_norad_ids - current_norad_ids
+    
+    # Get names for added/removed satellites
+    name_map = {tle[3]: tle[0] for tle in selected_tles if tle[3] is not None}
+    added_sats = [{"norad_id": nid, "name": name_map.get(nid, "Unknown")} for nid in added_ids]
+    removed_sats = [{"norad_id": nid} for nid in removed_ids]
+    
+    # Log changes if there are any
+    if added_ids or removed_ids:
+        print(f"[SIMULATE] Catalog changes: +{len(added_ids)} added, -{len(removed_ids)} removed")
+        print(f"[SIMULATE] Added: {added_sats[:5]}{'...' if len(added_sats) > 5 else ''}")
+        print(f"[SIMULATE] Removed: {removed_sats[:5]}{'...' if len(removed_sats) > 5 else ''}")
+    
+    # Update change log
+    _SATELLITE_CHANGE_LOG["last_update"] = datetime.now(timezone.utc).isoformat()
+    _SATELLITE_CHANGE_LOG["added"] = added_sats
+    _SATELLITE_CHANGE_LOG["removed"] = removed_sats
+    _SATELLITE_CHANGE_LOG["total_changes"] = len(added_ids) + len(removed_ids)
+    
+    # Update cache with current NORAD IDs
+    _SIMULATION_CACHE["norad_ids"] = current_norad_ids
+
     result["meta"] = {
         "satellites": len(sat_positions),
         "public_objects": len(selected_tles),
         "total_tle_records": total_catalog,
-        "deduplicated_records": total_catalog,  # Same after dedup
+        "deduplicated_records": total_catalog,
         "tle_source": tle_source,
         "satellites_screened": len(sats_for_pairs),
         "pairs_checked": result["meta"]["pairs_checked"],
         "processing_ms": result["meta"]["processing_ms"],
         "cache_last_update": catalog_stamp,
+        "catalog_changes": {
+            "added": len(added_ids),
+            "removed": len(removed_ids),
+        },
     }
     result["satellites"] = sat_positions
 
@@ -459,6 +502,66 @@ async def simulate(request: Request):
         with _SIMULATION_CACHE_CONDITION:
             _SIMULATION_CACHE["expires_at"] = 0
     return _get_cached_simulation()
+
+
+@router.get("/simulate/high-risk")
+async def get_high_risk_collisions(request: Request, threshold: str = "HIGH"):
+    """
+    Get high-risk collision events filtered by risk level.
+    threshold: CRITICAL, HIGH, MEDIUM (default: HIGH)
+    """
+    data = _get_cached_simulation()
+    risk_levels = {"CRITICAL": 3, "HIGH": 2, "MEDIUM": 1}
+    min_level = risk_levels.get(threshold.upper(), 2)
+    
+    high_risk = []
+    for pair in data.get("closest_pairs", []):
+        risk = pair.get("before", {}).get("risk", {})
+        level = risk.get("level", "LOW")
+        level_val = risk_levels.get(level, 0)
+        if level_val >= min_level:
+            high_risk.append({
+                "satellites": pair["satellites"],
+                "norad_ids": pair.get("norad_ids", []),
+                "miss_distance_km": pair.get("miss_distance_km"),
+                "probability_of_collision": pair.get("probability_of_collision"),
+                "relative_velocity_km_s": pair.get("relative_velocity_km_s"),
+                "risk_level": level,
+                "risk_score": risk.get("score"),
+                "maneuver": pair.get("maneuver"),
+                "tca_time": pair.get("tca_time"),
+            })
+    
+    return {
+        "threshold": threshold.upper(),
+        "count": len(high_risk),
+        "high_risk_collisions": high_risk,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
+
+
+@router.get("/simulate/stats")
+async def get_simulation_stats():
+    """Get simulation statistics and change summary."""
+    data = _get_cached_simulation()
+    meta = data.get("meta", {})
+    
+    risk_counts = {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0}
+    for pair in data.get("closest_pairs", []):
+        level = pair.get("before", {}).get("risk", {}).get("level", "LOW")
+        if level in risk_counts:
+            risk_counts[level] += 1
+    
+    return {
+        "satellites_screened": meta.get("satellites_screened", 0),
+        "total_catalog_records": meta.get("total_tle_records", 0),
+        "pairs_checked": meta.get("pairs_checked", 0),
+        "processing_ms": meta.get("processing_ms", 0),
+        "tle_source": meta.get("tle_source", "unknown"),
+        "catalog_changes": meta.get("catalog_changes", {"added": 0, "removed": 0}),
+        "risk_distribution": risk_counts,
+        "timestamp_utc": datetime.now(timezone.utc).isoformat(),
+    }
 
 
 # Start background refresh thread on module load

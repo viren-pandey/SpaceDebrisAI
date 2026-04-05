@@ -104,8 +104,10 @@ def _serialize_keeptrack_catalog(payload: object) -> str:
         raise RuntimeError("KeepTrack returned an unexpected catalog payload.")
 
     lines: list[str] = []
+    invalid_count = 0
     for index, item in enumerate(payload, start=1):
         if not isinstance(item, dict):
+            invalid_count += 1
             continue
 
         name = str(item.get("name") or item.get("altName") or f"OBJECT {index}").strip()
@@ -113,11 +115,37 @@ def _serialize_keeptrack_catalog(payload: object) -> str:
         line2 = str(item.get("tle2") or "").strip()
 
         if not name or not line1.startswith("1 ") or not line2.startswith("2 "):
+            invalid_count += 1
+            continue
+
+        if not _validate_tle_format(line1, line2):
+            invalid_count += 1
             continue
 
         lines.extend([name, line1, line2, ""])
 
+    if invalid_count > 0:
+        print(f"[TLE_FETCH] Skipped {invalid_count} invalid records from KeepTrack catalog")
+    
     return "\n".join(lines).strip()
+
+
+def _validate_tle_format(line1: str, line2: str) -> bool:
+    """Validate TLE line format (basic checksum and structure check)."""
+    if len(line1) < 69 or len(line2) < 69:
+        return False
+    try:
+        line1_sum = sum(ord(c) for c in line1[:-1] if c.isdigit() or c.isalpha() or c in ['+', '-', ' ', '.'])
+        line1_checksum = int(line1[-1])
+        if line1_sum % 10 != line1_checksum:
+            return False
+        line2_sum = sum(ord(c) for c in line2[:-1] if c.isdigit() or c.isalpha() or c in ['+', '-', ' ', '.'])
+        line2_checksum = int(line2[-1])
+        if line2_sum % 10 != line2_checksum:
+            return False
+    except (ValueError, IndexError):
+        return False
+    return True
 
 
 def _read_last_update() -> str | None:
