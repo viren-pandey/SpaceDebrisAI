@@ -17,11 +17,13 @@ import CascadeIntelligence from "./pages/CascadeIntelligence";
 import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
+import HighRiskCollisions from "./pages/HighRiskCollisions";
 import LiveCongestion from "./pages/LiveCongestion";
 import Login from "./pages/Login";
 import RealConjunctions from "./pages/RealConjunctions";
 import Satellites from "./pages/Satellites";
 import ShellInstability from "./pages/ShellInstability";
+import SimulationStats from "./pages/SimulationStats";
 import SpaceWeather from "./pages/SpaceWeather";
 import Tracker from "./pages/Tracker";
 
@@ -123,6 +125,8 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/contact" element={<Contact />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/congestion" element={<LiveCongestion />} />
+          <Route path="/high-risk-collisions" element={<HighRiskCollisions />} />
+          <Route path="/simulation-stats" element={<SimulationStats />} />
         </Routes>
       </main>
       <Footer />

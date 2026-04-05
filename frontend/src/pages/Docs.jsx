@@ -24,6 +24,8 @@ const SECTIONS = [
       { id: "ep-health", label: "GET /health" },
       { id: "ep-sats", label: "GET /satellites" },
       { id: "ep-simulate", label: "GET /simulate" },
+      { id: "ep-sim-high-risk", label: "GET /simulate/high-risk" },
+      { id: "ep-sim-stats", label: "GET /simulate/stats" },
       { id: "ep-tracker", label: "GET /tracker/positions" },
       { id: "ep-cdm", label: "GET /cdm" },
       { id: "ep-odri", label: "GET /risk/odri" },
@@ -313,6 +315,58 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
               timestamp_utc: "2026-03-11T10:00:00.000Z",
             }}
             example={`curl -H "X-API-Key: YOUR_KEY" ${BASE}/simulate | jq '{mode,meta}'`}
+          />
+
+          <Endpoint
+            id="ep-sim-high-risk"
+            method="GET"
+            path="/simulate/high-risk"
+            badge="New"
+            auth
+            desc="Returns high-risk collision events filtered by risk level (CRITICAL, HIGH, or MEDIUM). Each event includes miss distance, relative velocity, probability of collision, and recommended maneuver."
+            params={[
+              { name: "threshold", type: "string", required: false, desc: "Risk threshold filter: CRITICAL, HIGH, or MEDIUM (default: HIGH)" },
+            ]}
+            response={{
+              threshold: "HIGH",
+              count: 5,
+              high_risk_collisions: [
+                {
+                  satellites: ["STARLINK-1234", "STARLINK-5678"],
+                  norad_ids: [44713, 44714],
+                  miss_distance_km: 2.34,
+                  probability_of_collision: 1.23e-5,
+                  relative_velocity_km_s: 0.542,
+                  risk_level: "HIGH",
+                  risk_score: 82,
+                  maneuver: "Altitude boost +15 km — execute within 3 orbits",
+                  tca_time: "2026-03-11T14:23:45.000Z",
+                },
+              ],
+              timestamp_utc: "2026-03-11T10:00:00.000Z",
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/simulate/high-risk?threshold=HIGH" | jq '.count'`}
+          />
+
+          <Endpoint
+            id="ep-sim-stats"
+            method="GET"
+            path="/simulate/stats"
+            badge="New"
+            auth
+            desc="Returns simulation statistics including satellites screened, catalog changes, risk distribution, and processing metrics. Useful for monitoring system performance and catalog health."
+            params={[]}
+            response={{
+              satellites_screened: 2000,
+              total_catalog_records: 33338,
+              pairs_checked: 118341,
+              processing_ms: 742.6,
+              tle_source: "cache",
+              catalog_changes: { added: 12, removed: 3 },
+              risk_distribution: { CRITICAL: 2, HIGH: 8, MEDIUM: 15, LOW: 195 },
+              timestamp_utc: "2026-03-11T10:00:00.000Z",
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/simulate/stats" | jq '.risk_distribution'`}
           />
 
           <Endpoint

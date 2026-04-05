@@ -9130,3 +9130,544 @@ body {
 .animate-slide {
   animation: slideUp 0.4s ease;
 }
+
+/* ============================================================
+   HIGH-RISK COLLISIONS PAGE
+   ============================================================ */
+
+.hr-filter-bar {
+  max-width: 1280px;
+  margin: 0 auto 24px;
+  padding: 0 48px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.hr-threshold-selector {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.hr-filter-label {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.hr-threshold-btn {
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: 1px solid;
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.hr-refresh-btn {
+  padding: 8px 20px;
+  border-radius: 8px;
+  border: 1px solid rgba(56,189,248,.2);
+  background: rgba(56,189,248,.08);
+  color: var(--accent);
+  font-family: var(--font);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all .2s;
+}
+
+.hr-refresh-btn:hover:not(:disabled) {
+  background: rgba(56,189,248,.15);
+  border-color: var(--accent);
+}
+
+.hr-refresh-btn:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.db-stat-card {
+  background: var(--bg);
+  padding: 24px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  border-right: 1px solid rgba(56,189,248,.07);
+}
+
+.db-stat-card:last-child {
+  border-right: none;
+}
+
+.db-stat-card .db-stat-value {
+  font-family: var(--display);
+  font-size: clamp(2rem, 3.5vw, 2.8rem);
+  font-weight: 700;
+  line-height: 1;
+  letter-spacing: -1px;
+}
+
+.db-stat-card .db-stat-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-faint);
+}
+
+.db-stat-card .db-stat-sub {
+  font-size: 11px;
+  color: var(--text-faint);
+  opacity: .7;
+}
+
+/* Risk Distribution */
+.hr-risk-dist {
+  display: grid;
+  gap: 16px;
+}
+
+.hr-dist-item {
+  display: grid;
+  gap: 8px;
+}
+
+.hr-dist-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.hr-dist-label {
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  font-size: 12px;
+}
+
+.hr-dist-count {
+  font-family: var(--mono);
+  font-size: 14px;
+  color: var(--text);
+}
+
+.hr-dist-bar-bg {
+  height: 8px;
+  background: rgba(255,255,255,.06);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.hr-dist-bar {
+  height: 100%;
+  border-radius: 4px;
+  transition: width .5s ease;
+}
+
+/* Collision Cards */
+.hr-collisions-list {
+  display: grid;
+  gap: 16px;
+  padding: 0 48px 48px;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.hr-collision-card {
+  background: var(--bg-2);
+  border: 1px solid rgba(255,255,255,.06);
+  border-left: 3px solid;
+  border-radius: 12px;
+  padding: 20px;
+  transition: border-color .2s;
+}
+
+.hr-collision-card:hover {
+  border-color: rgba(56,189,248,.2);
+}
+
+.hr-collision-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 16px;
+}
+
+.hr-collision-names {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hr-sat-name {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.hr-vs {
+  color: var(--text-faint);
+  font-size: 14px;
+}
+
+.hr-risk-badge {
+  padding: 4px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  border: 1px solid;
+}
+
+.hr-collision-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+  margin-bottom: 16px;
+}
+
+.hr-metric {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.hr-metric-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+}
+
+.hr-metric-value {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 600;
+  color: var(--text-bright);
+}
+
+.hr-metric-value.pc {
+  color: var(--accent);
+}
+
+.hr-tca {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+  margin-bottom: 12px;
+}
+
+.hr-maneuver {
+  padding: 12px 14px;
+  background: rgba(56,189,248,.04);
+  border: 1px solid rgba(56,189,248,.1);
+  border-radius: 8px;
+  font-size: 14px;
+  color: var(--text-dim);
+  line-height: 1.5;
+}
+
+.hr-maneuver strong {
+  color: var(--accent);
+  display: block;
+  margin-bottom: 4px;
+  font-size: 11px;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+}
+
+.hr-norad {
+  margin-top: 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+}
+
+/* Empty State */
+.hr-empty {
+  text-align: center;
+  padding: 48px 20px;
+}
+
+.hr-empty-icon {
+  width: 64px;
+  height: 64px;
+  margin: 0 auto 16px;
+  border-radius: 50%;
+  background: rgba(34,197,94,.1);
+  color: var(--green);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 28px;
+}
+
+.hr-empty h3 {
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 8px;
+}
+
+.hr-empty p {
+  color: var(--text-dim);
+  font-size: 14px;
+}
+
+/* ============================================================
+   SIMULATION STATS PAGE
+   ============================================================ */
+
+.ss-changes-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.ss-change-item {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 24px;
+  border-radius: 12px;
+  text-align: center;
+}
+
+.ss-change-added {
+  background: rgba(34,197,94,.08);
+  border: 1px solid rgba(34,197,94,.2);
+}
+
+.ss-change-removed {
+  background: rgba(239,68,68,.08);
+  border: 1px solid rgba(239,68,68,.2);
+}
+
+.ss-change-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 24px;
+  font-weight: 700;
+  margin-bottom: 12px;
+}
+
+.ss-change-added .ss-change-icon {
+  background: rgba(34,197,94,.2);
+  color: var(--green);
+}
+
+.ss-change-removed .ss-change-icon {
+  background: rgba(239,68,68,.2);
+  color: var(--red);
+}
+
+.ss-change-value {
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+.ss-change-label {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+  color: var(--text-faint);
+  margin-top: 4px;
+}
+
+/* Risk Grid */
+.ss-risk-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+  gap: 16px;
+}
+
+.ss-risk-card {
+  background: rgba(255,255,255,.02);
+  border: 1px solid;
+  border-radius: 12px;
+  padding: 16px;
+}
+
+.ss-risk-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 12px;
+}
+
+.ss-risk-badge {
+  padding: 4px 10px;
+  border-radius: 20px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  border: 1px solid;
+}
+
+.ss-risk-count {
+  font-family: var(--display);
+  font-size: 24px;
+  font-weight: 700;
+}
+
+.ss-risk-bar-bg {
+  height: 6px;
+  background: rgba(255,255,255,.06);
+  border-radius: 3px;
+  overflow: hidden;
+  margin-bottom: 8px;
+}
+
+.ss-risk-bar {
+  height: 100%;
+  border-radius: 3px;
+  transition: width .5s ease;
+}
+
+.ss-risk-pct {
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Performance Grid */
+.ss-perf-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 16px;
+}
+
+.ss-perf-item {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  padding: 20px;
+  text-align: center;
+}
+
+.ss-perf-icon {
+  font-size: 28px;
+  margin-bottom: 12px;
+}
+
+.ss-perf-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+  color: var(--text-faint);
+  margin-bottom: 8px;
+}
+
+.ss-perf-value {
+  font-family: var(--display);
+  font-size: 20px;
+  font-weight: 700;
+  color: var(--text-bright);
+}
+
+/* Details Grid */
+.ss-details-grid {
+  display: grid;
+  gap: 0;
+}
+
+.ss-detail-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 14px 0;
+  border-bottom: 1px solid rgba(255,255,255,.04);
+}
+
+.ss-detail-row:last-child {
+  border-bottom: none;
+}
+
+.ss-detail-label {
+  font-size: 14px;
+  color: var(--text-faint);
+}
+
+.ss-detail-value {
+  font-size: 14px;
+  font-weight: 500;
+  color: var(--text);
+}
+
+/* Source Grid */
+.ss-source-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+  gap: 16px;
+}
+
+.ss-source-item {
+  background: rgba(255,255,255,.02);
+  border: 1px solid rgba(255,255,255,.06);
+  border-radius: 12px;
+  padding: 20px;
+}
+
+.ss-source-name {
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+  color: var(--accent);
+  margin-bottom: 8px;
+}
+
+.ss-source-value {
+  font-family: var(--display);
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text-bright);
+  margin-bottom: 4px;
+}
+
+.ss-source-desc {
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+/* Data timestamp */
+.data-timestamp {
+  text-align: center;
+  padding: 24px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text-faint);
+  letter-spacing: .06em;
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+  .hr-filter-bar {
+    flex-direction: column;
+    align-items: flex-start;
+    padding: 0 20px;
+  }
+  
+  .hr-collisions-list {
+    padding: 0 20px 40px;
+  }
+  
+  .hr-collision-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+}

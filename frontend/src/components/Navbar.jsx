@@ -14,6 +14,8 @@ const MONITOR_DROPDOWN = [
   { label: "CDM Timeline", to: "/cdm-timeline" },
   { label: "Shell Risk", to: "/shell-instability" },
   { label: "Space Weather", to: "/spaceweather" },
+  { label: "High-Risk", to: "/high-risk-collisions" },
+  { label: "Simulation Stats", to: "/simulation-stats" },
   { label: "Debris", to: "/all-debris" },
 ];
 
