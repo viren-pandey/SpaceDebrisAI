@@ -250,19 +250,29 @@ def _trigger_force_refresh() -> None:
     fetch_and_cache(force=True)
 
 
-def _caches_are_empty() -> bool:
+def _cache_needs_refresh(path: Path) -> bool:
     try:
-        full_content = _FULL_TLE_FILE.read_text(encoding="utf-8").strip()
-        leo_content = _LEO_DEBRIS_FILE.read_text(encoding="utf-8").strip()
-        all_content = _ALL_DEBRIS_FILE.read_text(encoding="utf-8").strip()
-        return not (full_content or leo_content or all_content)
+        content = path.read_text(encoding="utf-8").strip()
+        return not content
     except FileNotFoundError:
         return True
 
 
+def _caches_are_empty() -> bool:
+    return (
+        _cache_needs_refresh(_FULL_TLE_FILE)
+        and _cache_needs_refresh(_LEO_DEBRIS_FILE)
+        and _cache_needs_refresh(_ALL_DEBRIS_FILE)
+    )
+
+
 def _ensure_initial_cache() -> None:
-    if _caches_are_empty():
-        print("Cache files empty or missing, forcing initial TLE refresh...")
+    needs_full_refresh = _caches_are_empty()
+    needs_leo = _cache_needs_refresh(_LEO_DEBRIS_FILE)
+    needs_all = _cache_needs_refresh(_ALL_DEBRIS_FILE)
+    
+    if needs_full_refresh or needs_leo or needs_all:
+        print(f"Cache missing/empty: full={needs_full_refresh}, leo={needs_leo}, all={needs_all}. Forcing TLE refresh...")
         try:
             refresh_all_caches(force=True)
             print("Initial TLE cache refresh completed")

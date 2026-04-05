@@ -1,7 +1,7 @@
 import os
 from fastapi import APIRouter
 from pathlib import Path
-from app.services.tle_fetcher import get_local_timestamp
+from app.services.tle_fetcher import get_local_timestamp, refresh_all_caches, _KEEPTRACK_API_KEY
 
 router = APIRouter()
 
@@ -45,4 +45,30 @@ def health():
             "debris_all": debris_all_info,
             "last_update": get_local_timestamp(),
         },
+    }
+
+
+@router.post("/health/refresh")
+def refresh_cache():
+    """Force refresh all TLE caches from KeepTrack API."""
+    try:
+        refresh_all_caches(force=True)
+        return {"status": "refreshed", "cache": {
+            "satellites": get_cache_info(SATELLITES_FILE),
+            "debris_leo": get_cache_info(DEBRIS_LEO_FILE),
+            "debris_all": get_cache_info(DEBRIS_ALL_FILE),
+            "last_update": get_local_timestamp(),
+        }}
+    except Exception as exc:
+        return {"status": "error", "message": str(exc)}
+
+
+@router.get("/health/debug")
+def health_debug():
+    """Debug endpoint to check API key and cache status."""
+    api_key_loaded = bool(_KEEPTRACK_API_KEY)
+    return {
+        "api_key_loaded": api_key_loaded,
+        "api_key_prefix": _KEEPTRACK_API_KEY[:10] + "..." if api_key_loaded else None,
+        "env_var_value": os.getenv("KEEPTRACK_API_KEY", "NOT SET"),
     }
