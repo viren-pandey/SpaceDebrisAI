@@ -16,7 +16,7 @@ from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme
 router = APIRouter()
 
 EARTH_RADIUS_KM = 6371.0
-MAX_SATELLITES = max(120, int(os.getenv("SIMULATION_PUBLIC_OBJECT_LIMIT", "500")))
+MAX_SATELLITES = max(120, int(os.getenv("SIMULATION_PUBLIC_OBJECT_LIMIT", "2000")))
 LOCAL_TLE_COUNT_LIMIT = 1000000
 SIMULATION_CACHE_TTL_SECONDS = max(300, int(os.getenv("SIMULATION_CACHE_TTL_SECONDS", "3600")))
 TLE_BACKGROUND_REFRESH_SECONDS = 900  # 15 minutes
