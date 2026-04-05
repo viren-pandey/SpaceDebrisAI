@@ -11,6 +11,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import AllDebris from "./pages/AllDebris";
 import ApiPage from "./pages/ApiPage";
 import ApiTerms from "./pages/ApiTerms";
+import ChangeReport from "./pages/ChangeReport";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
 import Contact from "./pages/Contact";
 import CascadeIntelligence from "./pages/CascadeIntelligence";
@@ -127,6 +128,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/congestion" element={<LiveCongestion />} />
           <Route path="/high-risk-collisions" element={<HighRiskCollisions />} />
           <Route path="/simulation-stats" element={<SimulationStats />} />
+          <Route path="/change-report" element={<ChangeReport />} />
         </Routes>
       </main>
       <Footer />

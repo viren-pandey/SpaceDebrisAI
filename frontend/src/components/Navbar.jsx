@@ -16,6 +16,7 @@ const MONITOR_DROPDOWN = [
   { label: "Space Weather", to: "/spaceweather" },
   { label: "High-Risk", to: "/high-risk-collisions" },
   { label: "Simulation Stats", to: "/simulation-stats" },
+  { label: "Change Report", to: "/change-report" },
   { label: "Debris", to: "/all-debris" },
 ];
 
