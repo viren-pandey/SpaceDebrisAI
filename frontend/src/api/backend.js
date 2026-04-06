@@ -1,4 +1,4 @@
-const API = (import.meta.env.VITE_API_URL ?? "").replace(/\/+$/, "");
+const API = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const isBrowser = typeof window !== "undefined";
 export const API_TERMS_STORAGE_KEY = "sdai_api_terms_version";
 export const ACTIVE_API_KEY_STORAGE_KEY = "sdai_active_api_key";
