@@ -5,7 +5,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import SatelliteBackground from "./components/SatelliteBackground";
-import { fetchSimulation } from "./api/backend";
+import { fetchBackendHealth, fetchSimulation } from "./api/backend";
 import About from "./pages/About";
 import AdminDashboard from "./pages/AdminDashboard";
 import AllDebris from "./pages/AllDebris";
@@ -33,6 +33,7 @@ function AppShell({ theme, toggleTheme }) {
   const shouldLoadSimulation = SIMULATION_ROUTES.has(location.pathname);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [backendStatus, setBackendStatus] = useState(null);
   const [loading, setLoading] = useState(shouldLoadSimulation);
   const hasLoadedSimulationRef = useRef(false);
 
@@ -55,9 +56,18 @@ function AppShell({ theme, toggleTheme }) {
         if (!active) return;
         setData(nextData);
         setError(null);
+        setBackendStatus(null);
         hasLoadedSimulationRef.current = true;
       } catch (err) {
         if (!active) return;
+        try {
+          const health = await fetchBackendHealth();
+          if (!active) return;
+          setBackendStatus(health);
+        } catch {
+          if (!active) return;
+          setBackendStatus(null);
+        }
         setError(err.message);
       } finally {
         if (active && isInitialLoad) {
@@ -81,8 +91,8 @@ function AppShell({ theme, toggleTheme }) {
       <Navbar live={!loading && !error} theme={theme} onToggleTheme={toggleTheme} />
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Dashboard data={data} loading={loading} error={error} />} />
-          <Route path="/satellites" element={<Satellites data={data} loading={loading} error={error} />} />
+          <Route path="/" element={<Dashboard data={data} loading={loading} error={error} backendStatus={backendStatus} />} />
+          <Route path="/satellites" element={<Satellites data={data} loading={loading} error={error} backendStatus={backendStatus} />} />
           <Route path="/tracker" element={<Tracker />} />
           <Route path="/all-debris" element={<AllDebris />} />
           <Route path="/real-conjunctions" element={<RealConjunctions />} />

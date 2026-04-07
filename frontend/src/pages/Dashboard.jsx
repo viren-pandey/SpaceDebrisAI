@@ -1,11 +1,12 @@
 ﻿import { Link } from "react-router-dom";
+import BackendOfflineNotice from "../components/BackendOfflineNotice";
 import RiskPanel from "../components/RiskPanel";
 import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
 import ProTierBanner from "../components/ProTierBanner";
 import CDMPanel from "../components/CDMPanel";
 
-export default function Dashboard({ data, loading, error }) {
+export default function Dashboard({ data, loading, error, backendStatus }) {
   const tickerItems = data?.closest_pairs ?? [];
   const tleRecordCount = data?.meta?.tle_records ?? "—";
   const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
@@ -88,6 +89,13 @@ export default function Dashboard({ data, loading, error }) {
         <div className="error-state">
           <p>{error}</p>
         </div>
+      )}
+
+      {!loading && error && !data && (
+        <BackendOfflineNotice
+          title="Simulation backend offline"
+          detail={`Health route is ${backendStatus?.status ?? "unavailable"}, but /simulate is failing.`}
+        />
       )}
 
       {/* Main panels */}
