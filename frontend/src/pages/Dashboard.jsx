@@ -8,7 +8,7 @@ import CDMPanel from "../components/CDMPanel";
 
 export default function Dashboard({ data, loading, error, backendStatus }) {
   const tickerItems = data?.closest_pairs ?? [];
-  const tleRecordCount = data?.meta?.tle_records ?? "—";
+  const tleRecordCount = data?.meta?.total_tle_records ?? data?.meta?.tle_records ?? "—";
   const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
   const tleSource = data?.meta?.tle_source ?? data?.mode ?? "—";
   const pairsChecked = data?.meta?.pairs_checked ?? "—";

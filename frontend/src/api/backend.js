@@ -390,3 +390,21 @@ export async function fetchHighRiskCDMs(thresholdPc = 1e-4, limit = 10) {
     throw new Error("Failed to fetch high-risk CDMs: " + err.message);
   }
 }
+
+// Simulation High-Risk Collisions API
+export async function fetchSimHighRisk(threshold = "HIGH") {
+  try {
+    return await fetchPublicJson(`${API}/simulate/high-risk?threshold=${threshold}`);
+  } catch (err) {
+    throw new Error("Failed to fetch high-risk collisions: " + err.message);
+  }
+}
+
+// Simulation Stats API
+export async function fetchSimStats() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/stats`);
+  } catch (err) {
+    throw new Error("Failed to fetch simulation stats: " + err.message);
+  }
+}
