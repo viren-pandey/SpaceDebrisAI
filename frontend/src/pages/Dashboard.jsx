@@ -5,8 +5,13 @@ import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
 import ProTierBanner from "../components/ProTierBanner";
 import CDMPanel from "../components/CDMPanel";
+import SpaceLoading from "../components/SpaceLoading";
 
 export default function Dashboard({ data, loading, error, backendStatus }) {
+  if (loading) {
+    return <SpaceLoading />;
+  }
+
   const tickerItems = data?.closest_pairs ?? [];
   const tleRecordCount = data?.meta?.total_tle_records ?? data?.meta?.tle_records ?? "—";
   const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
@@ -24,7 +29,7 @@ export default function Dashboard({ data, loading, error, backendStatus }) {
         <div className="db-status-row">
           <div className={`db-status-badge${error ? " offline" : ""}`}>
             <span className={`live-dot${error ? " offline" : ""}`} />
-            {loading ? "Connecting..." : error ? "Backend offline" : "Screening active"}
+            {error ? "Backend offline" : "Screening active"}
           </div>
         </div>
         <p className="db-hero-eyebrow">Real-time orbital conjunction monitoring</p>

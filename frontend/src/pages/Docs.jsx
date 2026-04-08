@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 
 const BASE = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const PUBLIC_OBJECT_LIMIT = 500;
-const CACHED_TLE_RECORDS = "33k+";
+const CACHED_TLE_RECORDS = "90k+";
 const MIN_POLLING = "10 sec";
 
 const SECTIONS = [
