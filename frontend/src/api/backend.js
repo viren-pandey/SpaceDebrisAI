@@ -408,3 +408,30 @@ export async function fetchSimStats() {
     throw new Error("Failed to fetch simulation stats: " + err.message);
   }
 }
+
+// Simulation Change Report API
+export async function fetchSimChanges() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/changes`);
+  } catch (err) {
+    throw new Error("Failed to fetch change report: " + err.message);
+  }
+}
+
+// Simulation Audit Log API
+export async function fetchSimAudit() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/audit`);
+  } catch (err) {
+    throw new Error("Failed to fetch audit log: " + err.message);
+  }
+}
+
+// Simulation Explain API
+export async function fetchSimExplain() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/explain`);
+  } catch (err) {
+    throw new Error("Failed to fetch simulation explanation: " + err.message);
+  }
+}

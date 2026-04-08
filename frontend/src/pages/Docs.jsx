@@ -26,6 +26,9 @@ const SECTIONS = [
       { id: "ep-simulate", label: "GET /simulate" },
       { id: "ep-sim-high-risk", label: "GET /simulate/high-risk" },
       { id: "ep-sim-stats", label: "GET /simulate/stats" },
+      { id: "ep-sim-changes", label: "GET /simulate/changes" },
+      { id: "ep-sim-audit", label: "GET /simulate/audit" },
+      { id: "ep-sim-explain", label: "GET /simulate/explain" },
       { id: "ep-tracker", label: "GET /tracker/positions" },
       { id: "ep-cdm", label: "GET /cdm" },
       { id: "ep-odri", label: "GET /risk/odri" },
@@ -367,6 +370,88 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
               timestamp_utc: "2026-03-11T10:00:00.000Z",
             }}
             example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/simulate/stats" | jq '.risk_distribution'`}
+          />
+
+          <Endpoint
+            id="ep-sim-changes"
+            method="GET"
+            path="/simulate/changes"
+            badge="New"
+            auth
+            desc="Returns detailed change report including satellite additions/removals, pair changes, and justifications. All changes are tracked and explained for auditability."
+            params={[]}
+            response={{
+              timestamp_utc: "2026-03-11T10:00:00.000Z",
+              report: {
+                satellites: {
+                  previous_count: 1980,
+                  current_count: 2000,
+                  added: [{ norad_id: 44832, name: "STARLINK-1234" }],
+                  removed: [{ norad_id: 44555 }],
+                  change_pct: "1.0%",
+                },
+                pairs: {
+                  previous_count: 150,
+                  current_count: 172,
+                  new_pairs: 25,
+                  removed_pairs: 3,
+                  changed_pairs: 12,
+                  preserved_pairs: 145,
+                },
+              },
+              summary: {
+                total_changes: 29,
+                pair_stability: "93.5%",
+              },
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/simulate/changes" | jq '.summary'`}
+          />
+
+          <Endpoint
+            id="ep-sim-audit"
+            method="GET"
+            path="/simulate/audit"
+            badge="New"
+            auth
+            desc="Returns the audit log of recent changes. All catalog updates, pair changes, and processing events are logged with timestamps and reasons."
+            params={[]}
+            response={{
+              timestamp_utc: "2026-03-11T10:00:00.000Z",
+              total_entries: 47,
+              entries: [
+                {
+                  timestamp: "2026-03-11T10:00:00.000Z",
+                  action: "SIMULATION_COMPLETE",
+                  reason: "Spatial binning: Only adjacent altitude shells checked",
+                  details: { satellites_screened: 2000, pairs_analyzed: 172, processing_time_ms: 742.6 },
+                },
+              ],
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/simulate/audit" | jq '.entries[0]'`}
+          />
+
+          <Endpoint
+            id="ep-sim-explain"
+            method="GET"
+            path="/simulate/explain"
+            badge="New"
+            auth
+            desc="Explains the simulation methodology, performance characteristics, and why pair counts were reduced. Provides transparency into the collision detection algorithm."
+            params={[]}
+            response={{
+              methodology: {
+                tle_sources: ["KeepTrack API", "CelesTrak"],
+                propagation: "SGP4 (Simplified General Perturbations model 4)",
+                position_calculation: "TEME to Geodetic",
+                conjunction_detection: "Spatial binning by altitude shells",
+              },
+              performance: {
+                algorithm: "Spatial binning (not brute force O(n^2))",
+                shell_size_km: 500,
+              },
+              timestamp_utc: "2026-03-11T10:00:00.000Z",
+            }}
+            example={`curl -H "X-API-Key: YOUR_KEY" "${BASE}/simulate/explain" | jq '.performance'`}
           />
 
           <Endpoint
