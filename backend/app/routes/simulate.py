@@ -752,8 +752,8 @@ async def get_change_report():
         },
         "audit_trail": list(_CHANGE_AUDIT_LOG[-20:]),  # Last 20 entries
         "summary": {
-            "total_changes": change_report.get("satellites", {}).get("added", 0) + 
-                           change_report.get("satellites", {}).get("removed", 0),
+            "total_changes": len(change_report.get("satellites", {}).get("added", [])) +
+                           len(change_report.get("satellites", {}).get("removed", [])),
             "pair_stability": f"{len(change_report.get('pairs', {}).get('preserved_pairs', [])) / max(len(change_report.get('pairs', {}).get('current_count', 1)), 1) * 100:.1f}%",
             "optimization_explanation": (
                 "Using spatial binning: satellites are grouped by altitude (500km shells). "
