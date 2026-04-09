@@ -3,7 +3,7 @@
     num: "01",
     label: "TLE",
     title: "TLE Ingestion",
-    desc: "Two-Line Element sets are fetched from KeepTrack by an hourly backend job, normalized into a local cache, and served from disk on every user-facing request.",
+    desc: "Two-Line Element sets are fetched live from CelesTrak for all tracked objects in Earth orbit. The raw TLE data contains orbital parameters in a compact two-line ASCII format.",
   },
   {
     num: "02",
@@ -30,7 +30,7 @@ const TECH = [
   { name: "SGP4",          desc: "Industry-standard orbital mechanics propagator for TLE data.", color: "#818cf8" },
   { name: "ML Classifier", desc: "Custom altitude-factor risk engine with multi-threshold scoring.", color: "#f472b6" },
   { name: "React 19",      desc: "Component-driven UI with live data polling and SPA routing.",  color: "#4ade80" },
-  { name: "KeepTrack Cache", desc: "Hourly KeepTrack catalog refreshes feed the local cache so all user-facing routes stay offline from external TLE providers.", color: "#fb923c" },
+  { name: "CelesTrak",     desc: "Live TLE source providing GP data for thousands of orbit objects.", color: "#fb923c" },
   { name: "Docker",        desc: "Containerised deployment of both backend and frontend services.", color: "#60a5fa" },
   { name: "Vite 7",        desc: "Next-generation build tooling with instant hot-module reload.",  color: "#fbbf24" },
   { name: "Python 3.11",   desc: "Core backend runtime with asyncio and numerical libraries.",    color: "#34d399" },
@@ -39,15 +39,17 @@ const TECH = [
 export default function About() {
   return (
     <>
+      {/* Page hero */}
       <div className="page-hero about-hero">
         <div className="page-hero-eyebrow">About the project</div>
         <h1 className="page-hero-title">How SpaceDebrisAI works</h1>
         <p className="page-hero-sub">
-          An end-to-end system for real-time satellite conjunction screening, from an hourly-refreshed
-          KeepTrack cache and a 33k+ local TLE catalog to AI-powered avoidance recommendations.
+          An end-to-end system for real-time satellite conjunction screening — from live TLE feeds
+          to AI-powered avoidance recommendations, built to keep low Earth orbit safe.
         </p>
       </div>
 
+      {/* How it works */}
       <section className="about-section">
         <h2 className="about-section-title">How it works</h2>
         <div className="steps-grid">
@@ -64,6 +66,7 @@ export default function About() {
         </div>
       </section>
 
+      {/* Tech stack */}
       <section className="about-section">
         <h2 className="about-section-title">Technology stack</h2>
         <div className="tech-grid">
@@ -77,16 +80,17 @@ export default function About() {
         </div>
       </section>
 
+      {/* Key features */}
       <section className="about-section">
         <h2 className="about-section-title">Key capabilities</h2>
         <div className="feature-grid">
           {[
-            ["Hourly cache refresh", "KeepTrack is contacted once per hour by the backend, and every public route reads only from the local TLE cache"],
-            ["Multi-pair screening", "The public simulation screens the current 2000-object slice from the cached catalog on a short server-side result cache"],
+            ["Real-time data",       "Live TLE ingestion from CelesTrak with automatic fallback to simulated orbits"],
+            ["Multi-pair screening", "All N-choose-2 satellite pair combinations screened every request"],
             ["Risk classification",  "Altitude-weighted scoring mapped to four actionable risk levels"],
             ["Maneuver planning",    "Per-risk-level delta-v recommendations with post-maneuver distance estimates"],
-            ["Fair-use API access",  "Public access is monitored server-side, with explicit polling terms, automatic throttling, and automatic bans for repeated abuse"],
-            ["API-first design",     "Full REST API at /simulate, /satellites, and /health with auto-generated Swagger docs"],
+            ["15 satellite registry","Rich metadata for all tracked satellites including 5 ISRO missions"],
+            ["API-first design",     "Full REST API at /simulate and /health with auto-generated Swagger docs"],
           ].map(([title, desc]) => (
             <div className="feature-card" key={title}>
               <div className="feature-dot" />
@@ -99,10 +103,11 @@ export default function About() {
         </div>
       </section>
 
+      {/* Credit */}
       <section className="about-credit">
         <p>Built by <strong style={{ color: "var(--text-1)" }}>Viren Pandey</strong> — 2026 — SpaceDebrisAI</p>
         <p style={{ marginTop: 6 }}>
-          API docs: <a className="about-link" href={`${import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space"}/docs`} target="_blank" rel="noopener noreferrer">API docs</a>
+          API docs: <a className="about-link" href="http://localhost:8000/docs" target="_blank" rel="noopener noreferrer">localhost:8000/docs</a>
         </p>
       </section>
     </>

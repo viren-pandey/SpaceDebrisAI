@@ -1,5 +1,4 @@
 ﻿import { useState } from "react";
-import BackendOfflineNotice from "../components/BackendOfflineNotice";
 import { SAT_DB, PURPOSE_COLOR, RISK_ORDER } from "../data/satellites";
 
 const RISK_COLOR = {
@@ -32,7 +31,7 @@ function buildSatRiskMap(pairs) {
   return map;
 }
 
-export default function Satellites({ data, loading, error, backendStatus }) {
+export default function Satellites({ data, loading, error }) {
   const [selected, setSelected] = useState(null);
   const satRiskMap = buildSatRiskMap(data?.closest_pairs);
 
@@ -88,13 +87,6 @@ export default function Satellites({ data, loading, error, backendStatus }) {
 
       {loading && <div className="loading-state"><div className="spinner" /><p>Fetching orbital data...</p></div>}
       {error   && <div className="error-state"><p>{error}</p></div>}
-      {!loading && error && !data && (
-        <BackendOfflineNotice
-          compact
-          title="Satellite feed offline"
-          detail={`Health route is ${backendStatus?.status ?? "unavailable"}, but the simulation feed did not recover.`}
-        />
-      )}
 
       {/* Satellite cards */}
       <div className="spc-grid-section">

@@ -1,4 +1,4 @@
-﻿import { useState, useEffect, useRef, useCallback } from "react";
+﻿import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 
 const RISK_ORDER = { CRITICAL: 0, HIGH: 1, MEDIUM: 2, LOW: 3 };
@@ -11,12 +11,9 @@ const RISK_COLORS = {
   LOW: "34,197,94",
 };
 
-const AUTO_ADVANCE_MS = 5000;
-
 export default function RiskPanel({ data }) {
   const [idx, setIdx] = useState(0);
   const navigate = useNavigate();
-  const timerRef = useRef(null);
 
   if (!data?.closest_pairs?.length) {
     return (
@@ -33,37 +30,11 @@ export default function RiskPanel({ data }) {
     return a.before.distance_km - b.before.distance_km;
   });
 
-  const total = sorted.length;
-
-  // Auto-advance: reset then start a 5 s timer every time idx or total changes
-  const resetTimer = useCallback(() => {
-    if (timerRef.current) clearInterval(timerRef.current);
-    timerRef.current = setInterval(() => {
-      setIdx((i) => (i + 1 < total ? i + 1 : 0));
-    }, AUTO_ADVANCE_MS);
-  }, [total]);
-
-  useEffect(() => {
-    resetTimer();
-    return () => clearInterval(timerRef.current);
-  }, [resetTimer]);
-
-  // Arrow click: jump + restart timer
-  function go(next) {
-    setIdx(next);
-    resetTimer();
-  }
-
   const pair = sorted[idx];
   const lvl = pair.before.risk?.level ?? "LOW";
   const lc = LC[lvl] || "low";
   const rgb = RISK_COLORS[lvl] || RISK_COLORS.LOW;
   const afterLvl = pair.after?.risk?.level ?? "LOW";
-
-  const tcaTime = pair.tca_time ? new Date(pair.tca_time).toLocaleString() : "—";
-  const pcValue = pair.pc_scientific ?? "—";
-  const confidence = pair.confidence ?? "LOW";
-  const missDistance = pair.miss_distance_km ?? pair.before.distance_km;
 
   function handleClick() {
     navigate(`/conjunction/${idx}`, {
@@ -79,10 +50,8 @@ export default function RiskPanel({ data }) {
       {/* Ambient glow blob */}
       <div className="rp-glow-blob" />
 
-      {/* Top accent bar + auto-advance progress line */}
-      <div className={`rp-accent-bar rp-accent-${lc}`}>
-        <div className="rp-progress-line" key={idx} style={{ "--rp-prog-color": `rgb(${rgb})` }} />
-      </div>
+      {/* Top accent bar */}
+      <div className={`rp-accent-bar rp-accent-${lc}`} />
 
       {/* Header row */}
       <div className="rp-header-row">
@@ -95,14 +64,14 @@ export default function RiskPanel({ data }) {
           <button
             className="rp-arrow-btn"
             disabled={idx === 0}
-            onClick={(e) => { e.stopPropagation(); go(Math.max(0, idx - 1)); }}
+            onClick={(e) => { e.stopPropagation(); setIdx(i => Math.max(0, i - 1)); }}
             aria-label="Previous"
           >‹</button>
           <span className="rp-counter">{idx + 1} <span className="rp-counter-of">of</span> {sorted.length}</span>
           <button
             className="rp-arrow-btn"
             disabled={idx === sorted.length - 1}
-            onClick={(e) => { e.stopPropagation(); go(Math.min(sorted.length - 1, idx + 1)); }}
+            onClick={(e) => { e.stopPropagation(); setIdx(i => Math.min(sorted.length - 1, i + 1)); }}
             aria-label="Next"
           >›</button>
         </div>
@@ -120,25 +89,10 @@ export default function RiskPanel({ data }) {
 
         {/* Big distance */}
         <div className="rp-distance-hero">
-          <div className="rp-distance-label">Time of Closest Approach</div>
+          <div className="rp-distance-label">Closest approach distance</div>
           <div className={`rp-distance-number ${lc}`}>
-            {tcaTime}
-          </div>
-        </div>
-
-        {/* TCA Info Row */}
-        <div className="rp-tca-row">
-          <div className="rp-tca-item">
-            <span className="rp-tca-label">Miss Distance</span>
-            <span className="rp-tca-value">{missDistance.toFixed(2)} km</span>
-          </div>
-          <div className="rp-tca-item">
-            <span className="rp-tca-label">Probability of Collision</span>
-            <span className="rp-tca-value pc-value">{pcValue}</span>
-          </div>
-          <div className="rp-tca-item">
-            <span className="rp-tca-label">Confidence</span>
-            <span className={`rp-tca-value rp-confidence rp-conf-${confidence.toLowerCase()}`}>{confidence}</span>
+            {pair.before.distance_km.toFixed(2)}
+            <span className="km-unit">km</span>
           </div>
         </div>
 

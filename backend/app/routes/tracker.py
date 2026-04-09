@@ -1,78 +1,78 @@
-from datetime import datetime, timezone
+import asyncio
+import time
 
-from fastapi import APIRouter, Request
-
-from app.services.orbit_real import tle_to_position, teme_to_geodetic
-from app.services.tle_fetcher import get_local_timestamp, get_tle_lines, parse_tle_text
+import httpx
+from fastapi import APIRouter
 
 router = APIRouter()
 
-TRACKER_TLE_LIMIT = 500
+N2YO_KEY  = "S2Q3WD-YRGKVA-9Y84VW-5ODD"
+N2YO_BASE = "https://api.n2yo.com/rest/v1/satellite"
 
+# All 15 satellites from the frontend SAT_DB — same NORAD IDs
+TRACKED = {
+    25544: "ISS (ZARYA)",
+    57329: "PROGRESS MS-24",
+    53544: "STARLINK-3456",
+    53545: "STARLINK-3457",
+    25994: "TERRA",
+    27424: "AQUA",
+    28654: "NOAA 18",
+    39634: "SENTINEL-1A",
+    39084: "LANDSAT 8",
+    44390: "COSMOS 2533",
+    44804: "CARTOSAT-3",
+    45677: "RISAT-2BR1",
+    37389: "RESOURCESAT-2",
+    40930: "ASTROSAT",
+    45026: "GSAT-30",
+}
 
-def _extract_norad_id(line1: str) -> int | None:
-    try:
-        return int(line1[2:7])
-    except (TypeError, ValueError):
-        return None
+# Simple in-memory cache — reduces N2YO API transactions
+_cache: dict = {"ts": 0.0, "data": []}
+CACHE_TTL = 120  # seconds (2 min)
 
 
 @router.get("/tracker/positions")
-async def tracker_positions(request: Request, filter: str = "all"):
-    if filter == "leo_debris":
-        cache = "debris_leo"
-    elif filter == "all_debris":
-        cache = "debris_all"
-    else:
-        cache = "debris_merged"
-    
-    raw_tle_lines = get_tle_lines(cache=cache)
-    raw_tles = "\n".join(raw_tle_lines)
-    tles = parse_tle_text(raw_tles, limit=TRACKER_TLE_LIMIT)
-    now_utc = datetime.now(timezone.utc)
-    timestamp = int(now_utc.timestamp())
+async def tracker_positions():
+    """Return current lat/lon/alt for all tracked satellites via N2YO REST API."""
+    global _cache
+    now = time.time()
 
-    results = []
-    errors = 0
+    if now - _cache["ts"] < CACHE_TTL and _cache["data"]:
+        return {"source": "cache", "satellites": _cache["data"], "cached_at": int(_cache["ts"])}
 
-    for name, line1, line2 in tles:
-        norad_id = _extract_norad_id(line1)
-        if norad_id is None:
-            errors += 1
-            continue
-
-        position = tle_to_position(line1, line2)
-        if position is None:
-            errors += 1
-            continue
-
+    async def fetch_one(client: httpx.AsyncClient, norad_id: int, name: str) -> dict:
+        url = (
+            f"{N2YO_BASE}/positions/{norad_id}/0/0/0/1"
+            f"&apiKey={N2YO_KEY}"
+        )
         try:
-            lat, lon, alt = teme_to_geodetic(position, utc_dt=now_utc)
-        except Exception:
-            errors += 1
-            continue
+            r = await client.get(url, follow_redirects=True)
+            d = r.json()
+            pos = d.get("positions", [{}])[0]
+            info = d.get("info", {})
+            return {
+                "noradId":   norad_id,
+                "name":      name,
+                "satname":   info.get("satname", name),
+                "lat":       round(pos.get("satlatitude",  0), 4),
+                "lon":       round(pos.get("satlongitude", 0), 4),
+                "alt":       round(pos.get("sataltitude",  0), 1),
+                "azimuth":   round(pos.get("azimuth",      0), 1),
+                "elevation": round(pos.get("elevation",    0), 1),
+                "timestamp": pos.get("timestamp", 0),
+            }
+        except Exception as exc:
+            return {
+                "noradId": norad_id, "name": name,
+                "lat": 0, "lon": 0, "alt": 0,
+                "error": str(exc),
+            }
 
-        results.append({
-            "noradId": norad_id,
-            "name": name,
-            "satname": name,
-            "lat": lat,
-            "lon": lon,
-            "alt": alt,
-            "timestamp": timestamp,
-            "azimuth": None,
-            "elevation": None,
-            "raw": {
-                "NAME": name,
-                "TLE_LINE_1": line1.strip(),
-                "TLE_LINE_2": line2.strip(),
-            },
-        })
+    async with httpx.AsyncClient(timeout=15.0) as client:
+        tasks = [fetch_one(client, nid, nm) for nid, nm in TRACKED.items()]
+        results = list(await asyncio.gather(*tasks))
 
-    return {
-        "source": "cache",
-        "count": len(results),
-        "errors": errors,
-        "satellites": results,
-        "cached_at": get_local_timestamp() or timestamp,
-    }
+    _cache = {"ts": now, "data": results}
+    return {"source": "live", "satellites": results, "fetched_at": int(now)}
