@@ -82,4 +82,7 @@ app.include_router(shell_router)
 app.include_router(spaceweather_router)
 
 from app.routes.cdm import router as cdm_router
+from app.routes.login_logs import router as login_logs_router
+
 app.include_router(cdm_router)
+app.include_router(login_logs_router)
