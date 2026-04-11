@@ -8,6 +8,10 @@ export function AuthProvider({ children }) {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
+    if (!supabase) {
+      setLoading(false);
+      return;
+    }
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null);
       setLoading(false);
@@ -21,12 +25,13 @@ export function AuthProvider({ children }) {
   }, []);
 
   const signUp = (email, password) =>
-    supabase.auth.signUp({ email, password });
+    supabase ? supabase.auth.signUp({ email, password }) : Promise.reject(new Error("Supabase not configured"));
 
   const signIn = (email, password) =>
-    supabase.auth.signInWithPassword({ email, password });
+    supabase ? supabase.auth.signInWithPassword({ email, password }) : Promise.reject(new Error("Supabase not configured"));
 
-  const signOut = () => supabase.auth.signOut();
+  const signOut = () =>
+    supabase ? supabase.auth.signOut() : Promise.resolve();
 
   return (
     <AuthContext.Provider value={{ user, loading, signIn, signUp, signOut }}>
