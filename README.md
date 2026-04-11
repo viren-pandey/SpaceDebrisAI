@@ -1,6 +1,6 @@
 <div align="center">
 
-<img src="https://raw.githubusercontent.com/viren-pandey/SpaceDebrisAI/main/docs/screenshots/01_hero.jpg" width="100%" alt="SpaceDebrisAI — Orbital Collision Monitor"/>
+<img src="https://private-user-images.githubusercontent.com/128834400/559700741-ae450fc3-6eb3-47ee-8003-b7746dadf420.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzQxLWFlNDUwZmMzLTZlYjMtNDdlZS04MDAzLWI3NzQ2ZGFkZjQyMC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT03MDJkZjM0MTU2ODdmOTY3ZjdhOWU4YzBhMTMzZmEwYTc5MjkyMmNiODBjYzg2YzFiMzc4ZmZjZGIxOWYwMjg0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.RsmD4sEzlD3VqhVldx5xiV_wQMlmCbdif72VsErCm-g" width="50%" alt="SpaceDebrisAI — Orbital Collision Monitor"/>
 
 <br/>
 
@@ -21,7 +21,7 @@
 
 <br/>
 
-> Built solo for a hackathon on **7th February 2026**.
+> Built solo for a hackathon .
 > Couldn't attend in person — so I went home and built it anyway.
 
 </div>
@@ -53,7 +53,7 @@ There are **27,000+ tracked objects** orbiting Earth at 28,000 km/h right now �
 
 ### Risk Panel
 
-<img src="https://raw.githubusercontent.com/viren-pandey/SpaceDebrisAI/main/docs/screenshots/02_riskpanel.jpg" width="100%" alt="Dashboard Risk Panel"/>
+<img src="https://private-user-images.githubusercontent.com/128834400/559700737-e3b5ce50-9d3b-4095-9988-483d9988d42f.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzM3LWUzYjVjZTUwLTlkM2ItNDA5NS05OTg4LTQ4M2Q5OTg4ZDQyZi5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT00MmQxNjcxODc3YjQxNzUwZDE0NjJmNjI0NGZjODMxM2Q5NzBiOTk3MjNmODZmNTEzMTY4OTdjY2I1NDg2ZTI5JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.G9cTRkKD9n0vUQnBsyMk9uerBFm4Ggp_sFMH1_lgwFE" width="100%" alt="Dashboard Risk Panel"/>
 
 Hero card cycles through all detected conjunctions — auto-advances every 5s sorted by risk. Shows current separation, post-maneuver separation, and recommended action side by side.
 
@@ -62,7 +62,7 @@ Hero card cycles through all detected conjunctions — auto-advances every 5s so
 
 ### Satellite Registry
 
-<img src="https://raw.githubusercontent.com/viren-pandey/SpaceDebrisAI/main/docs/screenshots/03_satellites.jpg" width="100%" alt="Satellites Page"/>
+<img src="https://private-user-images.githubusercontent.com/128834400/559700741-ae450fc3-6eb3-47ee-8003-b7746dadf420.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzQxLWFlNDUwZmMzLTZlYjMtNDdlZS04MDAzLWI3NzQ2ZGFkZjQyMC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT03MDJkZjM0MTU2ODdmOTY3ZjdhOWU4YzBhMTMzZmEwYTc5MjkyMmNiODBjYzg2YzFiMzc4ZmZjZGIxOWYwMjg0JlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.RsmD4sEzlD3VqhVldx5xiV_wQMlmCbdif72VsErCm-g" width="100%" alt="Satellites Page"/>
 
 200 satellites tracked in one run — 19,900 pairs screened, 2 CRITICAL and 2 HIGH flagged. Full registry with ISRO missions highlighted.
 
@@ -73,7 +73,7 @@ Hero card cycles through all detected conjunctions — auto-advances every 5s so
 
 ### Live Tracker
 
-<img src="https://raw.githubusercontent.com/viren-pandey/SpaceDebrisAI/main/docs/screenshots/04_tracker.jpg" width="100%" alt="Live Satellite Tracker"/>
+<img src="https://private-user-images.githubusercontent.com/128834400/559700738-c4b618ff-b3c3-4fd3-814b-3efb876eb268.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzM4LWM0YjYxOGZmLWIzYzMtNGZkMy04MTRiLTNlZmI4NzZlYjI2OC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT01NTk0MmM5MTM5YTc1MDhjNmQ5MjI2NmI2YzUwNzQyZTk1Njk1YWVkZGNiMzdmYWIwOTMyZmUyMWMyYWRkNGUyJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.esBdMlj2Zj9gok8TRLRMalXHAueuIQB6Em6nceDkvdY"  height = "100%" width="100%" alt="Live Satellite Tracker"/>
 
 Real-time orbital positions via KeepTrack API + OOTK. 163 satellites live-plotted on a world map from live TLE data.
 
@@ -82,7 +82,7 @@ Real-time orbital positions via KeepTrack API + OOTK. 163 satellites live-plotte
 
 ### Live API
 
-<img src="https://raw.githubusercontent.com/viren-pandey/SpaceDebrisAI/main/docs/screenshots/05_api.jpg" width="100%" alt="Live API Response"/>
+<img src="https://private-user-images.githubusercontent.com/128834400/559700740-f4afce43-c36b-4210-92d5-077ed439b044.png?jwt=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJnaXRodWIuY29tIiwiYXVkIjoicmF3LmdpdGh1YnVzZXJjb250ZW50LmNvbSIsImtleSI6ImtleTUiLCJleHAiOjE3NzI4ODU2MDEsIm5iZiI6MTc3Mjg4NTMwMSwicGF0aCI6Ii8xMjg4MzQ0MDAvNTU5NzAwNzQwLWY0YWZjZTQzLWMzNmItNDIxMC05MmQ1LTA3N2VkNDM5YjA0NC5wbmc_WC1BbXotQWxnb3JpdGhtPUFXUzQtSE1BQy1TSEEyNTYmWC1BbXotQ3JlZGVudGlhbD1BS0lBVkNPRFlMU0E1M1BRSzRaQSUyRjIwMjYwMzA3JTJGdXMtZWFzdC0xJTJGczMlMkZhd3M0X3JlcXVlc3QmWC1BbXotRGF0ZT0yMDI2MDMwN1QxMjA4MjFaJlgtQW16LUV4cGlyZXM9MzAwJlgtQW16LVNpZ25hdHVyZT02YWE4MjFjYTdjYjBmNGZhNDNlYmE0YTc5ZTM1MWY0NTU0OTVkZmIyZjRjZGRjNjNiMGQyOTk3YmUyMDdmMjljJlgtQW16LVNpZ25lZEhlYWRlcnM9aG9zdCJ9.utgd4vzFq8iVjEZ5Yfvu6WKtcWEpIJT6IRWa_L-1zmM" width="100%" alt="Live API Response"/>
 
 Raw `/simulate` response. GSAT-15 ↔ EOS-03 at 2.26 km (HIGH, score 72). STUDSAT-2B ↔ ANAND at 2.82 km (CRITICAL, score 90).
 
@@ -262,45 +262,19 @@ npm install && npm run dev
 
 ```
 SpaceDebrisAI/
-│
 ├── backend/
 │   ├── app/
-│   │   ├── main.py                  # FastAPI app + CORS + router registration
-│   │   ├── routes/
-│   │   │   ├── simulate.py          # /simulate — the main pipeline
-│   │   │   ├── satellites.py        # /satellites
-│   │   │   └── tracker.py           # /tracker/positions
-│   │   └── services/
-│   │       ├── orbit_real.py        # SGP4 propagator + TEME→geodetic
-│   │       └── tle_fetcher.py       # CelesTrak fetcher + local fallback
-│   └── ml_logic/
-│       ├── risk_engine.py           # Base distance → risk score
-│       ├── classifier.py            # Altitude-weighted risk levels
-│       └── avoidance.py             # Maneuver recommendations
-│
+│   │   ├── main.py          # FastAPI + CORS
+│   │   ├── routes/          # simulate, satellites, tracker, health
+│   │   └── services/        # SGP4 propagator, TLE fetcher
+│   └── ml_logic/            # risk_engine, classifier, avoidance
 ├── frontend/
 │   └── src/
-│       ├── App.jsx                  # Root: theme + data fetch + routing
-│       ├── components/
-│       │   ├── Navbar.jsx           # Nav + letter-fall logo animation
-│       │   ├── RiskPanel.jsx        # Auto-advancing conjunction card
-│       │   ├── SatelliteBackground.jsx  # Animated starfield (dark mode)
-│       │   └── SatelliteTable.jsx   # All conjunctions table
-│       ├── pages/
-│       │   ├── Dashboard.jsx        # Main landing page
-│       │   ├── Satellites.jsx       # Satellite registry
-│       │   ├── Tracker.jsx          # Live world map
-│       │   └── ConjunctionDetail.jsx
-│       └── index.css                # All styles — pure CSS, ~3100 lines
-│
-├── docs/
-│   └── screenshots/                 # README images
-│       ├── 01_hero.jpg
-│       ├── 02_riskpanel.jpg
-│       ├── 03_satellites.jpg
-│       ├── 04_tracker.jpg
-│       └── 05_api.jpg
-│
+│       ├── App.jsx           # theme + data fetch + routing
+│       ├── components/       # Navbar, RiskPanel, SatelliteTable, Stars
+│       ├── pages/            # Dashboard, Satellites, Tracker, About
+│       └── index.css         # all styles (~3100 lines, pure CSS)
+├── docs/screenshots/         # README images
 ├── docker-compose.yml
 └── README.md
 ```
