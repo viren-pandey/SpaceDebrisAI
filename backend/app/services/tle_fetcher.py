@@ -9,7 +9,7 @@ _CELESTRAK_URLS = [
     "https://celestrak.org/NORAD/elements/gp.php?GROUP=stations&FORMAT=tle",
 ]
 
-# Local TLE file (200 satellites, always available offline)
+# Local TLE file (500 satellites, always available offline)
 _LOCAL_TLE_FILE = Path(__file__).parent.parent / "data" / "tles.txt"
 
 
