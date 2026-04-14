@@ -1,8 +1,8 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 
-const BASE = "https://virenn77-spacedebrisai.hf.space";
-const PUBLIC_OBJECT_LIMIT = 2000;
+const BASE = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
+const PUBLIC_OBJECT_LIMIT = 500;
 const CACHED_TLE_RECORDS = "33k+";
 const PAID_OBJECT_COUNT = "10k+";
 const PAID_PRICE = "$10";
@@ -194,7 +194,7 @@ export default function Docs() {
           <p className="docs-h1-sub">
             REST API for real-time orbital tracking, proximity risk classification,
             and AI-powered avoidance maneuver recommendations.
-            Built on SGP4 propagation over a public 2000-object slice backed by a 33k+ hourly-refreshed KeepTrack cache.
+            Built on SGP4 propagation over a public {PUBLIC_OBJECT_LIMIT}-object slice backed by a 33k+ hourly-refreshed KeepTrack cache.
           </p>
           <div className="docs-header-pills">
             <Pill text="v2.0" />
@@ -208,7 +208,7 @@ export default function Docs() {
         <Section id="overview" title="Overview">
           <p className="docs-p">
             SpaceDebrisAI provides a JSON REST API for monitoring the current public
-            2000-object slice of tracked satellites and debris. The backend computes
+            {PUBLIC_OBJECT_LIMIT}-object slice of tracked satellites and debris. The backend computes
             real-time positions using SGP4/SDP4 orbital propagation and now keeps a
             larger 33k+ local TLE catalog refreshed from KeepTrack once per hour for broader coverage.
           </p>
@@ -222,7 +222,7 @@ export default function Docs() {
 # 2. Health check (no auth required)
 curl ${BASE}/health
 
-# 3. First request - public 2000-object snapshot
+# 3. First request - public ${PUBLIC_OBJECT_LIMIT}-object snapshot
 curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
         </Section>
 
@@ -292,7 +292,7 @@ curl -H "X-API-Key: YOUR_KEY" ${BASE}/satellites | jq '.satellites[0]'`}</Code>
             method="GET"
             path="/simulate"
             auth
-            desc="Runs a proximity simulation across the current 2000-object public slice. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Results are served from a short-lived backend cache built from the local TLE catalog."
+            desc={`Runs a proximity simulation across the current ${PUBLIC_OBJECT_LIMIT}-object public slice. Returns positions, the 20 closest approach pairs sorted by separation distance, AI risk classifications, and recommended avoidance maneuvers. Results are served from a short-lived backend cache built from the local TLE catalog.`}
             params={[]}
             response={{
               mode: "local",

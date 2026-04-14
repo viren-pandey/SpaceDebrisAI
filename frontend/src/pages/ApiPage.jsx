@@ -4,10 +4,10 @@ import { useAuth } from "../contexts/AuthContext";
 import { supabase } from "../lib/supabase";
 import ProTierBanner from "../components/ProTierBanner";
 
-const BASE = "https://virenn77-spacedebrisai.hf.space";
+const BASE = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const LS_KEY   = "sdai_guest_api_key";
 const LS_EMAIL = "sdai_guest_email";
-const PUBLIC_OBJECT_COUNT = 2000;
+const PUBLIC_OBJECT_COUNT = 500;
 const CACHED_DEBRIS_COUNT = "33k+";
 const PAID_OBJECT_COUNT = "10k+";
 const PAID_PRICE = "$10";
@@ -26,8 +26,8 @@ const ENDPOINTS = [
   },
   {
     method: "GET", path: "/simulate", auth: true,
-    desc: "Full proximity simulation across the same 2000-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
-    response: { mode: "local", meta: { satellites: 487, public_objects: 2000, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
+    desc: "Full proximity simulation across the same 500-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
+    response: { mode: "local", meta: { satellites: 487, public_objects: 500, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
   },
   {
     method: "GET", path: "/tracker/positions", auth: true,
@@ -61,7 +61,7 @@ API_KEY = "${key}"
 BASE    = "${BASE}"
 HEADERS = {"X-API-Key": API_KEY}
 
-# Public 2000-object snapshot
+# Public 500-object snapshot
 r = requests.get(f"{BASE}/satellites", headers=HEADERS)
 sats = r.json()["satellites"]
 for s in sats[:5]:
@@ -79,7 +79,7 @@ for pair in sim["closest_pairs"][:3]:
 const API_KEY = "${key}";
 const headers = { "X-API-Key": API_KEY };
 
-// Public 2000-object snapshot
+// Public 500-object snapshot
 const { satellites } = await fetch(\`\${BASE}/satellites\`, { headers }).then(r => r.json());
 satellites.slice(0, 5).forEach(s =>
   console.log(s.name, s.lat, s.lon, s.alt_km + " km")
@@ -94,7 +94,7 @@ sim.closest_pairs.slice(0, 3).forEach(({ satellites: [a, b], before }) =>
   curl: (key) => `# Health check (no auth needed)
 curl ${BASE}/health
 
-# Public 2000-object snapshot
+# Public 500-object snapshot
 curl -H "X-API-Key: ${key}" \\
      ${BASE}/satellites | jq '.satellites[:5]'
 
