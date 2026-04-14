@@ -9,7 +9,7 @@ def health():
     tle_size = TLE_FILE.stat().st_size if tle_exists else 0
 
     return {
-        "status": "ok",
+        "status": "ok the server is running",
         "cache": {
             "exists": tle_exists,
             "size_bytes": tle_size,

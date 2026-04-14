@@ -1,4 +1,4 @@
-from fastapi import APIRouter
+from fastapi import APIRouter, Request
 from datetime import datetime, timezone
 import time
 import math
@@ -10,6 +10,7 @@ from ml_logic.classifier import classify_conjunction
 from ml_logic.avoidance import recommend_maneuver
 from app.services.tle_fetcher import get_local_timestamp, load_tles_from_cache, parse_tle_text
 from app.services.orbit_real import tle_to_position, distance_km as dist3d, teme_to_geodetic
+from app.services.usage_metrics import record_request_usage
 
 router = APIRouter()
 
@@ -179,5 +180,6 @@ def _get_cached_simulation() -> dict:
 
 
 @router.get("/simulate")
-def simulate():
+def simulate(request: Request):
+    record_request_usage(request, "simulate")
     return _get_cached_simulation()

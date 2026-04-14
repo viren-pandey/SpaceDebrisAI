@@ -30,7 +30,7 @@ export default function ProTierBanner() {
       </div>
 
       <p className="ap-premium-footnote">
-        The current free API stays on the public 500-object slice for demos, prototypes,
+        The current free API stays on the public 2000-object slice for demos, prototypes,
         and browser-based exploration.
       </p>
     </div>

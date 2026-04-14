@@ -7,7 +7,7 @@ import ProTierBanner from "../components/ProTierBanner";
 const BASE = "https://virenn77-spacedebrisai.hf.space";
 const LS_KEY   = "sdai_guest_api_key";
 const LS_EMAIL = "sdai_guest_email";
-const PUBLIC_OBJECT_COUNT = 500;
+const PUBLIC_OBJECT_COUNT = 2000;
 const CACHED_DEBRIS_COUNT = "33k+";
 const PAID_OBJECT_COUNT = "10k+";
 const PAID_PRICE = "$10";
@@ -26,8 +26,8 @@ const ENDPOINTS = [
   },
   {
     method: "GET", path: "/simulate", auth: true,
-    desc: "Full proximity simulation across the same 500-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
-    response: { mode: "local", meta: { satellites: 487, public_objects: 500, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
+    desc: "Full proximity simulation across the same 2000-object public slice. Returns positions, 20 closest approach pairs, AI risk classifications (CRITICAL / MEDIUM / LOW), and recommended avoidance maneuvers.",
+    response: { mode: "local", meta: { satellites: 487, public_objects: 2000, tle_records: 33338, tle_source: "cache", pairs_checked: 118341, processing_ms: 742.6 }, closest_pairs: [{ satellites: ["THOR ABLESTAR DEB", "SL-8 DEB"], before: { distance_km: 3.12, risk: { level: "CRITICAL", score: 0.97 } }, after: { distance_km: 28.4, risk: { level: "LOW", score: 0.12 } }, maneuver: "Raise apogee by 500 m" }] },
   },
   {
     method: "GET", path: "/tracker/positions", auth: true,
@@ -61,7 +61,7 @@ API_KEY = "${key}"
 BASE    = "${BASE}"
 HEADERS = {"X-API-Key": API_KEY}
 
-# Public 500-object snapshot
+# Public 2000-object snapshot
 r = requests.get(f"{BASE}/satellites", headers=HEADERS)
 sats = r.json()["satellites"]
 for s in sats[:5]:
@@ -79,7 +79,7 @@ for pair in sim["closest_pairs"][:3]:
 const API_KEY = "${key}";
 const headers = { "X-API-Key": API_KEY };
 
-// Public 500-object snapshot
+// Public 2000-object snapshot
 const { satellites } = await fetch(\`\${BASE}/satellites\`, { headers }).then(r => r.json());
 satellites.slice(0, 5).forEach(s =>
   console.log(s.name, s.lat, s.lon, s.alt_km + " km")
@@ -94,7 +94,7 @@ sim.closest_pairs.slice(0, 3).forEach(({ satellites: [a, b], before }) =>
   curl: (key) => `# Health check (no auth needed)
 curl ${BASE}/health
 
-# Public 500-object snapshot
+# Public 2000-object snapshot
 curl -H "X-API-Key: ${key}" \\
      ${BASE}/satellites | jq '.satellites[:5]'
 
@@ -274,7 +274,7 @@ export default function ApiPage() {
               <p className="ap-sub">
                 Real-time orbital positions, conjunction screening, and AI-generated avoidance
                 maneuvers through a clean REST interface. The public tier currently serves a
-                <strong style={{ color: "var(--text-bright)" }}> 500-object propagated slice</strong>,
+                <strong style={{ color: "var(--text-bright)" }}> 2000-object propagated slice</strong>,
                 backed by a <strong style={{ color: "var(--text-bright)" }}> 33k+ local TLE record catalog</strong>
                 refreshed from KeepTrack once per hour.
               </p>
@@ -349,7 +349,7 @@ export default function ApiPage() {
             <span className="ap-section-num">01</span>
             <div className="ap-section-heading">
               <h2 className="ap-section-title">Your API key</h2>
-              <p className="ap-section-copy">Choose a saved account key or generate a browser-only guest key for immediate testing on the public 500-object tier.</p>
+              <p className="ap-section-copy">Choose a saved account key or generate a browser-only guest key for immediate testing on the public 2000-object tier.</p>
             </div>
           </div>
 
@@ -521,7 +521,7 @@ export default function ApiPage() {
             <span className="ap-section-num">03</span>
             <div className="ap-section-heading">
               <h2 className="ap-section-title">Endpoints</h2>
-              <p className="ap-section-copy">Browse the current public API surface, inspect payloads, and see how the 500-object slice is exposed today.</p>
+              <p className="ap-section-copy">Browse the current public API surface, inspect payloads, and see how the 2000-object slice is exposed today.</p>
             </div>
           </div>
           <div className="ap-endpoints">
@@ -591,7 +591,7 @@ export default function ApiPage() {
                 <div className="ap-limit-item"><span className="ap-limit-val">33k+</span><span className="ap-limit-label">cached tle records</span></div>
                 <div className="ap-limit-item"><span className="ap-limit-val">$10</span><span className="ap-limit-label">paid tier announced</span></div>
               </div>
-            <p className="ap-limits-note">Public requests serve the current 500-object slice from the local 33k+ TLE catalog. The announced paid tier expands access to 10k+ objects with a 5-second maximum polling cadence.</p>
+            <p className="ap-limits-note">Public requests serve the current 2000-object slice from the local 33k+ TLE catalog. The announced paid tier expands access to 10k+ objects with a 5-second maximum polling cadence.</p>
           </div>
         </section>
 
