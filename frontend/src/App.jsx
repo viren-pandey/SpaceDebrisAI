@@ -15,6 +15,8 @@ import Login from "./pages/Login";
 import Docs from "./pages/Docs";
 import { fetchSimulation } from "./api/backend";
 
+const SIMULATION_REFRESH_MS = 15000;
+
 export default function App() {
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
@@ -23,16 +25,43 @@ export default function App() {
     () => localStorage.getItem("sd-theme") || "dark"
   );
 
-  // Apply theme to <html> element so CSS [data-theme] selectors work globally
   useEffect(() => {
     document.documentElement.setAttribute("data-theme", theme);
     localStorage.setItem("sd-theme", theme);
   }, [theme]);
 
   useEffect(() => {
-    fetchSimulation()
-      .then((d) => { setData(d); setLoading(false); })
-      .catch((err) => { setError(err.message); setLoading(false); });
+    let active = true;
+
+    async function loadSimulation({ initial = false } = {}) {
+      if (initial) {
+        setLoading(true);
+      }
+
+      try {
+        const nextData = await fetchSimulation();
+        if (!active) return;
+        setData(nextData);
+        setError(null);
+      } catch (err) {
+        if (!active) return;
+        setError(err.message);
+      } finally {
+        if (active && initial) {
+          setLoading(false);
+        }
+      }
+    }
+
+    loadSimulation({ initial: true });
+    const timer = setInterval(() => {
+      loadSimulation();
+    }, SIMULATION_REFRESH_MS);
+
+    return () => {
+      active = false;
+      clearInterval(timer);
+    };
   }, []);
 
   const toggleTheme = () => setTheme((t) => (t === "dark" ? "light" : "dark"));

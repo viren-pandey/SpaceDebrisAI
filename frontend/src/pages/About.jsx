@@ -3,7 +3,7 @@
     num: "01",
     label: "TLE",
     title: "TLE Ingestion",
-    desc: "Two-Line Element sets are fetched live from CelesTrak for all tracked objects in Earth orbit. The raw TLE data contains orbital parameters in a compact two-line ASCII format.",
+    desc: "Two-Line Element sets flow through a layered pipeline: live catalogs, a Space-Track-refreshed local debris cache, and a bundled fallback set when remote sources fail.",
   },
   {
     num: "02",
@@ -30,7 +30,7 @@ const TECH = [
   { name: "SGP4",          desc: "Industry-standard orbital mechanics propagator for TLE data.", color: "#818cf8" },
   { name: "ML Classifier", desc: "Custom altitude-factor risk engine with multi-threshold scoring.", color: "#f472b6" },
   { name: "React 19",      desc: "Component-driven UI with live data polling and SPA routing.",  color: "#4ade80" },
-  { name: "CelesTrak",     desc: "Live TLE source providing GP data for thousands of orbit objects.", color: "#fb923c" },
+  { name: "CelesTrak + Space-Track", desc: "Live GP feeds plus authenticated debris downloads feeding the local cache and future paid tier.", color: "#fb923c" },
   { name: "Docker",        desc: "Containerised deployment of both backend and frontend services.", color: "#60a5fa" },
   { name: "Vite 7",        desc: "Next-generation build tooling with instant hot-module reload.",  color: "#fbbf24" },
   { name: "Python 3.11",   desc: "Core backend runtime with asyncio and numerical libraries.",    color: "#34d399" },
@@ -44,8 +44,8 @@ export default function About() {
         <div className="page-hero-eyebrow">About the project</div>
         <h1 className="page-hero-title">How SpaceDebrisAI works</h1>
         <p className="page-hero-sub">
-          An end-to-end system for real-time satellite conjunction screening — from live TLE feeds
-          to AI-powered avoidance recommendations, built to keep low Earth orbit safe.
+          An end-to-end system for real-time satellite conjunction screening, from multi-source TLE
+          ingestion and a 17k+ cached debris catalog to AI-powered avoidance recommendations.
         </p>
       </div>
 
@@ -85,12 +85,12 @@ export default function About() {
         <h2 className="about-section-title">Key capabilities</h2>
         <div className="feature-grid">
           {[
-            ["Real-time data",       "Live TLE ingestion from CelesTrak with automatic fallback to simulated orbits"],
+            ["Layered TLE sourcing", "Catalog ingestion can fall back across live feeds, Space-Track-refreshed local cache, and bundled simulated TLE data"],
             ["Multi-pair screening", "All N-choose-2 satellite pair combinations screened every request"],
             ["Risk classification",  "Altitude-weighted scoring mapped to four actionable risk levels"],
             ["Maneuver planning",    "Per-risk-level delta-v recommendations with post-maneuver distance estimates"],
-            ["15 satellite registry","Rich metadata for all tracked satellites including 5 ISRO missions"],
-            ["API-first design",     "Full REST API at /simulate and /health with auto-generated Swagger docs"],
+            ["Tiered API access",    "Free public access covers a 500-object slice, with a paid 10k+ object tier announced at $10/month and 5-second polling"],
+            ["API-first design",     "Full REST API at /simulate, /satellites, and /health with auto-generated Swagger docs"],
           ].map(([title, desc]) => (
             <div className="feature-card" key={title}>
               <div className="feature-dot" />
