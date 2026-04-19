@@ -33,8 +33,7 @@ export default function Dashboard({ data, loading, error }) {
           <span className="ghost-line">MONITOR</span>
         </h1>
         <p className="db-hero-sub">
-          Continuous SGP4 conjunction screening across {publicSliceLabel}, backed by a larger
-          debris TLE cache and AI-powered avoidance maneuver
+          Continuous SGP4 conjunction screening across a merged debris catalog (LEO + all-orbit debris), backed by KeepTrack TLE cache and AI-powered avoidance maneuver
           recommendations.
         </p>
       </section>
@@ -70,11 +69,9 @@ export default function Dashboard({ data, loading, error }) {
       {data && (
         <div className="db-stats-band">
           <div className="db-stats-inner">
-            <StatCard 
-              value={`Screening debris-merged catalog · ${publicObjectCount.toLocaleString()} objects · ${pairsChecked.toLocaleString()} pairs checked`} 
-              label="Simulation scope" 
-              sub={tleSource ? `${tleSource} source` : "live"} 
-            />
+            <StatCard value={tleRecordCount} label="TLE records" sub={`${tleSource} source`} />
+            <StatCard value={publicObjectCount} label="Debris objects" sub="screened" />
+            <StatCard value={pairsChecked} label="Pairs checked" sub="conjunctions" />
             <StatCard value={`${data.meta?.processing_ms ?? "—"}`} label="Processing time" sub="milliseconds" />
           </div>
         </div>
