@@ -2055,6 +2055,22 @@ body {
   font-family: var(--font); font-size: 13px; font-weight: 500;
   color: rgba(255,255,255,.45);
 }
+.trk-search-input {
+  flex: 1;
+  max-width: 240px;
+  padding: 6px 14px;
+  border-radius: 20px;
+  border: 1px solid rgba(56,189,248,.15);
+  background: rgba(0,0,0,.3); color: var(--text);
+  font-family: var(--font); font-size: 13px;
+  outline: none; transition: border-color .2s;
+}
+.trk-search-input::placeholder {
+  color: rgba(255,255,255,.3);
+}
+.trk-search-input:focus {
+  border-color: #00f5c4;
+}
 
 /* Map */
 .trk-map-section {
