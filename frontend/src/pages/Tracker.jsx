@@ -101,12 +101,13 @@ export default function TrackerPage() {
   const [lastUpdate, setLastUpdate] = useState(null);
   const [hovered, setHovered] = useState(null);
   const [selected, setSelected] = useState(null);
+  const [filter, setFilter] = useState("all");
   const timerRef = useRef(null);
 
   const refresh = useCallback(async () => {
     setLoading(true);
     try {
-      const data = await fetchTrackerPositions();
+      const data = await fetchTrackerPositions(filter);
       const nextPositions = data.satellites ?? [];
       const nextErrors = {};
 
@@ -130,7 +131,7 @@ export default function TrackerPage() {
     refresh();
     timerRef.current = setInterval(refresh, 60_000);
     return () => clearInterval(timerRef.current);
-  }, [refresh]);
+  }, [refresh, filter]);
 
   const merged = positions.map((pos) => {
     const meta = SAT_BY_NORAD[pos.noradId] ?? {};
@@ -202,6 +203,30 @@ export default function TrackerPage() {
           <button className="trk-refresh" onClick={refresh} disabled={loading}>
             Refresh
           </button>
+        </div>
+
+        <div className="trk-filter-bar">
+          <button
+            className={`trk-filter-pill${filter === "all" ? " active" : ""}`}
+            onClick={() => setFilter("all")}
+          >
+            All
+          </button>
+          <button
+            className={`trk-filter-pill${filter === "leo_debris" ? " active" : ""}`}
+            onClick={() => setFilter("leo_debris")}
+          >
+            LEO Debris
+          </button>
+          <button
+            className={`trk-filter-pill${filter === "all_debris" ? " active" : ""}`}
+            onClick={() => setFilter("all_debris")}
+          >
+            All Debris
+          </button>
+          <span className="trk-filter-count">
+            {positions.length.toLocaleString()} objects
+          </span>
         </div>
       </div>
 
