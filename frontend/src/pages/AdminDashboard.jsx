@@ -2,7 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY || "admin_secret_key_12345";
-const API_BASE = import.meta.env.VITE_API_URL || "";
+const API_BASE = (import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 
 const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL || "pandeyviren68@gmail.com";
 const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD || "asdf1234@99";
