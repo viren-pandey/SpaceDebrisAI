@@ -8,6 +8,7 @@ const NAV_LINKS = [
   { label: "Tracker",   to: "/tracker" },
   { label: "Docs",      to: "/docs" },
   { label: "About",     to: "/about" },
+  { label: "Congestion", to: "/congestion" },
 ];
 
 const BRAND = [
@@ -86,6 +87,11 @@ export default function Navbar({ live, theme, onToggleTheme }) {
           {/* API link */}
           <NavLink to="/api" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
             API
+          </NavLink>
+
+          {/* Admin link */}
+          <NavLink to="/admin" className={({ isActive }) => isActive ? "nav-link nav-link-active nb-api-link" : "nav-link nb-api-link"}>
+            Admin
           </NavLink>
 
           {/* Auth button */}

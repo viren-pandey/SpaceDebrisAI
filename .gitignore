@@ -58,6 +58,7 @@ pnpm-debug.log*
 # ── OS ───────────────────────────────────────────────────────
 .DS_Store
 Thumbs.db
+full.md
 desktop.ini
 
 # ── Misc temp files ──────────────────────────────────────────
