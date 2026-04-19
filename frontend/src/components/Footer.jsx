@@ -9,6 +9,8 @@ export default function Footer() {
           <span className="footer-divider" />
           <Link className="footer-link" to="/api">API Portal</Link>
           <span className="footer-divider" />
+          <Link className="footer-link" to="/contact">Contact</Link>
+          <span className="footer-divider" />
           <a className="footer-link" href="/">Dashboard</a>
           <span className="footer-divider" />
           <a className="footer-link" href={`${import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space"}/simulate`} target="_blank" rel="noopener noreferrer">Raw data</a>

@@ -4,7 +4,7 @@ emoji: 🛰️
 colorFrom: blue
 colorTo: indigo
 sdk: docker
-pinned: false
+pinned: False
 ---
 
 <div align="center">
