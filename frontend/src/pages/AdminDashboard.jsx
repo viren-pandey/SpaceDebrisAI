@@ -20,6 +20,7 @@ export default function AdminDashboard() {
   const [loginLogsLoading, setLoginLogsLoading] = useState(false);
   const [pollLimitForm, setPollLimitForm] = useState({});
   const [contacts, setContacts] = useState([]);
+  const [selectedUser, setSelectedUser] = useState(null);
 
   useEffect(() => {
     const adminOk = sessionStorage.getItem("admin_authenticated") === "true";
@@ -112,19 +113,23 @@ export default function AdminDashboard() {
     } catch { setActionStatus("error"); }
   };
 
-  const handlePollLimitUpdate = async (email) => {
-    const newLimit = pollLimitForm[email];
+  const handlePollLimitUpdate = async (emailOrIdentifier) => {
+    const newLimit = pollLimitForm[emailOrIdentifier];
     if (!newLimit) return;
     try {
       const res = await fetch(`${API_BASE}/admin/users/poll-limit`, {
         method: "PUT",
         headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
-        body: JSON.stringify({ email, daily_poll_limit: parseInt(newLimit) }),
+        body: JSON.stringify({ email: emailOrIdentifier, daily_poll_limit: parseInt(newLimit) }),
       });
       if (!res.ok) throw new Error("Update failed");
-      setPollLimitForm(prev => ({ ...prev, [email]: null }));
-      fetchData();
+      setPollLimitForm(prev => ({ ...prev, [emailOrIdentifier]: null }));
+      await fetchData();
     } catch {}
+  };
+
+  const showUserCard = (bucket) => {
+    setSelectedUser(bucket);
   };
 
   const handleLogout = () => {
@@ -220,17 +225,16 @@ export default function AdminDashboard() {
               <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>All Users</h2>
               <div className="users-table-wrapper">
                 <table className="users-table">
-                  <thead><tr><th>Identifier</th><th>Email</th><th>IP</th><th>Requests</th><th>Req/min</th><th>Last Endpoint</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>IP Address</th><th>Email</th><th>Date/Time</th><th>Requests</th><th>Limits</th><th>Actions</th></tr></thead>
                   <tbody>
                     {data?.buckets?.slice(0, 50).map((b, i) => (
-                      <tr key={i}>
-                        <td className="identifier-cell">{b.identifier}</td>
+                      <tr key={i} onClick={() => showUserCard(b)} style={{ cursor: "pointer" }}>
+                        <td className="identifier-cell clickable" onClick={(e) => { e.stopPropagation(); showUserCard(b); }}>{b.last_ip || b.identifier}</td>
                         <td>{b.email || "-"}</td>
-                        <td>{b.last_ip || "-"}</td>
+                        <td>{b.last_seen ? new Date(b.last_seen).toLocaleString() : "-"}</td>
                         <td>{b.total_requests}</td>
-                        <td>{b.requests_per_minute}</td>
-                        <td><code>{b.last_endpoint}</code></td>
-                        <td><button className="btn-sm" onClick={() => setBanForm(prev => ({ ...prev, identifier: b.identifier }))}>Ban</button></td>
+                        <td>{data?.user_data?.[b.identifier]?.daily_poll_limit || 10000}</td>
+                        <td><button className="btn-sm" onClick={(e) => { e.stopPropagation(); setBanForm(prev => ({ ...prev, identifier: b.identifier, ip: b.last_ip || "" })); }}>Ban</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -276,23 +280,24 @@ export default function AdminDashboard() {
               <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Manage Poll Limits</h2>
               <div className="users-table-wrapper">
                 <table className="users-table">
-                  <thead><tr><th>Identifier</th><th>Email</th><th>Current Limit</th><th>Today&apos;s Usage</th><th>New Limit</th><th>Actions</th></tr></thead>
+                  <thead><tr><th>IP Address</th><th>Email</th><th>Date/Time</th><th>Current Limit</th><th>Today's Usage</th><th>New Limit</th><th>Actions</th></tr></thead>
                   <tbody>
                     {data?.buckets?.map((b, i) => {
                       const userData = data?.user_data?.[b.identifier] || {};
                       const currentLimit = userData.daily_poll_limit || 10000;
                       const todayUsage = userData.polls_today || 0;
                       return (
-                        <tr key={i}>
-                          <td className="identifier-cell">{b.identifier}</td>
+                        <tr key={i} onClick={() => showUserCard(b)} style={{ cursor: "pointer" }}>
+                          <td className="identifier-cell">{b.last_ip || b.identifier}</td>
                           <td>{b.email || "-"}</td>
+                          <td>{b.last_seen ? new Date(b.last_seen).toLocaleString() : "-"}</td>
                           <td>{currentLimit.toLocaleString()}</td>
                           <td>{todayUsage.toLocaleString()}</td>
                           <td>
-                            <input type="number" className="limit-input" placeholder={currentLimit} value={pollLimitForm[b.identifier] || ""} onChange={e => setPollLimitForm(prev => ({ ...prev, [b.identifier]: e.target.value }))} />
+                            <input type="number" className="limit-input" placeholder={currentLimit} value={pollLimitForm[b.email || b.identifier] || ""} onChange={e => setPollLimitForm(prev => ({ ...prev, [b.email || b.identifier]: e.target.value }))} />
                           </td>
                           <td>
-                            <button className="btn-primary btn-sm" onClick={() => handlePollLimitUpdate(b.email || b.identifier)}>Save</button>
+                            <button className="btn-primary btn-sm" onClick={(e) => { e.stopPropagation(); handlePollLimitUpdate(b.email || b.identifier); }}>Save</button>
                           </td>
                         </tr>
                       );
@@ -306,7 +311,7 @@ export default function AdminDashboard() {
                     const email = b.email || b.identifier;
                     await fetch(`${API_BASE}/admin/users/poll-limit`, { method: "PUT", headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" }, body: JSON.stringify({ email, daily_poll_limit: 10000 }) });
                   }
-                  fetchData();
+                  await fetchData();
                 }}>Reset All to 10,000</button>
               </div>
             </div>
@@ -378,7 +383,32 @@ export default function AdminDashboard() {
             </div>
           )}
         </>
-      )}
-    </div>
-  );
+       )}
+
+       {selectedUser && (
+         <div className="user-card-overlay" onClick={() => setSelectedUser(null)}>
+           <div className="user-card" onClick={e => e.stopPropagation()}>
+             <div className="user-card-header">
+               <h3>User Details</h3>
+               <button className="close-btn" onClick={() => setSelectedUser(null)}>&times;</button>
+             </div>
+             <div className="user-card-body">
+               <div className="user-info-row"><span className="info-label">IP Address</span><span className="info-value">{selectedUser.last_ip || selectedUser.identifier}</span></div>
+               <div className="user-info-row"><span className="info-label">Email</span><span className="info-value">{selectedUser.email || "-"}</span></div>
+               <div className="user-info-row"><span className="info-label">Date/Time</span><span className="info-value">{selectedUser.last_seen ? new Date(selectedUser.last_seen).toLocaleString() : "-"}</span></div>
+               <div className="user-info-row"><span className="info-label">Total Requests</span><span className="info-value">{selectedUser.total_requests || 0}</span></div>
+               <div className="user-info-row"><span className="info-label">Req/min</span><span className="info-value">{selectedUser.requests_per_minute || 0}</span></div>
+               <div className="user-info-row"><span className="info-label">Last Endpoint</span><span className="info-value"><code>{selectedUser.last_endpoint || "-"}</code></span></div>
+               <div className="user-info-row"><span className="info-label">Daily Limit</span><span className="info-value">{data?.user_data?.[selectedUser.identifier]?.daily_poll_limit || 10000}</span></div>
+               <div className="user-info-row"><span className="info-label">Used Today</span><span className="info-value">{data?.user_data?.[selectedUser.identifier]?.polls_today || 0}</span></div>
+             </div>
+             <div className="user-card-actions">
+               <button className="btn-sm" onClick={() => { setBanForm(prev => ({ ...prev, identifier: selectedUser.identifier, ip: selectedUser.last_ip || "" })); setSelectedUser(null); }}>Ban User</button>
+               <button className="btn-sm btn-secondary" onClick={() => setSelectedUser(null)}>Close</button>
+             </div>
+           </div>
+         </div>
+       )}
+     </div>
+   );
 }

@@ -13,7 +13,9 @@ export function AuthProvider({ children }) {
   const [isOwner, setIsOwner] = useState(false);
 
   useEffect(() => {
-    fetch(`${API_BASE}/auth/me`, { credentials: "include" })
+    const token = getAuthToken();
+    const headers = token ? { "X-Token": token } : {};
+    fetch(`${API_BASE}/auth/me`, { credentials: "include", headers })
       .then((res) => {
         if (!res.ok) return null;
         return res.json();

@@ -43,10 +43,11 @@ def logout():
     return {"ok": True}
 
 @router.get("/me")
-def get_me(token: Optional[str] = Cookie(None)):
-    if not token:
+def get_me(token: Optional[str] = Cookie(None), x_token: Optional[str] = Header(None, alias="X-Token")):
+    token_str = token or x_token
+    if not token_str:
         raise HTTPException(401, {"error": "Not authenticated"})
-    email = decode_token(token)
+    email = decode_token(token_str)
     if not email:
         raise HTTPException(401, {"error": "Invalid or expired token"})
     db = next(get_db())
