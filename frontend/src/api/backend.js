@@ -1,37 +1,261 @@
 const API = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const isBrowser = typeof window !== "undefined";
+const OWNER_MODE_KEY = "sdai_is_owner";
 
-function buildHeaders() {
+const fetchCache = new Map();
+const CACHE_TTL_MS = 30000;
+
+function getCached(key) {
+  const entry = fetchCache.get(key);
+  if (!entry) return null;
+  if (Date.now() - entry.timestamp > CACHE_TTL_MS) {
+    fetchCache.delete(key);
+    return null;
+  }
+  return entry.data;
+}
+
+function setCached(key, data) {
+  fetchCache.set(key, { data, timestamp: Date.now() });
+}
+export const API_TERMS_STORAGE_KEY = "sdai_api_terms_version";
+export const ACTIVE_API_KEY_STORAGE_KEY = "sdai_active_api_key";
+export const GUEST_API_KEY_STORAGE_KEY = "sdai_guest_api_key";
+export const GUEST_EMAIL_STORAGE_KEY = "sdai_guest_email";
+export const CASCADE_API_KEY_STORAGE_KEY = "sdai_api_key";
+
+function createApiError(message, extras = {}) {
+  const error = new Error(message);
+  Object.assign(error, extras);
+  return error;
+}
+
+function isOwnerMode() {
+  if (!isBrowser) return false;
+  try { return localStorage.getItem(OWNER_MODE_KEY) === "1"; }
+  catch { return false; }
+}
+
+function getStoredApiKey() {
+  if (!isBrowser) return "";
+  return localStorage.getItem(ACTIVE_API_KEY_STORAGE_KEY) || "";
+}
+
+function getPreferredApiKey() {
+  const envKey = import.meta.env.VITE_SDAI_API_KEY ?? "";
+  if (envKey) return envKey;
+  if (!isBrowser) return "";
+  return (
+    localStorage.getItem(CASCADE_API_KEY_STORAGE_KEY)
+    || localStorage.getItem(ACTIVE_API_KEY_STORAGE_KEY)
+    || localStorage.getItem(GUEST_API_KEY_STORAGE_KEY)
+    || ""
+  );
+}
+
+function buildHeaders({ includeApiKey = true, apiKey } = {}) {
   const headers = {};
   if (!isBrowser) return headers;
+  const resolvedApiKey = apiKey ?? getPreferredApiKey();
   const email = localStorage.getItem("sdai_user_email")
-    ?? localStorage.getItem("sdai_guest_email");
+    ?? localStorage.getItem(GUEST_EMAIL_STORAGE_KEY);
+  if (includeApiKey && resolvedApiKey) {
+    headers["X-API-Key"] = resolvedApiKey;
+  }
   if (email) {
     headers["X-User-Email"] = email;
+  }
+  if (isOwnerMode()) {
+    headers["X-Owner-Mode"] = "true";
   }
   return headers;
 }
 
-export async function fetchSimulation() {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000);
+async function parseError(res, fallbackMessage) {
   try {
-    const res = await fetch(`${API}/simulate`, {
+    const data = await res.json();
+    return data.detail ?? fallbackMessage;
+  } catch {
+    return fallbackMessage;
+  }
+}
+
+async function fetchPublicJson(url, { timeoutMs = 180000, useCache = true } = {}) {
+  if (useCache) {
+    const cached = getCached(url);
+    if (cached) return cached;
+  }
+  
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const hasApiKey = Boolean(getPreferredApiKey());
+
+  async function run(includeApiKey) {
+    return await fetch(url, {
       cache: "no-store",
-      headers: buildHeaders(),
+      headers: buildHeaders({ includeApiKey }),
       signal: controller.signal,
     });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
     if (!res.ok) {
-      throw new Error(`Simulation API error: ${res.status}`);
+      throw createApiError(
+        await parseError(res, `Request failed with status ${res.status}`),
+        { status: res.status, url }
+      );
     }
-    return await res.json();
-  } catch (err) {
-    if (err.name === "AbortError") {
-      throw new Error("Simulation request timed out. Backend is overloaded or slow.");
-    }
-    throw new Error("Failed to fetch simulation: " + err.message);
+    const data = await res.json();
+    if (useCache) setCached(url, data);
+    return data;
   } finally {
     clearTimeout(timeout);
+  }
+}
+
+async function fetchAuthedJson(url, { timeoutMs = 25000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const apiKey = getPreferredApiKey();
+  const hasApiKey = Boolean(apiKey);
+
+  async function run(includeApiKey) {
+    return await fetch(url, {
+      cache: "no-store",
+      headers: buildHeaders({ apiKey, includeApiKey }),
+      signal: controller.signal,
+    });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
+    if (!res.ok) {
+      throw createApiError(
+        await parseError(res, `Request failed with status ${res.status}`),
+        { status: res.status, url }
+      );
+    }
+    return await res.json();
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function postPublicJson(url, payload, { timeoutMs = 90000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const hasApiKey = Boolean(getPreferredApiKey());
+
+  async function run(includeApiKey) {
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildHeaders({ includeApiKey }),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail ?? `Request failed with status ${res.status}`);
+    }
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+async function postAuthedJson(url, payload, { timeoutMs = 25000 } = {}) {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  const apiKey = getPreferredApiKey();
+  const hasApiKey = Boolean(apiKey);
+
+  async function run(includeApiKey) {
+    return await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...buildHeaders({ apiKey, includeApiKey }),
+      },
+      body: JSON.stringify(payload),
+      signal: controller.signal,
+    });
+  }
+
+  try {
+    let res = await run(true);
+    if ((res.status === 401 || res.status === 403) && hasApiKey) {
+      res = await run(false);
+    }
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      throw new Error(data.detail ?? `Request failed with status ${res.status}`);
+    }
+    return data;
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
+export async function fetchApiKeyPolicy() {
+  const res = await fetch(`${API}/api-keys/policy`, { cache: "no-store" });
+  if (!res.ok) throw new Error(`Policy API error ${res.status}`);
+  return await res.json();
+}
+
+export async function fetchBackendHealth() {
+  return await fetchPublicJson(`${API}/health`, { timeoutMs: 10000 });
+}
+
+export async function issueApiKey(payload) {
+  const res = await fetch(`${API}/api-keys/issue`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(payload),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? `Issue API key error ${res.status}`);
+  return data;
+}
+
+export async function revokeApiKey(key) {
+  const res = await fetch(`${API}/api-keys/revoke`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ key }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.detail ?? `Revoke API key error ${res.status}`);
+  return data;
+}
+
+export async function fetchSimulation() {
+  try {
+    return await fetchPublicJson(`${API}/simulate`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw createApiError("Simulation request timed out. Backend is overloaded or slow.", { code: "SIM_TIMEOUT" });
+    }
+    throw createApiError("Failed to fetch simulation: " + err.message, {
+      status: err.status,
+      code: err.status === 404 ? "SIM_404" : "SIM_FETCH",
+    });
   }
 }
 
@@ -39,34 +263,21 @@ export async function fetchTrackerPositions(filter = "all") {
   const url = filter === "all" 
     ? `${API}/tracker/positions` 
     : `${API}/tracker/positions?filter=${filter}`;
-  const res = await fetch(url, {
-    cache: "no-store",
-    headers: buildHeaders(),
-  });
-  if (!res.ok) throw new Error(`Tracker API error ${res.status}`);
-  return await res.json();
+  try {
+    return await fetchPublicJson(url);
+  } catch (err) {
+    throw new Error("Failed to fetch tracker positions: " + err.message);
+  }
 }
 
 export async function fetchCDM() {
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), 25000);
   try {
-    const res = await fetch(`${API}/cdm`, {
-      cache: "no-store",
-      headers: buildHeaders(),
-      signal: controller.signal,
-    });
-    if (!res.ok) {
-      throw new Error(`CDM API error: ${res.status}`);
-    }
-    return await res.json();
+    return await fetchPublicJson(`${API}/cdm`);
   } catch (err) {
     if (err.name === "AbortError") {
       throw new Error("CDM request timed out. Backend is overloaded or slow.");
     }
     throw new Error("Failed to fetch CDM: " + err.message);
-  } finally {
-    clearTimeout(timeout);
   }
 }
 
@@ -78,4 +289,159 @@ export async function refreshCDM() {
   });
   if (!res.ok) throw new Error(`CDM refresh error ${res.status}`);
   return await res.json();
+}
+
+export async function fetchOdriSnapshot(limit = 10) {
+  try {
+    return await fetchPublicJson(`${API}/risk/odri?limit=${limit}`);
+  } catch (err) {
+    throw new Error("Failed to fetch ODRI snapshot: " + err.message);
+  }
+}
+
+export async function fetchOdriForSatellite(satId, deltaT = 7) {
+  const params = new URLSearchParams({
+    sat_id: satId,
+    delta_t: String(deltaT),
+  });
+  try {
+    return await fetchPublicJson(`${API}/risk/odri?${params.toString()}`);
+  } catch (err) {
+    throw new Error("Failed to fetch satellite ODRI: " + err.message);
+  }
+}
+
+export async function askCascadeQuestion(payload) {
+  try {
+    return await postAuthedJson(`${API}/cascade/ask`, payload);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Cascade request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to ask cascade intelligence: " + err.message);
+  }
+}
+
+export async function fetchSatellites() {
+  try {
+    return await fetchPublicJson(`${API}/satellites`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Satellite request timed out. Backend is overloaded or slow.");
+    }
+    throw new Error("Failed to fetch satellites: " + err.message);
+  }
+}
+
+export async function fetchSimulationAuthed() {
+  try {
+    return await fetchPublicJson(`${API}/simulate`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw createApiError("Simulation request timed out. Backend is overloaded or slow.", { code: "SIM_TIMEOUT" });
+    }
+    throw createApiError("Failed to fetch simulation: " + err.message, {
+      status: err.status,
+      code: err.status === 404 ? "SIM_404" : "SIM_FETCH",
+    });
+  }
+}
+
+// Space Weather API
+export async function fetchSpaceWeather() {
+  try {
+    return await fetchPublicJson(`${API}/spaceweather`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Space weather request timed out.");
+    }
+    throw new Error("Failed to fetch space weather: " + err.message);
+  }
+}
+
+export async function fetchDragEstimate(altitudeKm = 400) {
+  try {
+    return await fetchPublicJson(`${API}/spaceweather/drag?altitude_km=${altitudeKm}`);
+  } catch (err) {
+    throw new Error("Failed to fetch drag estimate: " + err.message);
+  }
+}
+
+// Shell Instability API
+export async function fetchShellInstability(altitudeKm = null, limit = 20) {
+  try {
+    const params = altitudeKm ? `?altitude_km=${altitudeKm}&limit=${limit}` : `?limit=${limit}`;
+    return await fetchPublicJson(`${API}/shell/instability${params}`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Shell instability request timed out.");
+    }
+    throw new Error("Failed to fetch shell instability: " + err.message);
+  }
+}
+
+// CDM Timeline API
+export async function fetchCDMTimeline(params = {}) {
+  try {
+    const query = new URLSearchParams(params).toString();
+    return await fetchPublicJson(`${API}/cdm/timeline${query ? `?${query}` : ""}`);
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("CDM timeline request timed out.");
+    }
+    throw new Error("Failed to fetch CDM timeline: " + err.message);
+  }
+}
+
+export async function fetchHighRiskCDMs(thresholdPc = 1e-4, limit = 10) {
+  try {
+    return await fetchPublicJson(`${API}/cdm/highrisk?threshold_pc=${thresholdPc}&limit=${limit}`);
+  } catch (err) {
+    throw new Error("Failed to fetch high-risk CDMs: " + err.message);
+  }
+}
+
+// Simulation High-Risk Collisions API
+export async function fetchSimHighRisk(threshold = "HIGH") {
+  try {
+    return await fetchPublicJson(`${API}/simulate/high-risk?threshold=${threshold}`);
+  } catch (err) {
+    throw new Error("Failed to fetch high-risk collisions: " + err.message);
+  }
+}
+
+// Simulation Stats API
+export async function fetchSimStats() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/stats`);
+  } catch (err) {
+    throw new Error("Failed to fetch simulation stats: " + err.message);
+  }
+}
+
+// Simulation Change Report API
+export async function fetchSimChanges() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/changes`);
+  } catch (err) {
+    throw new Error("Failed to fetch change report: " + err.message);
+  }
+}
+
+// Simulation Audit Log API
+export async function fetchSimAudit() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/audit`);
+  } catch (err) {
+    throw new Error("Failed to fetch audit log: " + err.message);
+  }
+}
+
+// Simulation Explain API
+export async function fetchSimExplain() {
+  try {
+    return await fetchPublicJson(`${API}/simulate/explain`);
+  } catch (err) {
+    throw new Error("Failed to fetch simulation explanation: " + err.message);
+  }
 }

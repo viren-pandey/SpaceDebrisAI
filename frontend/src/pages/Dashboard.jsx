@@ -1,13 +1,19 @@
 ﻿import { Link } from "react-router-dom";
+import BackendOfflineNotice from "../components/BackendOfflineNotice";
 import RiskPanel from "../components/RiskPanel";
 import SimulationContext from "../components/SimulationContext";
 import SatelliteTable from "../components/SatelliteTable";
 import ProTierBanner from "../components/ProTierBanner";
 import CDMPanel from "../components/CDMPanel";
+import SpaceLoading from "../components/SpaceLoading";
 
-export default function Dashboard({ data, loading, error }) {
+export default function Dashboard({ data, loading, error, backendStatus }) {
+  if (loading) {
+    return <SpaceLoading />;
+  }
+
   const tickerItems = data?.closest_pairs ?? [];
-  const tleRecordCount = data?.meta?.tle_records ?? "—";
+  const tleRecordCount = data?.meta?.total_tle_records ?? data?.meta?.tle_records ?? "—";
   const publicObjectCount = data?.meta?.public_objects ?? data?.meta?.satellites ?? "—";
   const tleSource = data?.meta?.tle_source ?? data?.mode ?? "—";
   const pairsChecked = data?.meta?.pairs_checked ?? "—";
@@ -23,7 +29,7 @@ export default function Dashboard({ data, loading, error }) {
         <div className="db-status-row">
           <div className={`db-status-badge${error ? " offline" : ""}`}>
             <span className={`live-dot${error ? " offline" : ""}`} />
-            {loading ? "Connecting..." : error ? "Backend offline" : "Screening active"}
+            {error ? "Backend offline" : "Screening active"}
           </div>
         </div>
         <p className="db-hero-eyebrow">Real-time orbital conjunction monitoring</p>
@@ -88,6 +94,13 @@ export default function Dashboard({ data, loading, error }) {
         <div className="error-state">
           <p>{error}</p>
         </div>
+      )}
+
+      {!loading && error && !data && (
+        <BackendOfflineNotice
+          title="Simulation backend offline"
+          detail={`Health route is ${backendStatus?.status ?? "unavailable"}, but /simulate is failing.`}
+        />
       )}
 
       {/* Main panels */}

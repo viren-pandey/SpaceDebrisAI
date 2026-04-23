@@ -5,19 +5,27 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import SatelliteBackground from "./components/SatelliteBackground";
-import { fetchSimulation } from "./api/backend";
+import { fetchBackendHealth, fetchSimulation } from "./api/backend";
 import About from "./pages/About";
 import AdminDashboard from "./pages/AdminDashboard";
 import AllDebris from "./pages/AllDebris";
 import ApiPage from "./pages/ApiPage";
+import ApiTerms from "./pages/ApiTerms";
+import ChangeReport from "./pages/ChangeReport";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
 import Contact from "./pages/Contact";
+import CascadeIntelligence from "./pages/CascadeIntelligence";
+import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
 import Docs from "./pages/Docs";
+import HighRiskCollisions from "./pages/HighRiskCollisions";
 import LiveCongestion from "./pages/LiveCongestion";
 import Login from "./pages/Login";
 import RealConjunctions from "./pages/RealConjunctions";
 import Satellites from "./pages/Satellites";
+import ShellInstability from "./pages/ShellInstability";
+import SimulationStats from "./pages/SimulationStats";
+import SpaceWeather from "./pages/SpaceWeather";
 import Tracker from "./pages/Tracker";
 
 const SIMULATION_REFRESH_MS = 60000;
@@ -28,8 +36,11 @@ function AppShell({ theme, toggleTheme }) {
   const shouldLoadSimulation = SIMULATION_ROUTES.has(location.pathname);
   const [data, setData] = useState(null);
   const [error, setError] = useState(null);
+  const [backendStatus, setBackendStatus] = useState(null);
   const [loading, setLoading] = useState(shouldLoadSimulation);
   const hasLoadedSimulationRef = useRef(false);
+  const isFetchingRef = useRef(false);
+  const abortControllerRef = useRef(null);
 
   useEffect(() => {
     if (!shouldLoadSimulation) {
@@ -40,6 +51,14 @@ function AppShell({ theme, toggleTheme }) {
 
     let active = true;
     async function loadSimulation() {
+      if (isFetchingRef.current) return;
+      isFetchingRef.current = true;
+      
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      
       const isInitialLoad = !hasLoadedSimulationRef.current;
       if (isInitialLoad) {
         setLoading(true);
@@ -50,14 +69,24 @@ function AppShell({ theme, toggleTheme }) {
         if (!active) return;
         setData(nextData);
         setError(null);
+        setBackendStatus(null);
         hasLoadedSimulationRef.current = true;
       } catch (err) {
-        if (!active) return;
+        if (!active || err.name === "AbortError") return;
+        try {
+          const health = await fetchBackendHealth();
+          if (!active) return;
+          setBackendStatus(health);
+        } catch {
+          if (!active) return;
+          setBackendStatus(null);
+        }
         setError(err.message);
       } finally {
         if (active && isInitialLoad) {
           setLoading(false);
         }
+        isFetchingRef.current = false;
       }
     }
 
@@ -67,6 +96,9 @@ function AppShell({ theme, toggleTheme }) {
     return () => {
       active = false;
       clearInterval(timer);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
     };
   }, [shouldLoadSimulation]);
 
@@ -76,19 +108,27 @@ function AppShell({ theme, toggleTheme }) {
       <Navbar live={!loading && !error} theme={theme} onToggleTheme={toggleTheme} />
       <main className="main-content">
         <Routes>
-          <Route path="/" element={<Dashboard data={data} loading={loading} error={error} />} />
-          <Route path="/satellites" element={<Satellites data={data} loading={loading} error={error} />} />
+          <Route path="/" element={<Dashboard data={data} loading={loading} error={error} backendStatus={backendStatus} />} />
+          <Route path="/satellites" element={<Satellites data={data} loading={loading} error={error} backendStatus={backendStatus} />} />
           <Route path="/tracker" element={<Tracker />} />
           <Route path="/all-debris" element={<AllDebris />} />
           <Route path="/real-conjunctions" element={<RealConjunctions />} />
           <Route path="/conjunction/:id" element={<ConjunctionDetail />} />
           <Route path="/api" element={<ApiPage />} />
+          <Route path="/api/terms" element={<ApiTerms />} />
           <Route path="/docs" element={<Docs />} />
+          <Route path="/cascade-intelligence" element={<CascadeIntelligence />} />
+          <Route path="/spaceweather" element={<SpaceWeather />} />
+          <Route path="/shell-instability" element={<ShellInstability />} />
+          <Route path="/cdm-timeline" element={<CDMTimeline />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/congestion" element={<LiveCongestion />} />
+          <Route path="/high-risk-collisions" element={<HighRiskCollisions />} />
+          <Route path="/simulation-stats" element={<SimulationStats />} />
+          <Route path="/change-report" element={<ChangeReport />} />
         </Routes>
       </main>
       <Footer />
