@@ -205,6 +205,7 @@ export default function AdminDashboard() {
                 placeholder="Enter password"
               />
             </div>
+            {/* Ma ka bhosda nhi ho rha baad m krunga */}
             {loginError && <div className="login-error">{loginError}</div>}
             <button type="submit" className="login-btn">
               Login

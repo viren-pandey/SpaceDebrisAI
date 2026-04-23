@@ -14,6 +14,7 @@
   --text-faint: #3a4a5c;
 
   /* keep old names for compatibility */
+  --bg-1:       rgba(7, 13, 26, 0.96);
   --bg-base:    #050812;
   --bg-card:    rgba(7, 13, 26, 0.94);
   --text-1:     #dde6f0;
@@ -57,6 +58,7 @@
   --text:       #0d1b2a;
   --text-dim:   #3c566e;
   --text-faint: #7290a8;
+  --bg-1:       rgba(248, 250, 252, 0.98);
   --bg-base:    #edf2f8;
   --bg-card:    rgba(248, 250, 252, 0.97);
   --text-1:     #0d1b2a;
