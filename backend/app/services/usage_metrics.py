@@ -159,8 +159,6 @@ class UsageTracker:
     def _is_owner(self, email: str | None, api_key: str | None, identifier: str) -> bool:
         if email and email.lower() == OWNER_EMAIL:
             return True
-        if api_key and api_key == OWNER_API_KEY and OWNER_API_KEY:
-            return True
         if api_key and is_owner_key(api_key):
             return True
         if identifier.lower().replace("user:", "") == OWNER_EMAIL:
