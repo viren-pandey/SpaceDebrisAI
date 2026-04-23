@@ -1,7 +1,6 @@
 import { useEffect, useState } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../contexts/AuthContext";
-import { supabase } from "../lib/supabase";
 import ProTierBanner from "../components/ProTierBanner";
 import {
   ACTIVE_API_KEY_STORAGE_KEY,
@@ -79,38 +78,11 @@ export default function ApiPage() {
       .catch(() => {});
   }, []);
 
-  useEffect(() => {
-    if (!user || !supabase) return;
-    supabase
-      .from("api_keys")
-      .select("id, key")
-      .eq("user_id", user.id)
-      .eq("active", true)
-      .order("created_at", { ascending: false })
-      .limit(1)
-      .maybeSingle()
-      .then(({ data }) => {
-        if (data) {
-          setApiKey(data.key);
-          setKeyId(data.id);
-        }
-      });
-  }, [user]);
-
   async function persistAccountKey(key) {
-    if (!user || !supabase) return;
-    if (keyId) {
-      await supabase.from("api_keys").update({ active: false }).eq("id", keyId);
-    }
-    const { data } = await supabase
-      .from("api_keys")
-      .insert({ user_id: user.id, key, active: true })
-      .select("id, key")
-      .single();
-    if (data) {
-      setApiKey(data.key);
-      setKeyId(data.id);
-    }
+    if (!user) return;
+    storeVerifiedKey(key, user.email, termsVersion);
+    setApiKey(key);
+    setKeyId(user.id);
   }
 
   async function createKey(email, ownerId = null) {
@@ -175,9 +147,6 @@ export default function ApiPage() {
     setKeyError("");
     try {
       await revokeApiKey(activeKey);
-      if (user && supabase && keyId) {
-        await supabase.from("api_keys").update({ active: false }).eq("id", keyId);
-      }
       setApiKey("");
       setKeyId(null);
       setGuestKey("");

@@ -13,28 +13,21 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.services.api_keys import (
-    OWNER_EMAIL,
-    OWNER_API_KEY,
     get_api_key_policy,
     validate_api_key,
     is_owner_key,
 )
 
-
-# ── Owner / Admin identity ────────────────────────────────────────────────────
-# Primary owner identity is email. A second env-var-backed key is also checked.
+# ── Owner / Admin identity ────────────────────────────────────────────
 OWNER_EMAIL = os.getenv("OWNER_EMAIL", "pandeyviren68@gmail.com").strip().lower()
-OWNER_API_KEY = os.getenv("OWNER_API_KEY", "").strip()
 OWNER_NAME = "Viren Pandey"
 
 # Owner tier: practically unlimited, just not infinite to prevent accidental overload.
 OWNER_MAX_REQUESTS_PER_MINUTE = 10_000
 OWNER_MIN_POLL_INTERVAL_SECONDS = 0.5  # essentially no polling restriction
 
-
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
-
 
 def _csv_env(name: str) -> set[str]:
     return {
@@ -42,7 +35,6 @@ def _csv_env(name: str) -> set[str]:
         for value in os.getenv(name, "").split(",")
         if value.strip()
     }
-
 
 @dataclass
 class ActivePollingRequest:
@@ -53,7 +45,6 @@ class ActivePollingRequest:
     started_at: datetime
     last_poll: datetime
     poll_count: int = 1
-
 
 @dataclass
 class UsageRecord:
@@ -131,6 +122,10 @@ class UsageRecord:
             "last_violation_at": self.last_violation_at.isoformat() if self.last_violation_at else None,
         }
 
+# Rate limit constants
+MAX_REQUESTS_PER_MINUTE = 60
+MIN_POLL_INTERVAL_SECONDS = 5
+AUTO_BAN_AFTER_VIOLATIONS = 5
 
 class UsageTracker:
     def __init__(self) -> None:
@@ -187,7 +182,6 @@ class UsageTracker:
             return True
         if identifier.lower() in self._exempt_emails or identifier.lower() in self._exempt_api_keys:
             return True
-        # Owner identity bypasses standard rate limits (but is still recorded for audit)
         if self._is_owner(email, api_key, identifier):
             return True
         return False
@@ -211,7 +205,6 @@ class UsageTracker:
         record.prune_minute_window(now_ts)
 
         if is_owner:
-            # Owner tier: very high limit, essentially no polling restriction
             owner_limit = OWNER_MAX_REQUESTS_PER_MINUTE
             if len(record.minute_window) >= owner_limit:
                 retry_after = max(1, math.ceil(60 - (now_ts - record.minute_window[0])))
@@ -382,7 +375,7 @@ class UsageTracker:
             }
 
     def start_polling(self, request: Request, endpoint: str) -> None:
-        identifier, email = self._identify(request)
+        identifier, _ = self._identify(request)
         ip = self._current_ip(request)
         timestamp = _utc_now()
         with self._lock:
