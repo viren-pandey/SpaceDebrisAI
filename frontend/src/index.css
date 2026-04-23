@@ -7968,6 +7968,90 @@ body {
   font-size: 14px;
 }
 
+/* Login Logs Table */
+.logs-table-wrapper {
+  overflow-x: auto;
+  background: rgba(255,255,255,0.02);
+  border-radius: 12px;
+  border: 1px solid rgba(255,255,255,0.06);
+}
+
+.logs-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 14px;
+}
+
+.logs-table th {
+  background: rgba(255,255,255,0.03);
+  color: var(--text-dim);
+  padding: 12px 16px;
+  text-align: left;
+  border-bottom: 1px solid rgba(56,189,248,0.12);
+  font-weight: 600;
+}
+
+.logs-table td {
+  padding: 12px 16px;
+  border-top: 1px solid rgba(255,255,255,0.04);
+  color: var(--text);
+}
+
+.logs-table tr:hover td {
+  background: rgba(56,189,248,0.04);
+}
+
+.logs-table tr.log-success td {
+  background: rgba(34,197,94,0.03);
+}
+
+.logs-table tr.log-failed td {
+  background: rgba(239,68,68,0.03);
+}
+
+.user-agent-cell {
+  max-width: 200px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 12px;
+  color: var(--text-faint);
+}
+
+.status-badge {
+  display: inline-block;
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.status-badge.success {
+  background: rgba(34,197,94,0.15);
+  color: #22c55e;
+  border: 1px solid rgba(34,197,94,0.3);
+}
+
+.status-badge.failed {
+  background: rgba(239,68,68,0.15);
+  color: #ef4444;
+  border: 1px solid rgba(239,68,68,0.3);
+}
+
+.failure-reason {
+  color: #ef4444;
+  font-size: 13px;
+}
+
+/* Light theme for logs */
+[data-theme="light"] .logs-table-wrapper { background: var(--bg-2); border-color: rgba(0,0,0,.07); }
+[data-theme="light"] .logs-table th { background: rgba(0,0,0,.04); border-bottom-color: rgba(56,189,248,.12); }
+[data-theme="light"] .logs-table td { border-bottom-color: rgba(0,0,0,.05); }
+[data-theme="light"] .logs-table tr:hover td { background: rgba(56,189,248,.04); }
+[data-theme="light"] .logs-table tr.log-success td { background: rgba(34,197,94,.03); }
+[data-theme="light"] .logs-table tr.log-failed td { background: rgba(239,68,68,.03); }
+[data-theme="light"] .user-agent-cell { color: var(--text-faint); }
+
 .empty-state {
   color: var(--text-faint);
   text-align: center;

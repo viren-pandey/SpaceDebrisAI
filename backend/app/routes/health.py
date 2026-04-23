@@ -74,7 +74,7 @@ def health():
     )
 
     return {
-        "status": "ok the server is running",
+        "status": "Ok the server is running by God's grace",
         "catalog": {
             "total_tle_records": total_records,
             "total_unique_objects": total_unique,
@@ -90,7 +90,6 @@ def health():
 
 @router.post("/health/refresh")
 def refresh_cache():
-    """Force refresh all TLE caches from KeepTrack API."""
     try:
         refresh_all_caches(force=True)
         satellites_info = get_cache_info(SATELLITES_FILE, deduplicate=True)
@@ -122,6 +121,5 @@ def refresh_cache():
 
 
 def _check_api_key_status() -> bool:
-    """Internal function to check if API key is configured."""
     import os
     return bool(os.getenv("KEEPTRACK_API_KEY"))
