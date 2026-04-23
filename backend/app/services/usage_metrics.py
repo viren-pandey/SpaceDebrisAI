@@ -217,6 +217,17 @@ class UsageTracker:
         self._banned_ips[ip] = {"reason": reason, "at": timestamp.isoformat()}
         raise HTTPException(status_code=403, detail=f"Client banned: {reason}")
 
+    # ── public read-only endpoints that don't need API key auth ───────────────
+    _PUBLIC_PATHS = frozenset([
+        "/simulate", "/simulate/changes", "/simulate/explain",
+        "/simulate/audit", "/simulate/stats", "/simulate/high-risk",
+        "/health",
+    ])
+
+    def _is_public_path(self, path: str) -> bool:
+        p = path.rstrip("/")
+        return p in self._PUBLIC_PATHS or p.startswith("/health")
+
     def observe_request(self, request: Request) -> None:
         if request.method.upper() == "OPTIONS":
             return
@@ -228,7 +239,8 @@ class UsageTracker:
         now_ts = timestamp.timestamp()
         api_key = request.headers.get("X-API-Key")
 
-        if api_key:
+        # Skip API key validation for public read-only endpoints
+        if api_key and not self._is_public_path(endpoint):
             validate_api_key(api_key)
 
         if self._is_exempt(request, identifier, email, ip, api_key):

@@ -1,5 +1,7 @@
 import { useState, useEffect } from "react";
 import { fetchSimChanges, fetchSimAudit, fetchSimExplain } from "../api/backend";
+import { useAuth } from "../contexts/AuthContext";
+import { useNavigate } from "react-router-dom";
 
 export default function ChangeReport() {
   const [changes, setChanges] = useState(null);
@@ -8,6 +10,9 @@ export default function ChangeReport() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [activeTab, setActiveTab] = useState("changes");
+  const [showLoginPrompt, setShowLoginPrompt] = useState(false);
+  const { user } = useAuth();
+  const navigate = useNavigate();
 
   useEffect(() => {
     loadData();
@@ -30,6 +35,73 @@ export default function ChangeReport() {
     } finally {
       setLoading(false);
     }
+  }
+
+  function buildReportText() {
+    if (!changes || !audit || !explain) return "";
+    const { report } = changes;
+    const { summary } = changes;
+    const lines = [
+      "═══════════════════════════════════════════════════════",
+      "       SPACEDEBRIS AI — CHANGE REPORT",
+      "═══════════════════════════════════════════════════════",
+      `Generated: ${new Date().toUTCString()}`,
+      "",
+      "── CATALOG CHANGES ────────────────────────────────────",
+      `  Satellites: ${report.satellites?.previous_count ?? 0} → ${report.satellites?.current_count ?? 0}`,
+      `  Added:      ${report.satellites?.added?.length ?? 0}`,
+      `  Removed:    ${report.satellites?.removed?.length ?? 0}`,
+      `  Change:     ${report.satellites?.change_pct ?? "0%"}`,
+      "",
+      "── PAIR ANALYSIS ──────────────────────────────────────",
+      `  Total Pairs:  ${report.pairs?.current_count ?? 0}`,
+      `  Preserved:    ${report.pairs?.preserved_pairs ?? 0}`,
+      `  New:          ${report.pairs?.new_pairs ?? 0}`,
+      `  Removed:      ${report.pairs?.removed_pairs ?? 0}`,
+      `  Changed:      ${report.pairs?.changed_pairs ?? 0}`,
+      "",
+      "── PAIR STABILITY ────────────────────────────────────",
+      `  ${summary.pair_stability ?? "—"}`,
+      "",
+      "── PROCESSING ────────────────────────────────────────",
+      `  TLE Records:   ${report.processing?.total_tle_records ?? "—"}`,
+      `  Valid Sats:   ${report.processing?.valid_satellites ?? "—"}`,
+      `  Pairs Checked: ${report.processing?.pairs_checked ?? "—"}`,
+      `  Build Time:   ${report.processing?.processing_ms ?? "—"} ms`,
+      "",
+      "── METHODOLOGY ───────────────────────────────────────",
+      `  Propagation:  ${explain.methodology?.propagation ?? "—"}`,
+      `  Detection:    ${explain.methodology?.conjunction_detection ?? "—"}`,
+      "",
+      "── OPTIMIZATION ──────────────────────────────────────",
+      `  ${summary.optimization_explanation ?? ""}`,
+      "",
+      "── AUDIT TRAIL (last 20 entries) ─────────────────────",
+    ];
+    (audit.entries || []).forEach((entry, i) => {
+      lines.push(`  [${i + 1}] ${entry.action} — ${entry.timestamp}`);
+      if (entry.reason) lines.push(`      Reason: ${entry.reason}`);
+    });
+    lines.push("");
+    lines.push("═══════════════════════════════════════════════════════");
+    lines.push("  Source: SpaceDebris AI (virenn77-spacedebrisai.hf.space)");
+    lines.push("═══════════════════════════════════════════════════════");
+    return lines.join("\n");
+  }
+
+  function downloadReport() {
+    if (!user) {
+      setShowLoginPrompt(true);
+      return;
+    }
+    const text = buildReportText();
+    const blob = new Blob([text], { type: "text/plain" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = `change-report-${new Date().toISOString().slice(0, 10)}.txt`;
+    a.click();
+    URL.revokeObjectURL(url);
   }
 
   if (loading) {
@@ -95,7 +167,28 @@ export default function ChangeReport() {
         <button className="hr-refresh-btn" onClick={loadData}>
           Refresh
         </button>
+        <button className="hr-refresh-btn" onClick={downloadReport} style={{ marginLeft: 8 }}>
+          Download Report
+        </button>
       </div>
+
+      {/* Login prompt */}
+      {showLoginPrompt && (
+        <div className="modal-overlay" onClick={() => setShowLoginPrompt(false)}>
+          <div className="modal-card" onClick={(e) => e.stopPropagation()}>
+            <h3>Sign in to Download</h3>
+            <p>Download the full change report as a structured text file.</p>
+            <div className="modal-actions">
+              <button className="btn-primary" onClick={() => { setShowLoginPrompt(false); navigate("/login"); }}>
+                Sign In
+              </button>
+              <button className="btn-ghost" onClick={() => setShowLoginPrompt(false)}>
+                Cancel
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Summary Cards */}
       <div className="db-stats-band">

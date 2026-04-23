@@ -739,22 +739,30 @@ async def get_change_report():
     Get detailed change report for the current simulation.
     Includes satellite additions/removals, pair changes, and justifications.
     """
-    data = _get_cached_simulation()
-    meta = data.get("meta", {})
-    change_report = meta.get("change_report", {})
-    
+    try:
+        data = _get_cached_simulation()
+    except Exception as e:
+        print(f"[SIMULATE/CHANGES] Cache build failed: {e}")
+        raise
+
+    meta = data.get("meta", {}) or {}
+    change_report = meta.get("change_report") or {}
+
+    satellites_data = change_report.get("satellites", {}) or {}
+    pairs_data = change_report.get("pairs", {}) or {}
+
     return {
         "timestamp_utc": datetime.now(timezone.utc).isoformat(),
         "report": {
-            "satellites": change_report.get("satellites", {}),
-            "pairs": change_report.get("pairs", {}),
+            "satellites": satellites_data,
+            "pairs": pairs_data,
             "processing": change_report.get("processing", {}),
         },
         "audit_trail": list(_CHANGE_AUDIT_LOG[-20:]),  # Last 20 entries
         "summary": {
-            "total_changes": len(change_report.get("satellites", {}).get("added", [])) +
-                           len(change_report.get("satellites", {}).get("removed", [])),
-            "pair_stability": f"{len(change_report.get('pairs', {}).get('preserved_pairs', [])) / max(len(change_report.get('pairs', {}).get('current_count', 1)), 1) * 100:.1f}%",
+            "total_changes": len(satellites_data.get("added", [])) +
+                           len(satellites_data.get("removed", [])),
+            "pair_stability": f"{len(pairs_data.get('preserved_pairs', [])) / max(pairs_data.get('current_count', 1) or 1, 1) * 100:.1f}%",
             "optimization_explanation": (
                 "Using spatial binning: satellites are grouped by altitude (500km shells). "
                 "Only satellites in adjacent shells are checked for conjunctions. "
