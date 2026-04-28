@@ -1,0 +1,1 @@
+from app.middleware.exceptions import add_exception_logging
