@@ -188,5 +188,10 @@ def ban_api_key(key: str, reason: str) -> None:
     _registry.ban_key(key, reason)
 
 
+def is_owner_key(key: str) -> bool:
+    record = _registry._records.get(key)
+    return record is not None and record.owner_id is not None and record.active
+
+
 def get_api_key_policy() -> dict:
     return _registry.policy()

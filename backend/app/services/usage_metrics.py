@@ -13,11 +13,11 @@ from starlette.middleware.base import BaseHTTPMiddleware
 from starlette.responses import JSONResponse
 
 from app.services.api_keys import (
-    AUTO_BAN_AFTER_VIOLATIONS,
-    MAX_REQUESTS_PER_MINUTE,
-    MIN_POLL_INTERVAL_SECONDS,
-    ban_api_key,
+    OWNER_EMAIL,
+    OWNER_API_KEY,
+    get_api_key_policy,
     validate_api_key,
+    is_owner_key,
 )
 
 
@@ -165,6 +165,8 @@ class UsageTracker:
         if email and email.lower() == OWNER_EMAIL:
             return True
         if api_key and api_key == OWNER_API_KEY and OWNER_API_KEY:
+            return True
+        if api_key and is_owner_key(api_key):
             return True
         if identifier.lower().replace("user:", "") == OWNER_EMAIL:
             return True
