@@ -1,5 +1,6 @@
 const API = (import.meta.env.VITE_API_URL ?? "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 const isBrowser = typeof window !== "undefined";
+const OWNER_MODE_KEY = "sdai_is_owner";
 
 const fetchCache = new Map();
 const CACHE_TTL_MS = 30000;
@@ -27,6 +28,12 @@ function createApiError(message, extras = {}) {
   const error = new Error(message);
   Object.assign(error, extras);
   return error;
+}
+
+function isOwnerMode() {
+  if (!isBrowser) return false;
+  try { return localStorage.getItem(OWNER_MODE_KEY) === "1"; }
+  catch { return false; }
 }
 
 function getStoredApiKey() {
@@ -57,6 +64,9 @@ function buildHeaders({ includeApiKey = true, apiKey } = {}) {
   }
   if (email) {
     headers["X-User-Email"] = email;
+  }
+  if (isOwnerMode()) {
+    headers["X-Owner-Mode"] = "true";
   }
   return headers;
 }

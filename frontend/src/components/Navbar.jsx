@@ -36,7 +36,7 @@ export default function Navbar({ live, theme, onToggleTheme }) {
   const [monitorOpen, setMonitorOpen] = useState(false);
   const dropdownRef = useRef(null);
   const isDark = theme === "dark";
-  const { user, signOut } = useAuth();
+  const { user, signOut, isOwner } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -178,6 +178,13 @@ export default function Navbar({ live, theme, onToggleTheme }) {
             <button className="nb-auth-btn nb-auth-btn--in" onClick={() => navigate("/login")}>
               Sign in
             </button>
+          )}
+
+          {/* Owner mode badge */}
+          {isOwner && (
+            <span className="nb-owner-badge" title="Owner tier — no rate limit">
+              Owner
+            </span>
           )}
 
           {/* Live status pill — desktop only */}

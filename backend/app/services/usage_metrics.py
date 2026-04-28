@@ -21,6 +21,17 @@ from app.services.api_keys import (
 )
 
 
+# ── Owner / Admin identity ────────────────────────────────────────────────────
+# Primary owner identity is email. A second env-var-backed key is also checked.
+OWNER_EMAIL = os.getenv("OWNER_EMAIL", "pandeyviren68@gmail.com").strip().lower()
+OWNER_API_KEY = os.getenv("OWNER_API_KEY", "").strip()
+OWNER_NAME = "Viren Pandey"
+
+# Owner tier: practically unlimited, just not infinite to prevent accidental overload.
+OWNER_MAX_REQUESTS_PER_MINUTE = 10_000
+OWNER_MIN_POLL_INTERVAL_SECONDS = 0.5  # essentially no polling restriction
+
+
 def _utc_now() -> datetime:
     return datetime.now(timezone.utc)
 
@@ -150,6 +161,15 @@ class UsageTracker:
         path = request.url.path.rstrip("/")
         return path or "/"
 
+    def _is_owner(self, email: str | None, api_key: str | None, identifier: str) -> bool:
+        if email and email.lower() == OWNER_EMAIL:
+            return True
+        if api_key and api_key == OWNER_API_KEY and OWNER_API_KEY:
+            return True
+        if identifier.lower().replace("user:", "") == OWNER_EMAIL:
+            return True
+        return False
+
     def _is_exempt(self, request: Request, identifier: str, email: str | None, ip: str, api_key: str | None) -> bool:
         forwarded_for = request.headers.get("X-Forwarded-For", "")
         forwarded_candidates = [
@@ -164,6 +184,9 @@ class UsageTracker:
         if api_key and api_key.lower() in self._exempt_api_keys:
             return True
         if identifier.lower() in self._exempt_emails or identifier.lower() in self._exempt_api_keys:
+            return True
+        # Owner identity bypasses standard rate limits (but is still recorded for audit)
+        if self._is_owner(email, api_key, identifier):
             return True
         return False
 
@@ -182,8 +205,25 @@ class UsageTracker:
             self._records[identifier] = record
         return record
 
-    def _check_rate_limits(self, record: UsageRecord, endpoint: str, now_ts: float) -> tuple[str, int] | None:
+    def _check_rate_limits(self, record: UsageRecord, endpoint: str, now_ts: float, is_owner: bool = False) -> tuple[str, int] | None:
         record.prune_minute_window(now_ts)
+
+        if is_owner:
+            # Owner tier: very high limit, essentially no polling restriction
+            owner_limit = OWNER_MAX_REQUESTS_PER_MINUTE
+            if len(record.minute_window) >= owner_limit:
+                retry_after = max(1, math.ceil(60 - (now_ts - record.minute_window[0])))
+                reason = f"Exceeded {owner_limit} requests per minute (owner tier)"
+                return reason, retry_after
+            owner_interval = OWNER_MIN_POLL_INTERVAL_SECONDS
+            last_endpoint_ts = record.endpoint_last_request.get(endpoint)
+            if last_endpoint_ts is not None:
+                elapsed = now_ts - last_endpoint_ts
+                if elapsed < owner_interval:
+                    retry_after = max(1, math.ceil(owner_interval - elapsed))
+                    reason = f"Polling faster than {owner_interval}s is not allowed for {endpoint} (owner tier)"
+                    return reason, retry_after
+            return None
 
         if len(record.minute_window) >= MAX_REQUESTS_PER_MINUTE:
             retry_after = max(1, math.ceil(60 - (now_ts - record.minute_window[0])))
@@ -228,9 +268,13 @@ class UsageTracker:
         p = path.rstrip("/")
         return p in self._PUBLIC_PATHS or p.startswith("/health")
 
-    def observe_request(self, request: Request) -> None:
+    def observe_request(self, request: Request) -> str:
+        """
+        Returns the applied tier: "owner" or "standard".
+        Raises HTTPException on rate-limit violation or ban.
+        """
         if request.method.upper() == "OPTIONS":
-            return
+            return "standard"
 
         identifier, email = self._identify(request)
         ip = self._current_ip(request)
@@ -238,6 +282,17 @@ class UsageTracker:
         timestamp = _utc_now()
         now_ts = timestamp.timestamp()
         api_key = request.headers.get("X-API-Key")
+
+        # Detect owner identity
+        is_owner = self._is_owner(email, api_key, identifier)
+
+        # Audit log owner bypass access
+        if is_owner:
+            print(
+                f"[OWNER ACCESS] {OWNER_NAME} ({OWNER_EMAIL}) | "
+                f"endpoint={endpoint} | ip={ip} | "
+                f"identifier={identifier} | ts={timestamp.isoformat()}"
+            )
 
         # Skip API key validation for public read-only endpoints
         if api_key and not self._is_public_path(endpoint):
@@ -250,7 +305,7 @@ class UsageTracker:
                 record.touch_ip(ip)
                 record.register_request(endpoint, timestamp)
                 self._total_requests += 1
-            return
+            return "owner" if is_owner else "standard"
 
         with self._lock:
             self._raise_if_banned(identifier, ip)
@@ -260,7 +315,7 @@ class UsageTracker:
             record.touch_ip(ip)
 
             if api_key:
-                violation = self._check_rate_limits(record, endpoint, now_ts)
+                violation = self._check_rate_limits(record, endpoint, now_ts, is_owner=is_owner)
                 if violation is not None:
                     reason, retry_after = violation
                     violation_count = record.register_violation(timestamp)
@@ -280,6 +335,7 @@ class UsageTracker:
 
             record.register_request(endpoint, timestamp)
             self._total_requests += 1
+            return "owner" if is_owner else "standard"
 
     def snapshot(self) -> Iterable[Dict[str, object]]:
         with self._lock:
@@ -389,11 +445,13 @@ class UsageTracker:
 class RateLimitMiddleware(BaseHTTPMiddleware):
     async def dispatch(self, request: Request, call_next):
         try:
-            _tracker.observe_request(request)
+            tier = _tracker.observe_request(request)
         except HTTPException as exc:
             payload = {"detail": exc.detail}
             return JSONResponse(status_code=exc.status_code, content=payload, headers=exc.headers)
-        return await call_next(request)
+        response = await call_next(request)
+        response.headers["X-Rate-Limit-Tier"] = tier
+        return response
 
 
 _tracker = UsageTracker()

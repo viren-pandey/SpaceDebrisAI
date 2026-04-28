@@ -5390,6 +5390,22 @@ body {
   letter-spacing: .04em;
 }
 
+/* Owner mode badge */
+.nb-owner-badge {
+  font-family: var(--font);
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  padding: 4px 10px;
+  border-radius: 20px;
+  background: var(--accent, #f0c040);
+  color: #000;
+  border: 1px solid var(--accent, #f0c040);
+  cursor: default;
+  flex-shrink: 0;
+}
+
 /* Mobile nav additions */
 .mobile-signin, .mobile-signout {
   background: none; border: none;
@@ -6345,6 +6361,12 @@ body {
   text-transform: uppercase;
   color: #86efac;
   white-space: nowrap;
+}
+
+.ap-premium-pill--owner {
+  background: rgba(240, 192, 64,.15);
+  border-color: rgba(240, 192, 64,.4);
+  color: #f0c040;
 }
 
 .ap-premium-copy,

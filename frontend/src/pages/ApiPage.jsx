@@ -43,7 +43,7 @@ function clearStoredKey() {
 }
 
 export default function ApiPage() {
-  const { user, loading: authLoading, signOut } = useAuth();
+  const { user, loading: authLoading, signOut, isOwner } = useAuth();
   const navigate = useNavigate();
 
   const [apiKey, setApiKey] = useState("");
@@ -312,7 +312,7 @@ console.log(data.satellites.slice(0, 3));`,
           </div>
 
           <div className="ap-key-card">
-            <ProTierBanner />
+            <ProTierBanner isOwner={isOwner} />
             {keyError && <p className="ap-key-error">{keyError}</p>}
             <label className="ap-key-intro">
               <input type="checkbox" checked={termsAccepted} onChange={(event) => setTermsAccepted(event.target.checked)} />{" "}
