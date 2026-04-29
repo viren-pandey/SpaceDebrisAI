@@ -2,9 +2,9 @@ from fastapi import APIRouter, HTTPException, Request, Response, Cookie
 from pydantic import BaseModel
 from datetime import datetime, date
 from typing import Optional
-from .auth import decode_token
-from .database import get_db
-from .models import User, ApiKey, ContactRequest
+from app.auth import decode_token, hash_password
+from app.database import get_db
+from app.models import User, ApiKey, ContactRequest
 import secrets
 
 router = APIRouter(prefix="/user", tags=["user"])

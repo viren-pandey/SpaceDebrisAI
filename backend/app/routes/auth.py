@@ -1,9 +1,8 @@
 from fastapi import APIRouter, HTTPException, Response, Cookie
-from .schemas import UserCreate, UserLogin, UserResponse
-from .auth import hash_password, verify_password, create_token, decode_token
-from .database import get_db
-from .models import User
-from datetime import datetime
+from app.schemas import UserCreate, UserLogin
+from app.auth import hash_password, verify_password, create_token, decode_token
+from app.database import get_db
+from app.models import User
 from typing import Optional
 
 router = APIRouter(prefix="/auth", tags=["auth"])
