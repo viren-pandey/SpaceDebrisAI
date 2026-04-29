@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../../contexts/AuthContext";
 import { fetchPollUsage, fetchApiKeys, createApiKey } from "../../api/dashboard";
@@ -15,18 +15,31 @@ export default function Dashboard() {
   const [copied, setCopied] = useState(false);
   const [createLabel, setCreateLabel] = useState("");
   const [showCreate, setShowCreate] = useState(false);
+  const [hasDismissedKey, setHasDismissedKey] = useState(false);
+  const hasDismissedKeyRef = useRef(false);
 
   useEffect(() => {
     if (!user) { navigate("/login", { state: { from: "/dashboard" } }); return; }
-    Promise.all([
-      fetchPollUsage().catch(() => ({ polls_used_today: 0, daily_poll_limit: 10000, reset_in_seconds: 86400 })),
-      fetchApiKeys().catch(() => []),
-    ]).then(([u, k]) => {
-      setUsage(u);
-      setKeys(k);
-      setLoading(false);
-    });
+    try {
+      setHasDismissedKey(JSON.parse(localStorage.getItem("sdai_key_dismissed") || "false"));
+      hasDismissedKeyRef.current = true;
+    } catch {}
+    loadData();
+    const interval = setInterval(loadData, 30000);
+    return () => clearInterval(interval);
   }, [user, navigate]);
+
+  async function loadData() {
+    try {
+      const u = await fetchPollUsage();
+      setUsage(u);
+    } catch {}
+    try {
+      const k = await fetchApiKeys();
+      setKeys(k);
+    } catch {}
+    setLoading(false);
+  }
 
   async function handleCreateKey(e) {
     e?.preventDefault();
@@ -37,6 +50,9 @@ export default function Dashboard() {
       setKeys(prev => [...prev, key]);
       setShowCreate(false);
       setCreateLabel("");
+      setHasDismissedKey(false);
+      hasDismissedKeyRef.current = false;
+      localStorage.removeItem("sdai_key_dismissed");
     } catch {
     } finally {
       setCreateLoading(false);
@@ -44,9 +60,16 @@ export default function Dashboard() {
   }
 
   function copyKey() {
-    navigator.clipboard.writeText(newKey || keys.find(k => k.is_active)?.key_prefix);
+    navigator.clipboard.writeText(newKey || "");
     setCopied(true);
     setTimeout(() => setCopied(false), 2000);
+  }
+
+  function dismissKey() {
+    setNewKey(null);
+    setHasDismissedKey(true);
+    hasDismissedKeyRef.current = true;
+    try { localStorage.setItem("sdai_key_dismissed", "true"); } catch {}
   }
 
   if (loading) return <DashboardLayout><div className="dash-loading"><div className="spinner" /></div></DashboardLayout>;
@@ -58,8 +81,8 @@ export default function Dashboard() {
   const resetIn = usage?.reset_in_seconds ?? 86400;
   const hours = Math.floor(resetIn / 3600);
   const mins = Math.floor((resetIn % 3600) / 60);
-  const activeKey = keys.find(k => k.is_active);
-  const memberSince = user?.email ? new Date().toLocaleDateString() : "";
+  const hasActiveKey = keys.some(k => k.is_active);
+  const memberSince = user?.email ? new Date(user?.created_at || Date.now()).toLocaleDateString() : "";
 
   return (
     <DashboardLayout>
@@ -82,37 +105,37 @@ export default function Dashboard() {
               <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="var(--accent)" strokeWidth="1.5"/><path d="M7 10l2 2 4-4" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               <h3>Key created successfully</h3>
             </div>
-            <p className="key-reveal-warning">This is the only time your key will be shown. Copy it now — it will not be visible again.</p>
+            <p className="key-reveal-warning">This is the only time your full API key will be shown. Copy it now — it will never be visible again.</p>
             <div className="key-reveal-value">
               <code>{newKey}</code>
               <button onClick={copyKey} className={`btn-copy ${copied ? "copied" : ""}`}>
                 {copied ? "Copied" : "Copy"}
               </button>
             </div>
-            <button className="key-reveal-dismiss" onClick={() => setNewKey(null)}>Got it, hide key</button>
+            <button className="key-reveal-dismiss" onClick={dismissKey}>I&apos;ve copied my key, hide it</button>
           </div>
         )}
 
-        {!activeKey && !newKey && (
+        {!hasActiveKey && !newKey && (
           <div className="dash-no-key">
+            <div className="no-key-icon">
+              <svg width="48" height="48" viewBox="0 0 48 48" fill="none"><rect x="8" y="18" width="24" height="14" rx="3" stroke="var(--accent)" strokeWidth="2"/><circle cx="38" cy="25" r="6" stroke="var(--accent)" strokeWidth="2"/><circle cx="38" cy="25" r="2" fill="var(--accent)"/></svg>
+            </div>
             <h3>No API key yet</h3>
-            <p>Create your first API key to start using the SpaceDebrisAI API.</p>
+            <p>Create your first API key to start using the SpaceDebrisAI API. You will only see your key once after creation — make sure to copy it.</p>
             <button onClick={() => setShowCreate(true)} className="btn-primary">Create API Key</button>
           </div>
         )}
 
-        {activeKey && !newKey && (
-          <div className="dash-active-key">
-            <div className="dash-key-header">
-              <h3>Your API Key</h3>
-              <div className="dash-key-actions">
-                <Link to="/dashboard/api-keys" className="btn-ghost-sm">Manage Keys</Link>
+        {hasActiveKey && hasDismissedKey && !newKey && (
+          <div className="dash-key-status">
+            <div className="key-status-row">
+              <div className="key-status-icon">
+                <svg width="20" height="20" viewBox="0 0 20 20" fill="none"><circle cx="10" cy="10" r="9" stroke="var(--accent)" strokeWidth="1.5"/><path d="M6 10l3 3 5-6" stroke="var(--accent)" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
               </div>
+              <span>Your API key is active and ready to use</span>
             </div>
-            <div className="dash-key-display">
-              <code>{activeKey.key_prefix}••••••••{activeKey.key_suffix || ""}</code>
-              <span className="key-status-badge">Active</span>
-            </div>
+            <Link to="/dashboard/api-keys" className="btn-ghost-sm">Manage Keys</Link>
           </div>
         )}
 

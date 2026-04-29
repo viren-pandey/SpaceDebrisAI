@@ -11120,13 +11120,44 @@ body {
 
 .key-reveal-dismiss:hover { color: var(--text); }
 
+/* Key Status (post-dismiss) */
+.dash-key-status {
+  background: rgba(34,197,94,.04);
+  border: 1px solid rgba(34,197,94,.12);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.key-status-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 14px;
+  color: #22c55e;
+  font-weight: 500;
+}
+
+.key-status-icon {
+  display: flex;
+  align-items: center;
+}
+
 /* No Key */
 .dash-no-key {
   background: rgba(56,189,248,.03);
   border: 1px dashed rgba(56,189,248,.15);
   border-radius: 12px;
-  padding: 24px;
+  padding: 40px 24px;
   text-align: center;
+}
+
+.no-key-icon {
+  margin-bottom: 16px;
+  opacity: .6;
 }
 
 .dash-no-key h3 {
@@ -11139,28 +11170,6 @@ body {
   font-size: 14px;
   color: var(--text-dim);
   margin-bottom: 16px;
-}
-
-/* Active Key */
-.dash-active-key {
-  background: rgba(56,189,248,.03);
-  border: 1px solid rgba(56,189,248,.08);
-  border-radius: 12px;
-  padding: 20px;
-}
-
-.dash-key-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12px;
-}
-
-.dash-key-header h3 {
-  font-size: 14px;
-  font-weight: 600;
-  color: var(--text-dim);
-  margin: 0;
 }
 
 .btn-ghost-sm {
@@ -11176,20 +11185,6 @@ body {
 }
 
 .btn-ghost-sm:hover { background: rgba(56,189,248,.06); }
-
-.dash-key-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  gap: 12px;
-}
-
-.dash-key-display code {
-  font-family: var(--mono);
-  font-size: 15px;
-  color: var(--text-bright);
-  letter-spacing: .5px;
-}
 
 .key-status-badge {
   font-size: 11px;
