@@ -39,6 +39,9 @@ def _startup_diagnostics():
 
 @asynccontextmanager
 async def lifespan(_app: FastAPI):
+    from app.database import engine, Base
+    Base.metadata.create_all(bind=engine)
+    print("Database tables created/verified")
     _startup_diagnostics()
     start_background_refresh()
     threading.Thread(target=_warm_simulation_cache, daemon=True).start()
@@ -59,13 +62,16 @@ add_exception_logging(app)
 
 _extra = os.getenv("ALLOWED_ORIGIN", "")
 _origins = [
-    "*",
     "https://spacedebrisai.vercel.app",
     "http://localhost:5173", "http://127.0.0.1:5173",
     "http://localhost:5174", "http://127.0.0.1:5174",
     "http://localhost:5175", "http://127.0.0.1:5175",
     "http://localhost:5176", "http://127.0.0.1:5176",
     "http://localhost:3000", "http://localhost:4173",
+    "http://localhost:5177", "http://127.0.0.1:5177",
+    "http://localhost:5178", "http://127.0.0.1:5178",
+    "http://localhost:5179", "http://127.0.0.1:5179",
+    "http://localhost:5180", "http://127.0.0.1:5180",
 ]
 if _extra:
     _origins.extend(o.strip() for o in _extra.split(",") if o.strip())
@@ -103,6 +109,12 @@ app.include_router(spaceweather_router)
 
 from app.routes.cdm import router as cdm_router
 from app.routes.login_logs import router as login_logs_router
+from app.routes.user import router as user_router
+from app.routes.admin import router as admin_router
+from app.routes.auth import router as auth_router
 
 app.include_router(cdm_router)
 app.include_router(login_logs_router)
+app.include_router(user_router)
+app.include_router(admin_router)
+app.include_router(auth_router)

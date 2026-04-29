@@ -23,27 +23,21 @@ export default function Login() {
 
     try {
       if (mode === "signup") {
-        const { error: err } = await signUp(email, password);
-        if (err) {
-          setError(err.message);
+        const result = await signUp(email, password);
+        if (result.error) {
+          setError(result.error.message);
           setLoading(false);
           return;
         }
-        // Try to sign in immediately (works when email confirmation is disabled)
-        const { error: signInErr } = await signIn(email, password);
-        if (!signInErr) {
-          navigate(from, { replace: true });
-          return;
-        }
-        setSuccess("Account created! Check your email to confirm, then sign in.");
-        setMode("signin");
+        setSuccess("Account created! You are now signed in.");
+        navigate(from, { replace: true });
         setLoading(false);
         return;
       }
 
-      const { error: err } = await signIn(email, password);
-      if (err) {
-        setError(err.message);
+      const result = await signIn(email, password);
+      if (result.error) {
+        setError(result.error.message);
         setLoading(false);
         return;
       }

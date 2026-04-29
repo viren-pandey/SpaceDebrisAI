@@ -4,32 +4,37 @@ import { useNavigate } from "react-router-dom";
 const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY;
 const API_BASE = (import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space").replace(/\/+$/, "");
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
-
 export default function AdminDashboard() {
   const navigate = useNavigate();
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
   const [data, setData] = useState(null);
-  const [activeTab, setActiveTab] = useState("users");
+  const [activeTab, setActiveTab] = useState("overview");
   const [adminKey, setAdminKey] = useState("");
   const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [loginForm, setLoginForm] = useState({ email: "", password: "" });
-  const [loginError, setLoginError] = useState("");
+  const [redirecting, setRedirecting] = useState(true);
   const [banForm, setBanForm] = useState({ identifier: "", ip: "", email: "", reason: "" });
   const [, setUnbanForm] = useState({ identifier: "", ip: "" });
   const [actionStatus, setActionStatus] = useState(null);
   const [loginLogs, setLoginLogs] = useState([]);
   const [loginLogsLoading, setLoginLogsLoading] = useState(false);
+  const [pollLimitForm, setPollLimitForm] = useState({});
+  const [contacts, setContacts] = useState([]);
 
   useEffect(() => {
+    const adminOk = sessionStorage.getItem("admin_authenticated") === "true";
+    const bypassOk = sessionStorage.getItem("bypass_authenticated") === "true";
     const storedKey = localStorage.getItem("admin_key");
-    if (storedKey) {
+    if (storedKey && adminOk) {
       setAdminKey(storedKey);
       setIsAuthenticated(true);
+      setRedirecting(false);
+    } else if (bypassOk && !adminOk) {
+      navigate("/admin/login");
+    } else if (!bypassOk) {
+      navigate("/admin/bypass");
     }
-  }, []);
+  }, [navigate]);
 
   useEffect(() => {
     if (adminKey) {
@@ -37,59 +42,16 @@ export default function AdminDashboard() {
     }
   }, [adminKey]);
 
-  const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError("");
-    const logAttempt = async (success, failureReason = null) => {
-      try {
-        await fetch(`${API_BASE}/admin/login-attempt`, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            email: loginForm.email,
-            success,
-            failure_reason: failureReason,
-          }),
-        });
-      } catch {
-        // Silently fail - don't block login for logging errors
-      }
-    };
-
-    if (loginForm.email !== ADMIN_EMAIL || loginForm.password !== ADMIN_PASSWORD) {
-      await logAttempt(false, "Invalid credentials");
-      setLoginError("Invalid credentials");
-      return;
-    }
-
-    await logAttempt(true);
-    setIsAuthenticated(true);
-    setAdminKey(ADMIN_KEY);
-    localStorage.setItem("admin_key", ADMIN_KEY);
-
-    // Fetch immediately after login
-    setTimeout(() => fetchData(ADMIN_KEY), 100);
-  };
-
   const fetchData = async (keyOverride = null) => {
     const key = keyOverride || adminKey;
-    if (!key) {
-      setError("Admin key required");
-      setLoading(false);
-      return;
-    }
+    if (!key) return;
     try {
       setLoading(true);
-      const res = await fetch(`${API_BASE}/usage`, {
-        headers: { "X-Admin-Key": key },
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.detail || "Failed to fetch");
-      }
+      setError(null);
+      const res = await fetch(`${API_BASE}/usage`, { headers: { "X-Admin-Key": key } });
+      if (!res.ok) throw new Error("Failed to fetch");
       const json = await res.json();
       setData(json);
-      setError(null);
     } catch (e) {
       setError(e.message);
     } finally {
@@ -97,30 +59,24 @@ export default function AdminDashboard() {
     }
   };
 
-  const fetchLoginLogs = async () => {
-    if (!adminKey) return;
+  const fetchContacts = async () => {
     try {
-      setLoginLogsLoading(true);
-      const res = await fetch(`${API_BASE}/admin/login-logs?limit=100`, {
-        headers: { "X-Admin-Key": adminKey },
-      });
-      if (!res.ok) throw new Error("Failed to fetch login logs");
-      const json = await res.json();
-      setLoginLogs(json.logs || []);
-    } catch (e) {
-      console.error("Login logs error:", e);
-    } finally {
-      setLoginLogsLoading(false);
-    }
+      const res = await fetch(`${API_BASE}/admin/contact-requests`, { headers: { "X-Admin-Key": adminKey } });
+      if (res.ok) {
+        const json = await res.json();
+        setContacts(json);
+      }
+    } catch {}
   };
 
   useEffect(() => {
     if (isAuthenticated && adminKey) {
       fetchData();
-      const interval = setInterval(() => fetchData(), 10000);
+      const interval = setInterval(() => {
+        fetchData();
+      }, 15000);
       return () => clearInterval(interval);
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isAuthenticated, adminKey]);
 
   const handleBan = async (e) => {
@@ -129,25 +85,15 @@ export default function AdminDashboard() {
       setActionStatus("banning");
       const res = await fetch(`${API_BASE}/usage/revoke`, {
         method: "POST",
-        headers: {
-          "X-Admin-Key": adminKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          identifier: banForm.identifier || null,
-          ip: banForm.ip || null,
-          email: banForm.email || null,
-          reason: banForm.reason || null,
-        }),
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier: banForm.identifier || null, ip: banForm.ip || null, email: banForm.email || null, reason: banForm.reason || null }),
       });
       if (!res.ok) throw new Error("Ban failed");
       setBanForm({ identifier: "", ip: "", email: "", reason: "" });
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch {
-      setActionStatus("error");
-    }
+    } catch { setActionStatus("error"); }
   };
 
   const handleUnban = async (type, value) => {
@@ -155,169 +101,136 @@ export default function AdminDashboard() {
       setActionStatus("unbanning");
       const res = await fetch(`${API_BASE}/usage/unban`, {
         method: "POST",
-        headers: {
-          "X-Admin-Key": adminKey,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          [type]: value,
-        }),
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ [type]: value }),
       });
       if (!res.ok) throw new Error("Unban failed");
       setUnbanForm({ identifier: "", ip: "" });
       setActionStatus("success");
       fetchData();
       setTimeout(() => setActionStatus(null), 2000);
-    } catch {
-      setActionStatus("error");
-    }
+    } catch { setActionStatus("error"); }
+  };
+
+  const handlePollLimitUpdate = async (email) => {
+    const newLimit = pollLimitForm[email];
+    if (!newLimit) return;
+    try {
+      const res = await fetch(`${API_BASE}/admin/users/poll-limit`, {
+        method: "PUT",
+        headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" },
+        body: JSON.stringify({ email, daily_poll_limit: parseInt(newLimit) }),
+      });
+      if (!res.ok) throw new Error("Update failed");
+      setPollLimitForm(prev => ({ ...prev, [email]: null }));
+      fetchData();
+    } catch {}
   };
 
   const handleLogout = () => {
     setIsAuthenticated(false);
-    setLoginForm({ email: "", password: "" });
+    sessionStorage.removeItem("admin_authenticated");
     localStorage.removeItem("admin_key");
-    navigate("/");
+    navigate("/admin/bypass");
   };
 
-  if (!isAuthenticated) {
+  if (redirecting) {
     return (
-      <div className="admin-page">
-        <div className="admin-login">
-          <h2>Admin Login</h2>
-          <p>Please enter your credentials to access the admin dashboard</p>
-          <form className="login-form" onSubmit={handleLogin}>
-            <div className="form-group">
-              <label>Email</label>
-              <input
-                type="email"
-                value={loginForm.email}
-                onChange={(e) => setLoginForm({ ...loginForm, email: e.target.value })}
-                placeholder="Enter admin email"
-              />
+      <div className="login-root">
+        <div className="login-ring login-ring-1" />
+        <div className="login-ring login-ring-2" />
+        <div className="login-ring login-ring-3" />
+        <div className="login-grid-line login-grid-line-1" />
+        <div className="login-grid-line login-grid-line-2" />
+        <div className="login-shell" style={{ justifyContent: "center", alignItems: "center" }}>
+          <div className="login-card" style={{ width: 400, maxWidth: "90vw", textAlign: "center" }}>
+            <div className="login-logo">
+              <div className="login-logo-icon">
+                <svg width="36" height="36" viewBox="0 0 36 36" fill="none">
+                  <circle cx="18" cy="18" r="17" stroke="var(--accent)" strokeWidth="1.5" />
+                  <ellipse cx="18" cy="18" rx="17" ry="7" stroke="var(--accent)" strokeWidth="1.5" opacity="0.4" />
+                  <circle cx="18" cy="18" r="3" fill="var(--accent)" />
+                  <circle cx="29" cy="13" r="1.5" fill="#f87171" />
+                </svg>
+              </div>
+              <span className="login-logo-text">SpaceDebrisAI</span>
             </div>
-            <div className="form-group">
-              <label>Password</label>
-              <input
-                type="password"
-                value={loginForm.password}
-                onChange={(e) => setLoginForm({ ...loginForm, password: e.target.value })}
-                placeholder="Enter password"
-              />
-            </div>
-            {/* Ma ka bhosda nhi ho rha baad m krunga */}
-            {loginError && <div className="login-error">{loginError}</div>}
-            <button type="submit" className="login-btn">
-              Login
-            </button>
-          </form>
+            <h1 className="login-title">Redirecting...</h1>
+          </div>
         </div>
       </div>
     );
   }
 
+  if (!isAuthenticated) {
+    return null;
+  }
+
   return (
-    <div className="admin-page">
-      <div className="admin-header">
-        <h1>Admin Dashboard</h1>
-        <div className="admin-controls">
-          <button onClick={fetchData} className="refresh-btn">
-            Refresh
-          </button>
-          <button onClick={handleLogout} className="logout-btn">
-            Logout
-          </button>
+    <div className="admin-page" style={{ maxWidth: 1200, margin: "0 auto", padding: "40px 20px" }}>
+      <div className="admin-header" style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 24 }}>
+        <h1 style={{ fontSize: 24, fontWeight: 700 }}>Admin Dashboard</h1>
+        <div style={{ display: "flex", gap: 12 }}>
+          <button onClick={fetchData} className="refresh-btn">Refresh</button>
+          <button onClick={handleLogout} className="logout-btn">Logout</button>
         </div>
       </div>
 
-      {error && <div className="admin-error">{error}</div>}
+      {error && (
+        <div className="admin-error" style={{ background: "rgba(239,68,68,.1)", border: "1px solid rgba(239,68,68,.3)", color: "#ef4444", padding: "10px 16px", borderRadius: 8, marginBottom: 20, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
+          <span>{error}</span>
+          <button onClick={() => setError(null)} style={{ background: "none", border: "none", color: "#ef4444", cursor: "pointer", fontSize: 18 }}>&times;</button>
+        </div>
+      )}
 
-      {loading && !data ? (
-        <div className="admin-loading">Loading...</div>
-      ) : (
+      <div className="admin-tabs" style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+        {["overview", "users", "banned", "poll-limits", "contacts", "actions", "logs"].map(tab => (
+          <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} onClick={() => { setActiveTab(tab); if (tab === "contacts") fetchContacts(); }}>
+            {tab === "overview" ? "Overview" : tab === "poll-limits" ? "Poll Limits" : tab.charAt(0).toUpperCase() + tab.slice(1)}
+          </button>
+        ))}
+      </div>
+
+      {loading && !data ? <div className="admin-loading" style={{ textAlign: "center", padding: 40 }}>Loading...</div> : (
         <>
-          <div className="admin-tabs">
-            <button
-              className={`tab-btn ${activeTab === "users" ? "active" : ""}`}
-              onClick={() => setActiveTab("users")}
-            >
-              Users & Requests
-            </button>
-            <button
-              className={`tab-btn ${activeTab === "banned" ? "active" : ""}`}
-              onClick={() => setActiveTab("banned")}
-            >
-              Ban List
-            </button>
-            <button
-              className={`tab-btn ${activeTab === "polls" ? "active" : ""}`}
-              onClick={() => setActiveTab("polls")}
-            >
-              Active Polls
-            </button>
-            <button
-              className={`tab-btn ${activeTab === "actions" ? "active" : ""}`}
-              onClick={() => setActiveTab("actions")}
-            >
-              Actions
-            </button>
-            <button
-              className={`tab-btn ${activeTab === "logs" ? "active" : ""}`}
-              onClick={() => { setActiveTab("logs"); fetchLoginLogs(); }}
-            >
-              Login Logs
-            </button>
-          </div>
-
-          <div className="admin-stats">
-            <div className="stat-card">
-              <span className="stat-value">{data?.total_requests || 0}</span>
-              <span className="stat-label">Total Requests</span>
+          {activeTab === "overview" && (
+            <div className="admin-section">
+              <div className="admin-stats" style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(180px, 1fr))", gap: 16, marginBottom: 24 }}>
+                <div className="stat-card"><span className="stat-value">{data?.total_requests || 0}</span><span className="stat-label">Total Requests</span></div>
+                <div className="stat-card"><span className="stat-value">{data?.buckets?.length || 0}</span><span className="stat-label">Unique Users</span></div>
+                <div className="stat-card"><span className="stat-value">{data?.active_polls?.length || 0}</span><span className="stat-label">Active Polls</span></div>
+                <div className="stat-card"><span className="stat-value">{Object.keys(data?.banlist?.identifiers || {}).length + Object.keys(data?.banlist?.ips || {}).length}</span><span className="stat-label">Banned</span></div>
+              </div>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Recent Users</h2>
+              <div className="users-table-wrapper">
+                <table className="users-table">
+                  <thead><tr><th>Identifier</th><th>Email</th><th>Requests</th><th>Req/min</th><th>Last Endpoint</th></tr></thead>
+                  <tbody>
+                    {data?.buckets?.slice(0, 10).map((b, i) => (
+                      <tr key={i}><td className="identifier-cell">{b.identifier}</td><td>{b.email || "-"}</td><td>{b.total_requests}</td><td>{b.requests_per_minute}</td><td><code>{b.last_endpoint}</code></td></tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             </div>
-            <div className="stat-card">
-              <span className="stat-value">{data?.buckets?.length || 0}</span>
-              <span className="stat-label">Unique Users</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">{data?.active_polls?.length || 0}</span>
-              <span className="stat-label">Active Polls</span>
-            </div>
-            <div className="stat-card">
-              <span className="stat-value">
-                {Object.keys(data?.banlist?.identifiers || {}).length + Object.keys(data?.banlist?.ips || {}).length}
-              </span>
-              <span className="stat-label">Banned</span>
-            </div>
-          </div>
+          )}
 
           {activeTab === "users" && (
             <div className="admin-section">
-              <h2>User Requests</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>All Users</h2>
               <div className="users-table-wrapper">
                 <table className="users-table">
-                  <thead>
-                    <tr>
-                      <th>Identifier</th>
-                      <th>Email</th>
-                      <th>IP</th>
-                      <th>Requests</th>
-                      <th>Req/min</th>
-                      <th>Last Endpoint</th>
-                      <th>First Seen</th>
-                      <th>Last Seen</th>
-                    </tr>
-                  </thead>
+                  <thead><tr><th>Identifier</th><th>Email</th><th>IP</th><th>Requests</th><th>Req/min</th><th>Last Endpoint</th><th>Actions</th></tr></thead>
                   <tbody>
-                    {data?.buckets?.slice(0, 50).map((bucket, idx) => (
-                      <tr key={idx}>
-                        <td className="identifier-cell">{bucket.identifier}</td>
-                        <td>{bucket.email || "-"}</td>
-                        <td>{bucket.last_ip || "-"}</td>
-                        <td>{bucket.total_requests}</td>
-                        <td>{bucket.requests_per_minute}</td>
-                        <td><code>{bucket.last_endpoint}</code></td>
-                        <td>{new Date(bucket.first_seen).toLocaleString()}</td>
-                        <td>{new Date(bucket.last_seen).toLocaleString()}</td>
+                    {data?.buckets?.slice(0, 50).map((b, i) => (
+                      <tr key={i}>
+                        <td className="identifier-cell">{b.identifier}</td>
+                        <td>{b.email || "-"}</td>
+                        <td>{b.last_ip || "-"}</td>
+                        <td>{b.total_requests}</td>
+                        <td>{b.requests_per_minute}</td>
+                        <td><code>{b.last_endpoint}</code></td>
+                        <td><button className="btn-sm" onClick={() => setBanForm(prev => ({ ...prev, identifier: b.identifier }))}>Ban</button></td>
                       </tr>
                     ))}
                   </tbody>
@@ -328,44 +241,28 @@ export default function AdminDashboard() {
 
           {activeTab === "banned" && (
             <div className="admin-section">
-              <h2>Ban List</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Ban List</h2>
               <div className="ban-section">
-                <h3>Banned Identifiers</h3>
-                {Object.keys(data?.banlist?.identifiers || {}).length === 0 ? (
-                  <p className="empty-state">No banned identifiers</p>
-                ) : (
+                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Banned Identifiers</h3>
+                {Object.keys(data?.banlist?.identifiers || {}).length === 0 ? <p className="empty-state">No banned identifiers</p> : (
                   <div className="ban-list">
                     {Object.entries(data?.banlist?.identifiers || {}).map(([ident, info]) => (
                       <div key={ident} className="ban-item">
-                        <div className="ban-info">
-                          <span className="ban-value">{ident}</span>
-                          <span className="ban-reason">{info.reason || "No reason"}</span>
-                          <span className="ban-time">Banned: {new Date(info.at).toLocaleString()}</span>
-                        </div>
-                        <button className="unban-btn" onClick={() => handleUnban("identifier", ident)}>
-                          Unban
-                        </button>
+                        <div className="ban-info"><span className="ban-value">{ident}</span><span className="ban-reason">{info.reason || "No reason"}</span></div>
+                        <button className="unban-btn" onClick={() => handleUnban("identifier", ident)}>Unban</button>
                       </div>
                     ))}
                   </div>
                 )}
               </div>
-              <div className="ban-section">
-                <h3>Banned IPs</h3>
-                {Object.keys(data?.banlist?.ips || {}).length === 0 ? (
-                  <p className="empty-state">No banned IPs</p>
-                ) : (
+              <div className="ban-section" style={{ marginTop: 24 }}>
+                <h3 style={{ fontSize: 16, fontWeight: 600, marginBottom: 12 }}>Banned IPs</h3>
+                {Object.keys(data?.banlist?.ips || {}).length === 0 ? <p className="empty-state">No banned IPs</p> : (
                   <div className="ban-list">
                     {Object.entries(data?.banlist?.ips || {}).map(([ip, info]) => (
                       <div key={ip} className="ban-item">
-                        <div className="ban-info">
-                          <span className="ban-value">{ip}</span>
-                          <span className="ban-reason">{info.reason || "No reason"}</span>
-                          <span className="ban-time">Banned: {new Date(info.at).toLocaleString()}</span>
-                        </div>
-                        <button className="unban-btn" onClick={() => handleUnban("ip", ip)}>
-                          Unban
-                        </button>
+                        <div className="ban-info"><span className="ban-value">{ip}</span><span className="ban-reason">{info.reason || "No reason"}</span></div>
+                        <button className="unban-btn" onClick={() => handleUnban("ip", ip)}>Unban</button>
                       </div>
                     ))}
                   </div>
@@ -374,89 +271,80 @@ export default function AdminDashboard() {
             </div>
           )}
 
-          {activeTab === "polls" && (
+          {activeTab === "poll-limits" && (
             <div className="admin-section">
-              <h2>Active Polling Requests</h2>
-              {data?.active_polls?.length === 0 ? (
-                <p className="empty-state">No active polling requests</p>
-              ) : (
-                <div className="polls-table-wrapper">
-                  <table className="polls-table">
-                    <thead>
-                      <tr>
-                        <th>Identifier</th>
-                        <th>Email</th>
-                        <th>IP</th>
-                        <th>Endpoint</th>
-                        <th>Started</th>
-                        <th>Last Poll</th>
-                        <th>Poll Count</th>
-                        <th>Active (s)</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {data?.active_polls?.map((poll, idx) => (
-                        <tr key={idx}>
-                          <td>{poll.identifier}</td>
-                          <td>{poll.email || "-"}</td>
-                          <td>{poll.ip}</td>
-                          <td><code>{poll.endpoint}</code></td>
-                          <td>{new Date(poll.started_at).toLocaleTimeString()}</td>
-                          <td>{new Date(poll.last_poll).toLocaleTimeString()}</td>
-                          <td>{poll.poll_count}</td>
-                          <td>{poll.active_seconds}s</td>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Manage Poll Limits</h2>
+              <div className="users-table-wrapper">
+                <table className="users-table">
+                  <thead><tr><th>Identifier</th><th>Email</th><th>Current Limit</th><th>Today&apos;s Usage</th><th>New Limit</th><th>Actions</th></tr></thead>
+                  <tbody>
+                    {data?.buckets?.map((b, i) => {
+                      const userData = data?.user_data?.[b.identifier] || {};
+                      const currentLimit = userData.daily_poll_limit || 10000;
+                      const todayUsage = userData.polls_today || 0;
+                      return (
+                        <tr key={i}>
+                          <td className="identifier-cell">{b.identifier}</td>
+                          <td>{b.email || "-"}</td>
+                          <td>{currentLimit.toLocaleString()}</td>
+                          <td>{todayUsage.toLocaleString()}</td>
+                          <td>
+                            <input type="number" className="limit-input" placeholder={currentLimit} value={pollLimitForm[b.identifier] || ""} onChange={e => setPollLimitForm(prev => ({ ...prev, [b.identifier]: e.target.value }))} />
+                          </td>
+                          <td>
+                            <button className="btn-primary btn-sm" onClick={() => handlePollLimitUpdate(b.email || b.identifier)}>Save</button>
+                          </td>
                         </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
+                      );
+                    })}
+                  </tbody>
+                </table>
+              </div>
+              <div className="bulk-actions" style={{ marginTop: 16 }}>
+                <button className="btn-secondary" onClick={async () => {
+                  for (const b of (data?.buckets || [])) {
+                    const email = b.email || b.identifier;
+                    await fetch(`${API_BASE}/admin/users/poll-limit`, { method: "PUT", headers: { "X-Admin-Key": adminKey, "Content-Type": "application/json" }, body: JSON.stringify({ email, daily_poll_limit: 10000 }) });
+                  }
+                  fetchData();
+                }}>Reset All to 10,000</button>
+              </div>
+            </div>
+          )}
+
+          {activeTab === "contacts" && (
+            <div className="admin-section">
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Contact Requests</h2>
+              <div className="users-table-wrapper">
+                <table className="users-table">
+                  <thead><tr><th>Name</th><th>Email</th><th>Subject</th><th>Message</th><th>Status</th><th>Date</th></tr></thead>
+                  <tbody>
+                    {contacts.map((c, i) => (
+                      <tr key={i}>
+                        <td>{c.name}</td>
+                        <td>{c.email}</td>
+                        <td>{c.subject}</td>
+                        <td>{c.message?.substring(0, 50)}...</td>
+                        <td><span className={`badge ${c.status}`}>{c.status}</span></td>
+                        <td>{new Date(c.submitted_at).toLocaleDateString()}</td>
+                      </tr>
+                    ))}
+                    {contacts.length === 0 && <tr><td colSpan={6} className="empty-cell">No contact requests</td></tr>}
+                  </tbody>
+                </table>
+              </div>
             </div>
           )}
 
           {activeTab === "actions" && (
             <div className="admin-section">
-              <h2>Ban User</h2>
-              <form className="ban-form" onSubmit={handleBan}>
-                <div className="form-group">
-                  <label>Identifier</label>
-                  <input
-                    type="text"
-                    value={banForm.identifier}
-                    onChange={(e) => setBanForm({ ...banForm, identifier: e.target.value })}
-                    placeholder="e.g., user:email@example.com"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>IP Address</label>
-                  <input
-                    type="text"
-                    value={banForm.ip}
-                    onChange={(e) => setBanForm({ ...banForm, ip: e.target.value })}
-                    placeholder="e.g., 192.168.1.1"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Email</label>
-                  <input
-                    type="email"
-                    value={banForm.email}
-                    onChange={(e) => setBanForm({ ...banForm, email: e.target.value })}
-                    placeholder="e.g., user@example.com"
-                  />
-                </div>
-                <div className="form-group">
-                  <label>Reason</label>
-                  <input
-                    type="text"
-                    value={banForm.reason}
-                    onChange={(e) => setBanForm({ ...banForm, reason: e.target.value })}
-                    placeholder="Reason for ban"
-                  />
-                </div>
-                <button type="submit" className="ban-btn" disabled={actionStatus === "banning"}>
-                  {actionStatus === "banning" ? "Banning..." : "Ban User"}
-                </button>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Ban User</h2>
+              <form className="ban-form" onSubmit={handleBan} style={{ display: "flex", flexDirection: "column", gap: 16 }}>
+                <div className="form-group"><label>Identifier</label><input type="text" value={banForm.identifier} onChange={e => setBanForm({ ...banForm, identifier: e.target.value })} placeholder="e.g., user:email@example.com" /></div>
+                <div className="form-group"><label>IP Address</label><input type="text" value={banForm.ip} onChange={e => setBanForm({ ...banForm, ip: e.target.value })} placeholder="e.g., 192.168.1.1" /></div>
+                <div className="form-group"><label>Email</label><input type="email" value={banForm.email} onChange={e => setBanForm({ ...banForm, email: e.target.value })} placeholder="e.g., user@example.com" /></div>
+                <div className="form-group"><label>Reason</label><input type="text" value={banForm.reason} onChange={e => setBanForm({ ...banForm, reason: e.target.value })} placeholder="Reason for ban" /></div>
+                <button type="submit" className="ban-btn" disabled={actionStatus === "banning"}>{actionStatus === "banning" ? "Banning..." : "Ban User"}</button>
                 {actionStatus === "success" && <span className="action-success">Action completed!</span>}
                 {actionStatus === "error" && <span className="action-error">Action failed</span>}
               </form>
@@ -465,46 +353,22 @@ export default function AdminDashboard() {
 
           {activeTab === "logs" && (
             <div className="admin-section">
-              <h2>Login Attempt Logs</h2>
+              <h2 style={{ fontSize: 18, fontWeight: 600, marginBottom: 16 }}>Login Attempt Logs</h2>
               <div className="admin-controls" style={{ marginBottom: "1rem" }}>
-                <button onClick={fetchLoginLogs} className="refresh-btn">
-                  Refresh
-                </button>
+                <button onClick={async () => { setLoginLogsLoading(true); const res = await fetch(`${API_BASE}/admin/login-logs?limit=100`, { headers: { "X-Admin-Key": adminKey } }); if (res.ok) { const json = await res.json(); setLoginLogs(json.logs || []); } setLoginLogsLoading(false); }} className="refresh-btn">Refresh</button>
               </div>
-              {loginLogsLoading ? (
-                <div className="admin-loading">Loading...</div>
-              ) : loginLogs.length === 0 ? (
-                <p className="empty-state">No login attempts recorded</p>
-              ) : (
+              {loginLogsLoading ? <div className="admin-loading">Loading...</div> : loginLogs.length === 0 ? <p className="empty-state">No login attempts recorded</p> : (
                 <div className="logs-table-wrapper">
                   <table className="logs-table">
-                    <thead>
-                      <tr>
-                        <th>Time</th>
-                        <th>Email</th>
-                        <th>IP Address</th>
-                        <th>Forwarded For</th>
-                        <th>User Agent</th>
-                        <th>Status</th>
-                        <th>Failure Reason</th>
-                      </tr>
-                    </thead>
+                    <thead><tr><th>Time</th><th>Email</th><th>IP</th><th>Status</th><th>Failure Reason</th></tr></thead>
                     <tbody>
-                      {loginLogs.map((log, idx) => (
-                        <tr key={idx} className={log.success ? "log-success" : "log-failed"}>
+                      {loginLogs.map((log, i) => (
+                        <tr key={i} className={log.success ? "log-success" : "log-failed"}>
                           <td>{new Date(log.timestamp).toLocaleString()}</td>
                           <td>{log.email}</td>
                           <td><code>{log.ip}</code></td>
-                          <td><code>{log.forwarded_for || "-"}</code></td>
-                          <td className="user-agent-cell" title={log.user_agent}>
-                            {log.user_agent ? log.user_agent.substring(0, 50) + "..." : "-"}
-                          </td>
-                          <td>
-                            <span className={`status-badge ${log.success ? "success" : "failed"}`}>
-                              {log.success ? "Success" : "Failed"}
-                            </span>
-                          </td>
-                          <td className="failure-reason">{log.failure_reason || "-"}</td>
+                          <td><span className={`status-badge ${log.success ? "success" : "failed"}`}>{log.success ? "Success" : "Failed"}</span></td>
+                          <td>{log.failure_reason || "-"}</td>
                         </tr>
                       ))}
                     </tbody>

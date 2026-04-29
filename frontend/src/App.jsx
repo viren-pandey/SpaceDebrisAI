@@ -7,6 +7,8 @@ import Navbar from "./components/Navbar";
 import SatelliteBackground from "./components/SatelliteBackground";
 import { fetchBackendHealth, fetchSimulation } from "./api/backend";
 import About from "./pages/About";
+import AdminBypass from "./pages/admin/Bypass";
+import AdminLogin from "./pages/admin/Login";
 import AdminDashboard from "./pages/AdminDashboard";
 import AllDebris from "./pages/AllDebris";
 import ApiPage from "./pages/ApiPage";
@@ -17,6 +19,10 @@ import Contact from "./pages/Contact";
 import CascadeIntelligence from "./pages/CascadeIntelligence";
 import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
+import UserDashboard from "./pages/dashboard/Dashboard";
+import UserApiKeys from "./pages/dashboard/ApiKeys";
+import UserUsage from "./pages/dashboard/Usage";
+import UserContact from "./pages/dashboard/Contact";
 import Docs from "./pages/Docs";
 import HighRiskCollisions from "./pages/HighRiskCollisions";
 import LiveCongestion from "./pages/LiveCongestion";
@@ -121,9 +127,15 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/spaceweather" element={<SpaceWeather />} />
           <Route path="/shell-instability" element={<ShellInstability />} />
           <Route path="/cdm-timeline" element={<CDMTimeline />} />
+          <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/dashboard/api-keys" element={<UserApiKeys />} />
+          <Route path="/dashboard/usage" element={<UserUsage />} />
+          <Route path="/dashboard/contact" element={<UserContact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
           <Route path="/contact" element={<Contact />} />
+          <Route path="/admin/bypass" element={<AdminBypass />} />
+          <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminDashboard />} />
           <Route path="/congestion" element={<LiveCongestion />} />
           <Route path="/high-risk-collisions" element={<HighRiskCollisions />} />
