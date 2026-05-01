@@ -15,6 +15,7 @@ class IssueApiKeyRequest(BaseModel):
     accepted_terms: bool
     owner_id: str | None = None
     label: str | None = None
+    terms_version: str | None = None
 
 
 class RevokeApiKeyRequest(BaseModel):
