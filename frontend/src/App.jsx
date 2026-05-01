@@ -20,6 +20,7 @@ import CascadeIntelligence from "./pages/CascadeIntelligence";
 import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
 import UserDashboard from "./pages/dashboard/Dashboard";
+import UserProfile from "./pages/dashboard/Profile";
 import UserApiKeys from "./pages/dashboard/APIKeys";
 import UserUsage from "./pages/dashboard/Usage";
 import UserContact from "./pages/dashboard/Contact";

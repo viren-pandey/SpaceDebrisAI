@@ -167,13 +167,18 @@ export default function Navbar({ live, theme, onToggleTheme }) {
 
           {/* Auth button */}
           {user ? (
-            <button className="nb-auth-btn nb-auth-btn--out" onClick={signOut} title={user.email}>
-              <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
-                <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
-                <path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
-              </svg>
-              Sign out
-            </button>
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <NavLink to="/dashboard/profile" className="nb-auth-btn nb-auth-btn--profile" title={user.email}>
+                <svg width="14" height="14" viewBox="0 0 14 14" fill="none">
+                  <circle cx="7" cy="4.5" r="2.5" stroke="currentColor" strokeWidth="1.3"/>
+                  <path d="M1.5 12.5c0-3.036 2.462-5.5 5.5-5.5s5.5 2.464 5.5 5.5" stroke="currentColor" strokeWidth="1.3" strokeLinecap="round"/>
+                </svg>
+                Profile
+              </NavLink>
+              <button className="nb-auth-btn nb-auth-btn--out" onClick={signOut} title={user.email}>
+                Sign out
+              </button>
+            </div>
           ) : (
             <button className="nb-auth-btn nb-auth-btn--in" onClick={() => navigate("/login")}>
               Sign in
@@ -245,9 +250,12 @@ export default function Navbar({ live, theme, onToggleTheme }) {
           <NavLink to="/about" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>About</NavLink>
           
           {user ? (
-            <button className="mobile-auth-btn mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>
-              Sign out
-            </button>
+            <>
+              <NavLink to="/dashboard/profile" className={({ isActive }) => isActive ? "mobile-link mobile-link-active" : "mobile-link"} onClick={() => setMenuOpen(false)}>Profile</NavLink>
+              <button className="mobile-auth-btn mobile-signout" onClick={() => { signOut(); setMenuOpen(false); }}>
+                Sign out
+              </button>
+            </>
           ) : (
             <button className="mobile-auth-btn mobile-signin" onClick={() => { navigate("/login"); setMenuOpen(false); }}>
               Sign in
