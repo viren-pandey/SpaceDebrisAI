@@ -26,7 +26,6 @@ EARTH_RADIUS_KM = 6371.0
 DEFAULT_SHELL_THICKNESS_KM = 75.0
 SHELL_CACHE_TTL_SECONDS = 300
 
-# Shell definitions (floor altitude in km)
 SHELL_DEFINITIONS = {
     "LEO_VERY_LOW": (160, 250, "Very Low Earth Orbit - ISS, Crewed missions"),
     "LEO_LOW": (250, 500, "Low Earth Orbit - Earth observation, Small satellites"),
@@ -36,7 +35,6 @@ SHELL_DEFINITIONS = {
     "GEO": (35786, 35886, "Geostationary Orbit - Communications satellites"),
 }
 
-# NORAD ID ranges for known constellations
 CONSTELLATION_RANGES = {
     "STARLINK": (44000, 49000),
     "ONEWEB": (44000, 45000),
@@ -80,7 +78,6 @@ def _classify_constellation(norad_id: Optional[int], name: str) -> str:
     """Classify object by constellation using NORAD ID ranges."""
     name_upper = name.upper()
     
-    # Check by name first
     if "STARLINK" in name_upper:
         return "STARLINK"
     if "ONEWEB" in name_upper:
@@ -100,7 +97,6 @@ def _classify_constellation(norad_id: Optional[int], name: str) -> str:
     if "DEB" in name_upper or "R/B" in name_upper or "FRAG" in name_upper:
         return "DEBRIS"
     
-    # Check by NORAD ID range
     if norad_id is not None:
         for constellation, (low, high) in CONSTELLATION_RANGES.items():
             if low <= norad_id <= high:
@@ -115,15 +111,12 @@ def _compute_shell_metrics(objects: List[dict], shell_floor_km: int, shell_ceil_
     shell_height = shell_ceil_km - shell_floor_km
     shell_volume_km3 = _shell_volume(shell_floor_km, shell_ceil_km)
     
-    # Object count by type
     active_count = sum(1 for o in objects if o["constellation"] not in ("DEBRIS", "OTHER"))
     debris_count = sum(1 for o in objects if o["constellation"] == "DEBRIS")
     total_count = len(objects)
     
-    # Density (objects per million cubic km)
     density_per_mkm3 = (total_count / shell_volume_km3) * 1e6 if shell_volume_km3 > 0 else 0
     
-    # Constellation diversity (Shannon entropy)
     constellation_counts = {}
     for o in objects:
         c = o["constellation"]
@@ -135,15 +128,10 @@ def _compute_shell_metrics(objects: List[dict], shell_floor_km: int, shell_ceil_
         if p > 0:
             diversity -= p * math.log2(p)
     
-    # Congestion index: higher for shells with many objects close together
-    # Computed as ratio of actual to Poisson-expected close approaches
     congestion_index = _compute_congestion_index(objects, shell_mid)
     
-    # Maneuver cluster probability
-    # Estimate based on constellation density - more satellites = more likely coordinated maneuvers
     maneuver_cluster_prob = _estimate_maneuver_probability(objects, constellation_counts, total_count)
     
-    # Compute OII (Orbital Instability Index)
     oii = _compute_oii(
         total_count=total_count,
         density=density_per_mkm3,
@@ -153,7 +141,6 @@ def _compute_shell_metrics(objects: List[dict], shell_floor_km: int, shell_ceil_
         altitude_km=shell_mid,
     )
     
-    # Risk level classification
     if oii >= 75:
         risk_level = "CRITICAL"
         recommendation = "Immediate monitoring required. High cascade risk."
@@ -201,7 +188,6 @@ def _compute_congestion_index(objects: List[dict], shell_mid_km: float) -> float
     if len(objects) < 2:
         return 0.0
     
-    # Simplified: count objects within same 25km altitude band
     close_pairs = 0
     total_pairs = 0
     
@@ -215,7 +201,6 @@ def _compute_congestion_index(objects: List[dict], shell_mid_km: float) -> float
     if total_pairs == 0:
         return 0.0
     
-    # Normalize: expect ~1% of pairs to be close in a well-distributed shell
     expected_close = total_pairs * 0.01
     congestion = min(close_pairs / max(expected_close, 1), 3.0) / 3.0
     
@@ -230,18 +215,12 @@ def _estimate_maneuver_probability(objects: List[dict], constellation_counts: di
     if total == 0:
         return 0.0
     
-    # Dominant constellation share
     max_constellation = max(constellation_counts.values()) if constellation_counts else 0
     dominance_ratio = max_constellation / total
     
-    # Active satellite fraction
     active_count = sum(c for k, c in constellation_counts.items() if k not in ("DEBRIS", "OTHER"))
     active_ratio = active_count / total
     
-    # Maneuver probability increases with:
-    # - Dominant constellation (coordinated fleet)
-    # - High active satellite fraction
-    # - Presence of mega-constellations (Starlink, OneWeb)
     mega_constellation_bonus = 0.0
     for name in ("STARLINK", "ONEWEB"):
         if name in constellation_counts:
@@ -269,21 +248,14 @@ def _compute_oii(
     - Diversity factor: mixed constellations increase interaction complexity
     - Altitude factor: LEO is more unstable due to drag and higher velocities
     """
-    # Density component (0-30 points)
     density_score = min(density * 2, 30)
     
-    # Congestion component (0-25 points)
     congestion_score = congestion * 25
     
-    # Maneuver component (0-25 points)
     maneuver_score = maneuver_prob * 25
     
-    # Diversity component (0-10 points)
-    # Higher diversity = more complex interactions = slightly higher instability
     diversity_score = min(diversity * 2, 10)
     
-    # Altitude factor (0.8-1.2)
-    # LEO is more unstable, GEO is more stable
     if altitude_km < 500:
         alt_factor = 1.2
     elif altitude_km < 2000:
@@ -291,7 +263,6 @@ def _compute_oii(
     else:
         alt_factor = 0.8
     
-    # Object count factor (scales with log for diminishing returns)
     count_factor = min(math.log10(max(total_count, 1) + 1) / 2, 1.5)
     
     raw_oii = (density_score + congestion_score + maneuver_score + diversity_score) * alt_factor * count_factor
@@ -303,12 +274,10 @@ def _build_shell_data() -> dict:
     """Build complete shell analysis from TLE data."""
     t0 = time.time()
     
-    # Get TLE data
     tle_lines = get_tle_lines(cache="debris_merged")
     tle_text = "\n".join(tle_lines)
     tles = parse_tle_text(tle_text, limit=100000)
     
-    # Parse objects with positions
     from app.services.orbit_real import tle_to_position
     
     objects_by_shell: Dict[int, List[dict]] = {}
@@ -338,7 +307,6 @@ def _build_shell_data() -> dict:
             objects_by_shell[shell_floor] = []
         objects_by_shell[shell_floor].append(obj)
     
-    # Compute metrics for each shell
     shell_analyses = []
     for floor_km in sorted(objects_by_shell.keys()):
         objects = objects_by_shell[floor_km]
@@ -349,7 +317,6 @@ def _build_shell_data() -> dict:
         metrics = _compute_shell_metrics(objects, floor_km, ceil_km)
         shell_analyses.append(metrics)
     
-    # Sort by OII score descending (most unstable first)
     shell_analyses.sort(key=lambda x: x["oii_score"], reverse=True)
     
     processing_ms = round((time.time() - t0) * 1000, 1)
@@ -383,13 +350,11 @@ async def get_shell_instability(
     
     shells = data["shells"]
     
-    # Filter by specific altitude if requested
     if altitude_km is not None:
         target_floor = (altitude_km // DEFAULT_SHELL_THICKNESS_KM) * DEFAULT_SHELL_THICKNESS_KM
         shells = [s for s in shells if s["shell_altitude_km"] == target_floor]
         
         if not shells:
-            # Return empty shell analysis for that altitude
             return {
                 "timestamp_utc": _utc_now().isoformat(),
                 "altitude_km": altitude_km,

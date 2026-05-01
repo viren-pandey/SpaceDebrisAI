@@ -1,6 +1,5 @@
 from app.services.orbit import calculate_tca, probability_of_collision, pc_to_risk_level, tle_age_hours, confidence_level, MAX_TLE_AGE_HOURS
 
-# Example screening function
 
 def screen_pairs(satellites):
     fresh_satellites = [s for s in satellites if tle_age_hours(s.satrec) < MAX_TLE_AGE_HOURS]

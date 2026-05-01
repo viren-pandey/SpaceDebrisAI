@@ -18,18 +18,15 @@ from typing import Optional
 
 import requests
 
-# NOAA SWPC API endpoints
 SWPC_KP_URL = "https://services.swpc.noaa.gov/products/noaa-planetary-k-index.json"
 SWPC_SFLUX_URL = "https://services.swpc.noaa.gov/products/solar-cycle/observed-solar-cycle-indices.json"
 SWPC_XRAY_URL = "https://services.swpc.noaa.gov/json/goes/xf10cm.json"
 SWPC_GEOMAG_ALERTS_URL = "https://services.swpc.noaa.gov/products/noaa-scale.json"
 SWPC_F107_81DAY_URL = "https://services.swpc.noaa.gov/products/noaa-solar-indices.json"
 
-# Cache settings
 CACHE_TTL_SECONDS = 900  # 15 minutes
 BACKGROUND_REFRESH_SECONDS = 900
 
-# Kp index thresholds
 KP_NOMINAL = 4       # Below this is quiet
 KP_UNSETTLED = 5     # Unsettled conditions
 KP_STORM = 6         # Minor storm
@@ -37,7 +34,6 @@ KP_MAJOR_STORM = 7   # Major storm
 KP_SEVERE_STORM = 8  # Severe storm
 KP_EXTREME = 9       # Extreme storm
 
-# Drag model constants
 DRAG_BASE_ALTITUDE_KM = 400.0
 DRAG_DECAY_EXPONENT = -0.02  # Drag decreases exponentially with altitude
 
@@ -77,8 +73,6 @@ def fetch_kp_index() -> dict:
         if not data or len(data) < 2:
             return {"kp_current": 0, "kp_3hr": [], "trend": "unknown"}
         
-        # Data format: [[time_tag, kp_value, ...], ...]
-        # Most recent entries
         recent = data[-8:]  # Last 24 hours (8 x 3-hour intervals)
         kp_values = []
         for entry in recent:
@@ -90,7 +84,6 @@ def fetch_kp_index() -> dict:
         
         current_kp = kp_values[-1]["kp"] if kp_values else 0
         
-        # Calculate trend
         if len(kp_values) >= 2:
             recent_avg = sum(v["kp"] for v in kp_values[-2:]) / 2
             older_avg = sum(v["kp"] for v in kp_values[-4:-2]) / 2 if len(kp_values) >= 4 else recent_avg
@@ -122,11 +115,9 @@ def fetch_solar_flux() -> dict:
         if not data or len(data) < 2:
             return {"f107_observed": 0, "f107_adjusted": 0, "sunspot_number": 0}
         
-        # Find most recent entry
         headers = data[0] if data[0] else []
         latest = data[-1]
         
-        # Map headers to values
         result = {}
         for i, header in enumerate(headers):
             if i < len(latest):
@@ -155,7 +146,6 @@ def fetch_xray_flux() -> dict:
         latest = data[-1]
         flux_long = latest.get("flux", "A0.0")
         
-        # Parse X-ray class
         flux_class = flux_long[0] if flux_long else "A"
         flare_active = flux_class in ("M", "X")
         
@@ -179,7 +169,6 @@ def fetch_geomag_scales() -> dict:
         if not data:
             return {"kp_scale": 0, "storm_level": "G0", "description": "Quiet"}
         
-        # Extract geomagnetic scale
         kp_scale = data.get("G", data.get("Kp", 0))
         storm_level = f"G{kp_scale}" if kp_scale else "G0"
         
@@ -216,23 +205,16 @@ def compute_atmospheric_density_multiplier(kp: float, f107: float, altitude_km: 
     Returns:
         Multiplier (1.0 = nominal, >1.0 = increased drag)
     """
-    # Base density at reference altitude
     base_density = 1.0
     
-    # Kp effect: exponential increase during storms
-    # Kp=4 is nominal, Kp=9 can increase density by 5-10x at 400km
     if kp > 4:
         kp_factor = 1.0 + 0.5 * (kp - 4) ** 1.5
     else:
         kp_factor = 1.0
     
-    # F10.7 effect: solar heating increases density
-    # F10.7 ~70 is solar minimum, ~200 is solar maximum
     f107_baseline = 100.0
     f107_factor = 1.0 + 0.3 * ((f107 - f107_baseline) / 100.0) if f107 > 0 else 1.0
     
-    # Altitude effect: lower altitudes see bigger density changes
-    # At 200km, effect is ~3x stronger than at 800km
     altitude_factor = math.exp(DRAG_DECAY_EXPONENT * (altitude_km - DRAG_BASE_ALTITUDE_KM))
     altitude_factor = max(0.3, min(3.0, altitude_factor))
     
@@ -249,14 +231,11 @@ def compute_drag_estimate(altitude_km: float, decay_rate_km_per_day: float = 0.0
     """
     density_mult = _cache.get("atmospheric_density_multiplier", 1.0)
     
-    # Baseline decay rate (km/day) at 400km during solar minimum
     baseline_decay_400 = 0.005  # ~5m per day
     
-    # Scale with altitude (exponential decay)
     altitude_ratio = math.exp(-0.005 * (altitude_km - 400))
     estimated_decay = baseline_decay_400 * altitude_ratio * density_mult
     
-    # Urgency classification
     if estimated_decay > 0.1:  # >100m/day
         urgency = "CRITICAL"
         message = "Severe drag - immediate orbit maintenance required"
@@ -291,7 +270,6 @@ def update_cache():
     kp = kp_data.get("kp_current", 0)
     f107 = solar_data.get("f107_adjusted", 0) or solar_data.get("f107_observed", 0)
     
-    # Compute density multiplier for LEO (400km reference)
     density_mult = compute_atmospheric_density_multiplier(kp, f107, 400.0)
     
     with _cache_lock:
@@ -321,7 +299,6 @@ def get_space_weather() -> dict:
         if _cache["last_updated"] and now < _cache["expires_at"]:
             return dict(_cache)
     
-    # Cache expired, fetch new data
     return update_cache()
 
 
@@ -353,5 +330,4 @@ def start_background_refresh():
         _refresh_thread.start()
 
 
-# Initialize on module load
 start_background_refresh()

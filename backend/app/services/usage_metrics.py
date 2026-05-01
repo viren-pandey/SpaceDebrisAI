@@ -18,11 +18,9 @@ from app.services.api_keys import (
     is_owner_key,
 )
 
-# ── Owner / Admin identity ────────────────────────────────────────────
 OWNER_EMAIL = os.getenv("OWNER_EMAIL", "pandeyviren68@gmail.com").strip().lower()
 OWNER_NAME = "Viren Pandey"
 
-# Owner tier: practically unlimited, just not infinite to prevent accidental overload.
 OWNER_MAX_REQUESTS_PER_MINUTE = 10_000
 OWNER_MIN_POLL_INTERVAL_SECONDS = 0.5  # essentially no polling restriction
 
@@ -122,7 +120,6 @@ class UsageRecord:
             "last_violation_at": self.last_violation_at.isoformat() if self.last_violation_at else None,
         }
 
-# Rate limit constants
 MAX_REQUESTS_PER_MINUTE = 60
 MIN_POLL_INTERVAL_SECONDS = 5
 AUTO_BAN_AFTER_VIOLATIONS = 5
@@ -250,7 +247,6 @@ class UsageTracker:
         self._banned_ips[ip] = {"reason": reason, "at": timestamp.isoformat()}
         raise HTTPException(status_code=403, detail=f"Client banned: {reason}")
 
-    # ── public read-only endpoints that don't need API key auth ───────────────
     _PUBLIC_PATHS = frozenset([
         "/simulate", "/simulate/changes", "/simulate/explain",
         "/simulate/audit", "/simulate/stats", "/simulate/high-risk",
@@ -276,10 +272,8 @@ class UsageTracker:
         now_ts = timestamp.timestamp()
         api_key = request.headers.get("X-API-Key")
 
-        # Detect owner identity
         is_owner = self._is_owner(email, api_key, identifier)
 
-        # Audit log owner bypass access
         if is_owner:
             print(
                 f"[OWNER ACCESS] {OWNER_NAME} ({OWNER_EMAIL}) | "
@@ -287,7 +281,6 @@ class UsageTracker:
                 f"identifier={identifier} | ts={timestamp.isoformat()}"
             )
 
-        # Skip API key validation for public read-only endpoints
         if api_key and not self._is_public_path(endpoint):
             validate_api_key(api_key)
 

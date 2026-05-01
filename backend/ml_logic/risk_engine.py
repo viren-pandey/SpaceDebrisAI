@@ -15,15 +15,11 @@ def calculate_risk(distance_km: float) -> dict:
     - Scores range from 95 (very close) to ~5 (far away)
     """
     
-    # Exponential decay model: score = 95 * exp(-distance / scale)
-    # Scale factor controls decay rate (smaller = steeper decay)
     scale_km = 15.0  # At 15km, score drops to ~35% of max
     
-    # Calculate continuous score using exponential decay
     raw_score = 95.0 * math.exp(-distance_km / scale_km)
     score = max(5, min(95, int(raw_score)))
     
-    # Determine level based on score
     if score >= 70:
         level = "HIGH"
         message = "Critical proximity detected. Immediate maneuver recommended."

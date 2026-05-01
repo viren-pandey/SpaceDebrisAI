@@ -55,27 +55,23 @@ def teme_to_geodetic(r, utc_dt=None):
     )
     jd_full = jd + fr
 
-    # GMST rotation (IAU 1982)
     T = (jd_full - 2451545.0) / 36525.0
     gmst_deg = (100.4606184 + 36000.77004 * T + 0.000387933 * T * T) % 360.0
     gmst_rad = math.radians(gmst_deg)
 
     x, y, z = r
-    # rotate TEME → ECEF
     cos_g = math.cos(-gmst_rad)
     sin_g = math.sin(-gmst_rad)
     xe = x * cos_g - y * sin_g
     ye = x * sin_g + y * cos_g
     ze = z
 
-    # WGS-84 constants
     a  = 6378.137
     e2 = 0.00669437999014
 
     lon_deg = math.degrees(math.atan2(ye, xe))
     p = math.sqrt(xe * xe + ye * ye)
 
-    # Bowring iterative geodetic conversion (5 steps)
     lat = math.atan2(ze, p * (1 - e2))
     for _ in range(5):
         sin_lat = math.sin(lat)

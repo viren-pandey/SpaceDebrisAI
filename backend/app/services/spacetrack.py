@@ -50,7 +50,6 @@ def fetch_cdm_public():
         resp.raise_for_status()
         cdms = resp.json()
 
-        # cache locally
         with open(CDM_CACHE_FILE, "w") as f:
             json.dump({
                 "fetched_at": datetime.now(timezone.utc).isoformat(),
@@ -61,7 +60,6 @@ def fetch_cdm_public():
 
     except Exception as e:
         print(f"[CDM] Fetch failed: {e}")
-        # return cached if available
         try:
             with open(CDM_CACHE_FILE) as f:
                 return json.load(f)["cdms"]
