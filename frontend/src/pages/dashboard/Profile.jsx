@@ -11,14 +11,6 @@ export default function Profile() {
   const [keys, setKeys] = useState([])
   const [loading, setLoading] = useState(true)
   const [activeTab, setActiveTab] = useState("overview")
-  const [pwdForm, setPwdForm] = useState({ current: "", new: "", confirm: "" })
-  const [pwdStatus, setPwdStatus] = useState(null)
-  const [showCreate, setShowCreate] = useState(false)
-  const [label, setLabel] = useState("")
-  const [newKey, setNewKey] = useState(null)
-  const [copied, setCopied] = useState(false)
-  const [contactMsg, setContactMsg] = useState("")
-  const [contactStatus, setContactStatus] = useState(null)
 
   useEffect(() => {
     if (!user) { navigate("/login"); return; }
@@ -31,64 +23,6 @@ export default function Profile() {
       setLoading(false)
     })
   }, [user, navigate])
-
-  const handlePwdChange = async (e) => {
-    e.preventDefault()
-    if (pwdForm.new !== pwdForm.confirm) {
-      setPwdStatus("error")
-      return
-    }
-    setPwdStatus("sending")
-    try {
-      await new Promise(r => setTimeout(r, 1000))
-      setPwdStatus("success")
-      setPwdForm({ current: "", new: "", confirm: "" })
-      setTimeout(() => setPwdStatus(null), 3000)
-    } catch {
-      setPwdStatus("error")
-    }
-  }
-
-  const handleCreateKey = async (e) => {
-    e.preventDefault()
-    try {
-      const key = await createApiKey(label || "Unnamed")
-      setNewKey(key)
-      setKeys(prev => [...prev, key])
-      setShowCreate(false)
-      setLabel("")
-    } catch (err) {}
-  }
-
-  const handleRevokeKey = async (id) => {
-    await revokeApiKey(id)
-    setKeys(prev => prev.filter(k => k.id !== id))
-  }
-
-  const copyKey = (key) => {
-    navigator.clipboard.writeText(key)
-    setCopied(true)
-    setTimeout(() => setCopied(false), 2000)
-  }
-
-  const handleContact = async (e) => {
-    e.preventDefault()
-    if (!contactMsg.trim()) return
-    setContactStatus("sending")
-    try {
-      await submitContact({
-        name: user?.name || "User",
-        email: user?.email || "",
-        subject: "Request more API credits",
-        message: `User ${user?.email} is requesting more credits. ${contactMsg}`
-      })
-      setContactStatus("sent")
-      setContactMsg("")
-      setTimeout(() => setContactStatus(null), 3000)
-    } catch {
-      setContactStatus("error")
-    }
-  }
 
   if (loading) return <DashboardLayout><div className="dash-loading"><div className="spinner" /></div></DashboardLayout>
 
@@ -105,8 +39,8 @@ export default function Profile() {
           <p className="dash-subtitle">{user?.email}</p>
         </div>
 
-        <div style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
-          {["overview", "api-keys", "password", "contact"].map(tab => (
+        <div className="profile-tabs" style={{ display: "flex", gap: 8, marginBottom: 24, flexWrap: "wrap" }}>
+          {["overview", "api-keys", "contact"].map(tab => (
             <button key={tab} className={`tab-btn ${activeTab === tab ? "active" : ""}`} onClick={() => setActiveTab(tab)}>
               {tab === "api-keys" ? "API Keys" : tab.charAt(0).toUpperCase() + tab.slice(1)}
             </button>
@@ -135,19 +69,14 @@ export default function Profile() {
             <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 16 }}>
               <div className="profile-info-card">
                 <h3>Account Info</h3>
-                <p>Email: {user?.email}</p>
-                <p>Name: {user?.name || "-"}</p>
-                <p>User ID: #{user?.id}</p>
+                <p><strong>Email:</strong> {user?.email}</p>
+                <p><strong>Name:</strong> {user?.name || "-"}</p>
+                <p><strong>User ID:</strong> #{user?.id}</p>
               </div>
               <div className="profile-info-card">
                 <h3>API Keys</h3>
-                <p>Active Keys: {keys.filter(k => k.is_active).length}</p>
+                <p><strong>Active Keys:</strong> {keys.filter(k => k.is_active).length}</p>
                 <Link to="/dashboard/api-keys" style={{ color: "var(--accent)", fontSize: 13 }}>Manage Keys →</Link>
-              </div>
-              <div className="profile-info-card">
-                <h3>Quick Actions</h3>
-                <button className="dash-btn dash-btn-primary" onClick={() => setActiveTab("api-keys")}>Create API Key</button>
-                <button className="dash-btn" onClick={() => setActiveTab("contact")} style={{ marginTop: 8 }}>Contact Admin</button>
               </div>
             </div>
           </div>
@@ -155,21 +84,7 @@ export default function Profile() {
 
         {activeTab === "api-keys" && (
           <div>
-            <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-              <h1>API Keys</h1>
-              <button className="btn-primary" onClick={() => setShowCreate(true)}>Create New Key</button>
-            </div>
-            {newKey && (
-              <div className="dash-key-reveal">
-                <h3>Key created — copy it now</h3>
-                <p className="key-reveal-warning">This key will not be shown again.</p>
-                <div className="key-reveal-value">
-                  <code>{newKey.key}</code>
-                  <button onClick={() => copyKey(newKey.key)} className="btn-copy">{copied ? "Copied" : "Copy"}</button>
-                </div>
-                <button className="key-reveal-dismiss" onClick={() => setNewKey(null)}>Dismiss</button>
-              </div>
-            )}
+            <h1>API Keys</h1>
             {keys.length === 0 ? (
               <div className="dash-no-key">
                 <h3>No API keys yet</h3>
@@ -185,7 +100,6 @@ export default function Profile() {
                     </div>
                     <div className="key-row-actions">
                       <span className={`key-row-badge ${key.is_active ? "active" : "inactive"}`}>{key.is_active ? "Active" : "Revoked"}</span>
-                      {key.is_active && <button className="btn-revoke" onClick={() => handleRevokeKey(key.id)}>Revoke</button>}
                     </div>
                   </div>
                 ))}
@@ -194,46 +108,11 @@ export default function Profile() {
           </div>
         )}
 
-        {activeTab === "password" && (
-          <div className="profile-form-card">
-            <h2>Change Password</h2>
-            <form onSubmit={handlePwdChange}>
-              <div className="form-group">
-                <label>Current Password</label>
-                <input type="password" value={pwdForm.current} onChange={e => setPwdForm({...pwdForm, current: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>New Password</label>
-                <input type="password" value={pwdForm.new} onChange={e => setPwdForm({...pwdForm, new: e.target.value})} />
-              </div>
-              <div className="form-group">
-                <label>Confirm New Password</label>
-                <input type="password" value={pwdForm.confirm} onChange={e => setPwdForm({...pwdForm, confirm: e.target.value})} />
-              </div>
-              <button type="submit" className="btn-primary" disabled={pwdStatus === "sending"}>
-                {pwdStatus === "sending" ? "Updating..." : "Update Password"}
-              </button>
-              {pwdStatus === "success" && <p className="dash-success">Password updated!</p>}
-              {pwdStatus === "error" && <p className="dash-error">Passwords don't match</p>}
-            </form>
-          </div>
-        )}
-
         {activeTab === "contact" && (
           <div className="profile-form-card">
             <h2>Contact Admin</h2>
             <p style={{ color: "var(--text-dim)", fontSize: 13, marginBottom: 16 }}>Request more API credits or report an issue.</p>
-            <form onSubmit={handleContact}>
-              <div className="form-group">
-                <label>Your Message</label>
-                <textarea rows={4} placeholder="Explain why you need more credits..." value={contactMsg} onChange={e => setContactMsg(e.target.value)} />
-              </div>
-              <button type="submit" className="btn-primary" disabled={contactStatus === "sending"}>
-                {contactStatus === "sending" ? "Sending..." : "Send Request"}
-              </button>
-              {contactStatus === "sent" && <p className="dash-success">Request sent!</p>}
-              {contactStatus === "error" && <p className="dash-error">Failed to send.</p>}
-            </form>
+            <Link to="/dashboard/contact" className="dash-btn dash-btn-primary">Go to Contact Page</Link>
           </div>
         )}
       </div>
