@@ -13,9 +13,9 @@ router = APIRouter(prefix="/api-keys", tags=["api-keys"])
 class IssueApiKeyRequest(BaseModel):
     email: str
     accepted_terms: bool
-    owner_id: str | None = None
+    owner_id: int | str | None = None
     label: str | None = None
-    terms_version: str | None = None
+    terms_version: str | None = "1.0"
 
 
 class RevokeApiKeyRequest(BaseModel):

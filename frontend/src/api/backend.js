@@ -227,7 +227,13 @@ export async function issueApiKey(payload) {
   const res = await fetch(`${API}/api-keys/issue`, {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify(payload),
+    body: JSON.stringify({
+      email: payload.email,
+      accepted_terms: payload.accepted_terms ?? true,
+      owner_id: payload.owner_id ? String(payload.owner_id) : null,
+      label: payload.label || null,
+      terms_version: payload.terms_version || "1.0"
+    }),
   });
   const data = await res.json();
   if (!res.ok) throw new Error(data.detail ?? `Issue API key error ${res.status}`);
