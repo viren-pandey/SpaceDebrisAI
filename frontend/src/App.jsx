@@ -20,7 +20,7 @@ import CascadeIntelligence from "./pages/CascadeIntelligence";
 import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
 import UserDashboard from "./pages/dashboard/Dashboard";
-import UserApiKeys from "./pages/dashboard/ApiKeys";
+import UserApiKeys from "./pages/dashboard/APIKeys";
 import UserUsage from "./pages/dashboard/Usage";
 import UserContact from "./pages/dashboard/Contact";
 import Docs from "./pages/Docs";
@@ -128,6 +128,7 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/shell-instability" element={<ShellInstability />} />
           <Route path="/cdm-timeline" element={<CDMTimeline />} />
           <Route path="/dashboard" element={<UserDashboard />} />
+          <Route path="/dashboard/profile" element={<UserProfile />} />
           <Route path="/dashboard/api-keys" element={<UserApiKeys />} />
           <Route path="/dashboard/usage" element={<UserUsage />} />
           <Route path="/dashboard/contact" element={<UserContact />} />

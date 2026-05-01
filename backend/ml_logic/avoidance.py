@@ -1,6 +1,5 @@
 from ml_logic.risk_engine import calculate_risk
 
-# altitude boost in km per risk level
 _DELTA = {
     "CRITICAL": 25.0,
     "HIGH":     15.0,
