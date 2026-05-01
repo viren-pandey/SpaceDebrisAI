@@ -21,7 +21,7 @@ import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
 import UserDashboard from "./pages/dashboard/Dashboard";
 import UserProfile from "./pages/dashboard/Profile";
-import UserApiKeys from "./pages/dashboard/APIKeys";
+import UserApiKeys from "./pages/dashboard/ApiKeys";
 import UserUsage from "./pages/dashboard/Usage";
 import UserContact from "./pages/dashboard/Contact";
 import Docs from "./pages/Docs";
