@@ -25,8 +25,8 @@ def _iso_now() -> str:
     return _utc_now().isoformat()
 
 
-def _clean_seed(seed: str) -> str:
-    alnum = "".join(ch for ch in seed.lower() if ch.isalnum())
+def _clean_seed(seed) -> str:
+    alnum = "".join(ch for ch in str(seed).lower() if ch.isalnum())
     return (alnum[:8] or "public").ljust(8, "0")
 
 
