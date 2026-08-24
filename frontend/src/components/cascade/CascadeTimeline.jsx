@@ -10,9 +10,9 @@ function getBandColor(level) {
     case "ADVISORY":
       return "#facc15";
     case "ELEVATED":
-      return "#38bdf8";
+      return "#22d3ee";
     default:
-      return "#4ade80";
+      return "#34d399";
   }
 }
 
@@ -63,7 +63,7 @@ export default function CascadeTimeline({ timeline, loading }) {
           <h2 className="ci-title">Cascade Effect Timeline</h2>
         </div>
         <div className="ci-timeline-legend">
-          <span><i style={{ background: "#38bdf8" }} /> Average ODRI</span>
+          <span><i style={{ background: "#22d3ee" }} /> Average ODRI</span>
           <span><i style={{ background: "#f87171" }} /> Critical threshold</span>
         </div>
       </div>
@@ -78,12 +78,12 @@ export default function CascadeTimeline({ timeline, loading }) {
                 <linearGradient id="ciLineFill" x1="0" x2="0" y1="0" y2="1">
                   <stop offset="0%" stopColor="rgba(248, 113, 113, 0.36)" />
                   <stop offset={`${chart.thresholdRatio * 100}%`} stopColor="rgba(248, 113, 113, 0.24)" />
-                  <stop offset={`${chart.thresholdRatio * 100}%`} stopColor="rgba(56, 189, 248, 0.24)" />
-                  <stop offset="100%" stopColor="rgba(56, 189, 248, 0.04)" />
+                  <stop offset={`${chart.thresholdRatio * 100}%`} stopColor="rgba(34, 211, 238, 0.24)" />
+                  <stop offset="100%" stopColor="rgba(34, 211, 238, 0.04)" />
                 </linearGradient>
               </defs>
               <rect x="0" y="0" width={width} height={chart.dangerY} fill="rgba(248, 113, 113, 0.06)" />
-              <rect x="0" y={chart.dangerY} width={width} height={height - chart.dangerY} fill="rgba(56, 189, 248, 0.03)" />
+              <rect x="0" y={chart.dangerY} width={width} height={height - chart.dangerY} fill="rgba(34, 211, 238, 0.03)" />
               <polygon points={chart.areaPoints} fill="url(#ciLineFill)" />
               <line x1={padding} x2={width - padding} y1={chart.dangerY} y2={chart.dangerY} stroke="#f87171" strokeDasharray="6 6" />
 
@@ -94,15 +94,15 @@ export default function CascadeTimeline({ timeline, loading }) {
                     x2={width - padding}
                     y1={chart.yFor(tick)}
                     y2={chart.yFor(tick)}
-                    stroke="rgba(122,143,168,0.16)"
+                    stroke="rgba(161,161,170,0.12)"
                   />
-                  <text x="6" y={chart.yFor(tick) + 4} fill="#7a8fa8" fontSize="11">
+                  <text x="6" y={chart.yFor(tick) + 4} fill="#a1a1aa" fontSize="11">
                     {tick.toFixed(2)}
                   </text>
                 </g>
               ))}
 
-              <polyline fill="none" stroke="#38bdf8" strokeWidth="4" points={chart.linePoints} strokeLinejoin="round" strokeLinecap="round" />
+              <polyline fill="none" stroke="#22d3ee" strokeWidth="4" points={chart.linePoints} strokeLinejoin="round" strokeLinecap="round" />
 
               {timeline.map((point, index) => (
                 <g key={point.date}>
@@ -115,7 +115,7 @@ export default function CascadeTimeline({ timeline, loading }) {
                     onMouseLeave={() => setHoveredIndex(null)}
                   />
                   {(index % 5 === 0 || index === timeline.length - 1) && (
-                    <text x={chart.xFor(index) - 12} y={height - 8} fill="#7a8fa8" fontSize="11">
+                    <text x={chart.xFor(index) - 12} y={height - 8} fill="#a1a1aa" fontSize="11">
                       {point.date.slice(5)}
                     </text>
                   )}

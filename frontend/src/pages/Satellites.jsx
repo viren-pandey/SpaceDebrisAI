@@ -1,6 +1,6 @@
 ﻿import { useState } from "react";
 import BackendOfflineNotice from "../components/BackendOfflineNotice";
-import { SAT_DB, PURPOSE_COLOR, RISK_ORDER } from "../data/satellites";
+import { SAT_DB, PURPOSE_COLOR, RISK_ORDER } from "../components/data/satellites";
 
 const RISK_COLOR = {
   CRITICAL: "#f87171",

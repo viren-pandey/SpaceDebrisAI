@@ -4,7 +4,9 @@ import bcrypt
 from datetime import datetime, timedelta
 from typing import Optional
 
-JWT_SECRET = os.getenv("JWT_SECRET", "spacedebrisai_secret_key_2026_change_in_production")
+JWT_SECRET = os.getenv("JWT_SECRET")
+if not JWT_SECRET:
+    raise RuntimeError("JWT_SECRET environment variable must be set")
 JWT_ALGORITHM = "HS256"
 JWT_EXPIRY_HOURS = 24 * 7
 

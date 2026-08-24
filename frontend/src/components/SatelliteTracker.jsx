@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from "react";
-import { SAT_DB } from "../data/satellites";
+import { SAT_DB } from "../components/data/satellites";
 
 const MAP_W = 1000;
 const MAP_H = 500;

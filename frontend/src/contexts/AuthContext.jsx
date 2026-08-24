@@ -1,6 +1,5 @@
 import { createContext, useContext, useEffect, useState } from "react";
 
-const OWNER_EMAIL = "pandeyviren68@gmail.com";
 const OWNER_MODE_KEY = "sdai_is_owner";
 const TOKEN_KEY = "sdai_token";
 const API_BASE = import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space";
@@ -24,7 +23,7 @@ export function AuthProvider({ children }) {
         if (data) {
           const u = { id: data.id, email: data.email, name: data.name };
           setUser(u);
-          const owner = Boolean(data.email?.toLowerCase() === OWNER_EMAIL.toLowerCase());
+          const owner = Boolean(data.is_owner === true);
           setIsOwner(owner);
           try { localStorage.setItem(OWNER_MODE_KEY, owner ? "1" : "0"); } catch {}
         }
@@ -68,7 +67,7 @@ export function AuthProvider({ children }) {
     const u = { id: data.user.id, email: data.user.email, name: data.user.name };
     setUser(u);
     if (data.token) saveToken(data.token);
-    const owner = Boolean(data.user.email?.toLowerCase() === OWNER_EMAIL.toLowerCase());
+    const owner = Boolean(data.user.is_owner === true);
     setIsOwner(owner);
     try { localStorage.setItem(OWNER_MODE_KEY, owner ? "1" : "0"); } catch {}
     return { error: null, data };
@@ -89,7 +88,7 @@ export function AuthProvider({ children }) {
     const u = { id: data.user.id, email: data.user.email, name: data.user.name };
     setUser(u);
     if (data.token) saveToken(data.token);
-    const owner = Boolean(data.user.email?.toLowerCase() === OWNER_EMAIL.toLowerCase());
+    const owner = Boolean(data.user.is_owner === true);
     setIsOwner(owner);
     try { localStorage.setItem(OWNER_MODE_KEY, owner ? "1" : "0"); } catch {}
     return { error: null, data };

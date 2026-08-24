@@ -5,6 +5,7 @@ import { AuthProvider } from "./contexts/AuthContext";
 import Footer from "./components/Footer";
 import Navbar from "./components/Navbar";
 import SatelliteBackground from "./components/SatelliteBackground";
+import SuperbrainWidget from "./components/SuperbrainWidget";
 import { fetchBackendHealth, fetchSimulation } from "./api/backend";
 import About from "./pages/About";
 import AdminBypass from "./pages/admin/Bypass";
@@ -15,7 +16,6 @@ import ApiPage from "./pages/ApiPage";
 import ApiTerms from "./pages/ApiTerms";
 import ChangeReport from "./pages/ChangeReport";
 import ConjunctionDetail from "./pages/ConjunctionDetail";
-import Contact from "./pages/Contact";
 import CascadeIntelligence from "./pages/CascadeIntelligence";
 import CDMTimeline from "./pages/CDMTimeline";
 import Dashboard from "./pages/Dashboard";
@@ -135,7 +135,6 @@ function AppShell({ theme, toggleTheme }) {
           <Route path="/dashboard/contact" element={<UserContact />} />
           <Route path="/login" element={<Login />} />
           <Route path="/about" element={<About />} />
-          <Route path="/contact" element={<Contact />} />
           <Route path="/admin/bypass" element={<AdminBypass />} />
           <Route path="/admin/login" element={<AdminLogin />} />
           <Route path="/admin" element={<AdminDashboard />} />
@@ -146,6 +145,7 @@ function AppShell({ theme, toggleTheme }) {
         </Routes>
       </main>
       <Footer />
+      <SuperbrainWidget />
       <Analytics />
     </div>
   );

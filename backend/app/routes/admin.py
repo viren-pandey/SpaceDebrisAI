@@ -3,11 +3,33 @@ from pydantic import BaseModel
 from datetime import datetime
 import json
 import os
+from fastapi import Depends
+from app.auth import create_token
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-ADMIN_KEY = os.getenv("USAGE_ADMIN_KEY", "asdfA1234@99")
+ADMIN_KEY = os.getenv("USAGE_ADMIN_KEY")
+if not ADMIN_KEY:
+    raise RuntimeError("USAGE_ADMIN_KEY environment variable must be set")
+
+ADMIN_EMAIL = os.getenv("ADMIN_EMAIL")
+ADMIN_PASSWORD_HASH = os.getenv("ADMIN_PASSWORD_HASH")
+if not ADMIN_EMAIL or not ADMIN_PASSWORD_HASH:
+    raise RuntimeError("ADMIN_EMAIL and ADMIN_PASSWORD_HASH must be set")
+
 DATA_DIR = os.path.join(os.path.dirname(__file__), "../../data")
+
+class AdminLoginRequest(BaseModel):
+    email: str
+    password: str
+
+@router.post("/login")
+def admin_login(credentials: AdminLoginRequest):
+    from app.auth import verify_password
+    if credentials.email != ADMIN_EMAIL or not verify_password(credentials.password, ADMIN_PASSWORD_HASH):
+        raise HTTPException(401, {"error": "Invalid credentials"})
+    token = create_token(ADMIN_EMAIL)
+    return {"token": token, "user": {"email": ADMIN_EMAIL, "is_owner": True}}
 
 def check_admin_key(x_admin_key: str):
     if x_admin_key != ADMIN_KEY:

@@ -1,6 +1,6 @@
 import { useLocation, useNavigate, Link } from "react-router-dom";
 import { useEffect, useState } from "react";
-import { SAT_DB } from "../data/satellites";
+import { SAT_DB } from "../components/data/satellites";
 import { fetchSimulation } from "../api/backend";
 
 const LC_MAP = { CRITICAL: "crit", HIGH: "high", MEDIUM: "med", LOW: "low" };

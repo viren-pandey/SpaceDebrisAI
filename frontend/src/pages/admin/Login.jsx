@@ -1,9 +1,7 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 
-const ADMIN_EMAIL = import.meta.env.VITE_ADMIN_EMAIL;
-const ADMIN_PASSWORD = import.meta.env.VITE_ADMIN_PASSWORD;
-const ADMIN_KEY = import.meta.env.VITE_ADMIN_KEY;
+const API_URL = import.meta.env.VITE_API_URL || "https://virenn77-spacedebrisai.hf.space";
 
 export default function AdminLogin() {
   const navigate = useNavigate();
@@ -12,23 +10,28 @@ export default function AdminLogin() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
 
-  useEffect(() => {
-    if (sessionStorage.getItem("bypass_authenticated") !== "true") {
-      navigate("/admin/bypass");
-    }
-  }, [navigate]);
-
   async function handleLogin(e) {
     e.preventDefault();
     setError("");
     setLoading(true);
 
-    if (email === ADMIN_EMAIL && password === ADMIN_PASSWORD) {
-      sessionStorage.setItem("admin_authenticated", "true");
-      localStorage.setItem("admin_key", ADMIN_KEY);
-      navigate("/admin");
-    } else {
-      setError("Invalid credentials");
+    try {
+      const res = await fetch(`${API_URL}/admin/login`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ email, password }),
+      });
+
+      if (res.ok) {
+        navigate("/admin");
+      } else {
+        const data = await res.json().catch(() => ({}));
+        setError(data.error || data.detail || "Invalid credentials");
+      }
+    } catch {
+      setError("Login failed. Please try again.");
+    } finally {
       setLoading(false);
     }
   }

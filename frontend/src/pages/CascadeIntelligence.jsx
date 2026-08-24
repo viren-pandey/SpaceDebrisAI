@@ -111,7 +111,6 @@ function buildTimeline(snapshot, baseAverage) {
       risk_level: point.risk_level ?? getRiskLevel(point.projected_odri),
     }));
   }
-
   const today = new Date();
   return Array.from({ length: 31 }, (_, index) => {
     const next = new Date(today);
@@ -136,7 +135,6 @@ function buildDomainCards(satellitesPayload, simulationPayload, snapshot, stats)
   const projectedAverage = averageOf(items, (item) => item.projected_odri ?? item.odri ?? 0);
   const warnings = stats.activeWarnings;
   const shellDensity = summary.average_shell_density ?? 0;
-
   const commBand = satellites.filter((sat) => (sat.alt_km ?? 0) >= 550 && (sat.alt_km ?? 0) <= 1200);
   const leoConstellations = items.filter((item) => {
     const name = normalizeName(item.object_name);
@@ -239,6 +237,13 @@ function writeCachedCascadeState(nextState) {
     // Ignore storage quota or serialization failures.
   }
 }
+
+const SUGGESTIONS = [
+  "What is the biggest debris risk right now?",
+  "How does Kessler syndrome affect GPS?",
+  "Will Starlink collisions increase?",
+  "Explain the current ODRI snapshot",
+];
 
 function CascadeIntelligenceContent() {
   const cachedState = useMemo(() => readCachedCascadeState(), []);
@@ -409,37 +414,42 @@ function CascadeIntelligenceContent() {
 
   return (
     <div className="ci-page ci-page--enter">
+      {/* ── Hero stats ── */}
       <section className="page-hero ci-hero">
         <div className="ci-hero-top">
           <div>
-            <p className="page-hero-eyebrow">Live ODRI Snapshot | Cascade Analysis | Earth Impact View</p>
+            <p className="page-hero-eyebrow">Live ODRI Snapshot · Cascade Analysis · Earth Impact View</p>
             <h1 className="page-hero-title">
               Cascade
               <br />
-              <span style={{ color: "var(--accent)" }}>Intelligence</span>
+              <span style={{
+                background: "linear-gradient(135deg, var(--accent), #a78bfa)",
+                WebkitBackgroundClip: "text",
+                WebkitTextFillColor: "transparent",
+                backgroundClip: "text",
+              }}>Intelligence</span>
             </h1>
             <p className="page-hero-sub">
-              Ask how orbital debris affects life on Earth, grounded in live ODRI scores, shell density, and conjunction pressure.
+              Ask how orbital debris affects life on Earth — grounded in live ODRI scores, shell density, and conjunction pressure.
             </p>
           </div>
-
           <button type="button" className="ci-refresh" onClick={() => loadAllData()} disabled={refreshing}>
-            {refreshing ? "Refreshing..." : "Refresh"}
+            {refreshing ? "Refreshing..." : "↻ Refresh"}
           </button>
         </div>
 
         <div className="ci-hero-stats">
           <div className={`ci-stat${loading ? " ci-stat--loading" : ""}`}>
             <span className="ci-stat-value">{loading && !satellitesPayload ? "..." : stats.trackedObjects.toLocaleString()}</span>
-            <span className="ci-stat-label">tracked objects</span>
+            <span className="ci-stat-label">Tracked Objects</span>
           </div>
           <div className={`ci-stat${loading ? " ci-stat--loading" : ""}`}>
             <span className="ci-stat-value">{loading && !snapshot ? "..." : stats.averageOdri.toFixed(3)}</span>
-            <span className="ci-stat-label">average ODRI</span>
+            <span className="ci-stat-label">Average ODRI</span>
           </div>
           <div className={`ci-stat${loading ? " ci-stat--loading" : ""}`}>
             <span className="ci-stat-value">{loading && !snapshot ? "..." : stats.activeWarnings}</span>
-            <span className="ci-stat-label">active warnings</span>
+            <span className="ci-stat-label">Active Warnings</span>
           </div>
         </div>
 
@@ -450,64 +460,10 @@ function CascadeIntelligenceContent() {
         </div>
       </section>
 
-      <section className="ci-shell">
-        <aside className="ci-side ci-side--left">
-          <div className="ci-panel">
-            <div className="ci-panel-head">
-              <div>
-                <p className="ci-kicker">Highest Risk Objects</p>
-                <h2 className="ci-title">Current Leaders</h2>
-              </div>
-            </div>
-            <div className="ci-object-list">
-              {loading && !leaders.length
-                ? Array.from({ length: 5 }, (_, index) => <LeaderSkeleton key={index} />)
-                : !leaders.length && !loading
-                ? <div className="ci-empty">No data available. Check API connection.</div>
-                : leaders.map((item) => (
-                    <div key={item.satId} className="ci-object-card">
-                      <div>
-                        <div className="ci-object-name">{item.objectName}</div>
-                        <div className="ci-object-meta">
-                          <span className="ci-object-id">NORAD {item.noradId}</span>
-                          <span className="ci-object-alt">{item.altitudeKm ? `${Math.round(item.altitudeKm)} km` : "Altitude pending"}</span>
-                        </div>
-                      </div>
-                      <div className="ci-object-score">
-                        <strong>{item.odri.toFixed(3)}</strong>
-                        <span>{item.riskLevel}</span>
-                        <i className={`ci-object-trend ci-object-trend--${item.trend}`}>{item.trend}</i>
-                      </div>
-                    </div>
-                  ))}
-            </div>
-          </div>
-
-          <div className="ci-panel ci-brief">
-            <div className="ci-panel-head">
-              <div>
-                <p className="ci-kicker">Analyst Feed</p>
-                <h2 className="ci-title">Mission Brief</h2>
-              </div>
-            </div>
-            <div className="ci-brief-list">
-              <div className="ci-brief-item">
-                <span className="ci-brief-label">Top threat</span>
-                <strong>{leaders[0]?.objectName ?? "Pending live data"}</strong>
-              </div>
-              <div className="ci-brief-item">
-                <span className="ci-brief-label">Network state</span>
-                <strong>{getRiskLevel(stats.averageOdri)}</strong>
-              </div>
-              <div className="ci-brief-item">
-                <span className="ci-brief-label">Conjunction pressure</span>
-                <strong>{simulationPayload?.closest_pairs?.length ?? 0} screened pairs in focus</strong>
-              </div>
-            </div>
-          </div>
-        </aside>
-
-        <article className="ci-panel ci-panel--chat">
+      {/* ── Two-column dashboard: Chat (main) + Sidebar ── */}
+      <section className="ci-dashboard">
+        {/* Left: Chat */}
+        <article className="ci-panel ci-chat-panel">
           <div className="ci-panel-head">
             <div>
               <p className="ci-kicker">AI Debris Briefing</p>
@@ -515,7 +471,7 @@ function CascadeIntelligenceContent() {
             </div>
             {chatHistory.length ? (
               <span className="ci-badge">
-                Risk relevance {(((chatHistory.at(-1)?.riskRelevance ?? 0) * 100)).toFixed(0)}%
+                Risk {(((chatHistory.at(-1)?.riskRelevance ?? 0) * 100)).toFixed(0)}%
               </span>
             ) : null}
           </div>
@@ -530,23 +486,35 @@ function CascadeIntelligenceContent() {
             <textarea
               value={question}
               onChange={(event) => setQuestion(event.target.value)}
-              rows={4}
+              rows={3}
               placeholder="Ask anything about debris cascading..."
               className="ci-textarea"
             />
             <div className="ci-form-row">
-              <div className="ci-form-note">Live orbital analyst grounded in current ODRI, shell density, and conjunction data</div>
+              <span className="ci-form-note">Grounded in live ODRI & conjunction data</span>
               <button type="submit" disabled={asking || !question.trim()} className="ci-submit">
                 {asking ? "Analyzing..." : "Ask AI"}
               </button>
             </div>
           </form>
 
-          <div className="ci-answer">
+          <div className="ci-chat-area">
             {!chatHistory.length && !asking ? (
               <div className="ci-empty">
-                <p>No questions yet.</p>
-                <span>The console keeps a running chat history and grounds each answer in current orbital risk data.</span>
+                <p>Ask the Cascade Intelligence agent</p>
+                <span>Grounded in live ODRI scores, conjunction pressure, and shell density data.</span>
+                <div className="ci-chip-row">
+                  {SUGGESTIONS.map((suggestion) => (
+                    <button
+                      key={suggestion}
+                      type="button"
+                      className="ci-chip"
+                      onClick={() => setQuestion(suggestion)}
+                    >
+                      {suggestion}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <div className="ci-chat-history">
@@ -563,9 +531,7 @@ function CascadeIntelligenceContent() {
                           </div>
                           {entry.loading ? (
                             <div className="ci-typing" aria-label="AI is typing">
-                              <span />
-                              <span />
-                              <span />
+                              <span /><span /><span />
                             </div>
                           ) : (
                             <CascadeMarkdown markdown={entry.content} />
@@ -582,20 +548,68 @@ function CascadeIntelligenceContent() {
           </div>
         </article>
 
-        <aside className="ci-side ci-side--right">
-          <div className="ci-panel">
-            <div className="ci-panel-head">
-              <div>
-                <p className="ci-kicker">Live ODRI</p>
-                <h2 className="ci-title">Cascade Effect Cards</h2>
+        {/* Right: Dashboard sidebar */}
+        <aside className="ci-sidebar">
+          {/* Top risk objects */}
+          <div className="ci-panel ci-side-panel">
+            <div className="ci-panel-head ci-panel-head--compact">
+              <p className="ci-kicker">Top Risk Objects</p>
+            </div>
+            <div className="ci-object-list">
+              {loading && !leaders.length
+                ? Array.from({ length: 5 }, (_, index) => <LeaderSkeleton key={index} />)
+                : !leaders.length && !loading
+                ? <div className="ci-empty" style={{ minHeight: "auto", padding: "12px 0" }}>No data available.</div>
+                : leaders.map((item) => (
+                    <div key={item.satId} className="ci-object-card">
+                      <div className="ci-object-info">
+                        <div className="ci-object-name">{item.objectName}</div>
+                        <div className="ci-object-meta">
+                          <span className="ci-object-id">NORAD {item.noradId}</span>
+                          <span className="ci-object-alt">{item.altitudeKm ? `${Math.round(item.altitudeKm)} km` : "—"}</span>
+                        </div>
+                      </div>
+                      <div className="ci-object-score">
+                        <strong>{item.odri.toFixed(3)}</strong>
+                        <span>{item.riskLevel}</span>
+                      </div>
+                    </div>
+                  ))}
+            </div>
+          </div>
+
+          {/* Mission brief */}
+          <div className="ci-panel ci-side-panel">
+            <div className="ci-panel-head ci-panel-head--compact">
+              <p className="ci-kicker">Mission Brief</p>
+            </div>
+            <div className="ci-brief-list">
+              <div className="ci-brief-item">
+                <span className="ci-brief-label">Top threat</span>
+                <strong>{leaders[0]?.objectName ?? "Pending"}</strong>
               </div>
-              <div className="ci-updated">Updated {formatTime(updatedAt)}</div>
+              <div className="ci-brief-item">
+                <span className="ci-kicker">Network state</span>
+                <strong>{getRiskLevel(stats.averageOdri)}</strong>
+              </div>
+              <div className="ci-brief-item">
+                <span className="ci-brief-label">Conjunctions</span>
+                <strong>{simulationPayload?.closest_pairs?.length ?? 0} pairs</strong>
+              </div>
+            </div>
+          </div>
+
+          {/* Domain risk cards */}
+          <div className="ci-panel ci-side-panel">
+            <div className="ci-panel-head ci-panel-head--compact">
+              <p className="ci-kicker">Domain Risk</p>
             </div>
             <CascadeRiskCards cards={cards} loading={loading && !snapshot && !simulationPayload} />
           </div>
         </aside>
       </section>
 
+      {/* ── Timeline ── */}
       <CascadeTimeline timeline={timeline} loading={loading && !snapshot} />
     </div>
   );

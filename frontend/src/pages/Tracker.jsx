@@ -10,7 +10,7 @@ import {
 } from "react-simple-maps";
 
 import { fetchTrackerPositions } from "../api/backend";
-import { SAT_DB } from "../data/satellites";
+import { SAT_DB } from "../components/data/satellites";
 
 const GEO_URL = "https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json";
 

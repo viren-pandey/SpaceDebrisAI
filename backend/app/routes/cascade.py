@@ -17,6 +17,7 @@ class CascadeContextRequest(BaseModel):
 class CascadeAskRequest(BaseModel):
     question: str = Field(min_length=3, max_length=2000)
     context: CascadeContextRequest = Field(default_factory=CascadeContextRequest)
+    system_prompt: str | None = None
 
 
 @router.post("/ask")
@@ -30,4 +31,5 @@ async def cascade_ask(payload: CascadeAskRequest):
         question=payload.question,
         snapshot=snapshot,
         include_live_odri=payload.context.include_live_odri,
+        system_prompt=payload.system_prompt,
     )
